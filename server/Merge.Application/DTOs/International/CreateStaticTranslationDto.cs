@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.DTOs.International;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record CreateStaticTranslationDto(
     [Required]
     [StringLength(200, MinimumLength = 1, ErrorMessage = "Anahtar gereklidir ve en fazla 200 karakter olmalıdır.")]

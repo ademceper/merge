@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Support.Commands.UpdateCustomerCommunicationStatus;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class UpdateCustomerCommunicationStatusCommandValidator : AbstractValidator<UpdateCustomerCommunicationStatusCommand>
 {
     public UpdateCustomerCommunicationStatusCommandValidator()

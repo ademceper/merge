@@ -12,7 +12,6 @@ public class SupportMappingProfile : Profile
     public SupportMappingProfile()
     {
         // Support Domain Mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs)
         CreateMap<SupportTicket, SupportTicketDto>()
         .ConvertUsing((src, context) =>
         {
@@ -127,7 +126,6 @@ public class SupportMappingProfile : Profile
         }
         catch
         {
-        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
         }
         }
 

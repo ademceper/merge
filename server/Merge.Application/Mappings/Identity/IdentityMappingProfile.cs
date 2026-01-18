@@ -10,7 +10,6 @@ public class IdentityMappingProfile : Profile
 {
     public IdentityMappingProfile()
     {
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<UserEntity, UserDto>()
             .ConstructUsing(src => new UserDto(
                 src.Id,

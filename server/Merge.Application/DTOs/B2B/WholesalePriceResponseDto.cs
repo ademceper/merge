@@ -1,9 +1,7 @@
 using Merge.Domain.Modules.Payment;
 namespace Merge.Application.DTOs.B2B;
 
-/// <summary>
-/// WholesalePrice Response DTO - BOLUM 3.1: ProducesResponseType (ZORUNLU)
-/// </summary>
+
 public class WholesalePriceResponseDto
 {
     public Guid ProductId { get; set; }

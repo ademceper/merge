@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.UpdateSizeGuide;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateSizeGuideCommandHandler> logger, ICacheService cache) : IRequestHandler<UpdateSizeGuideCommand, bool>
 {
 
@@ -40,7 +39,6 @@ public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
             // Store old category ID for cache invalidation
             var oldCategoryId = sizeGuide.CategoryId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             sizeGuide.Update(
                 request.Name,
                 request.Description,
@@ -59,7 +57,6 @@ public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
             // Add new entries
             foreach (var entryDto in request.Entries)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                 var entry = SizeGuideEntry.Create(
                     sizeGuide.Id,
                     entryDto.SizeLabel,
@@ -79,11 +76,9 @@ public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
                 sizeGuide.AddEntry(entry);
             }
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
             if (oldCategoryId != request.CategoryId)

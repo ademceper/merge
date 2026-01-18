@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.AwardSellerBadge;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AwardSellerBadgeCommandHandler> logger) : IRequestHandler<AwardSellerBadgeCommand, SellerTrustBadgeDto>
 {
 
@@ -29,7 +28,6 @@ public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unit
 
         if (existing != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             existing.Activate();
             existing.UpdateAwardedAt(DateTime.UtcNow);
             existing.UpdateExpiryDate(request.ExpiresAt);
@@ -37,7 +35,6 @@ public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unit
         }
         else
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var sellerBadge = SellerTrustBadge.Create(
                 request.SellerId,
                 request.BadgeId,

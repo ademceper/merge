@@ -13,14 +13,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetAllEmailTemplates;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetAllEmailTemplatesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllEmailTemplatesQuery, PagedResult<EmailTemplateDto>>
 {
     public async Task<PagedResult<EmailTemplateDto>> Handle(GetAllEmailTemplatesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<EmailTemplate> query = context.Set<EmailTemplate>()
             .AsNoTracking()
             .Where(t => t.IsActive);

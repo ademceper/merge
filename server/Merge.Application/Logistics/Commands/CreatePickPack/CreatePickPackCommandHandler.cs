@@ -16,9 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CreatePickPack;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CreatePickPackCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -30,7 +27,6 @@ public class CreatePickPackCommandHandler(
     {
         logger.LogInformation("Creating pick-pack. OrderId: {OrderId}, WarehouseId: {WarehouseId}", request.OrderId, request.WarehouseId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var order = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -42,7 +38,6 @@ public class CreatePickPackCommandHandler(
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if warehouse exists
         var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.WarehouseId && w.IsActive, cancellationToken);
@@ -53,7 +48,6 @@ public class CreatePickPackCommandHandler(
             throw new NotFoundException("Depo", request.WarehouseId);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if pick pack already exists
         var existing = await context.Set<PickPack>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pp => pp.OrderId == request.OrderId, cancellationToken);
@@ -66,7 +60,6 @@ public class CreatePickPackCommandHandler(
 
         var packNumber = await GeneratePackNumberAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var pickPack = PickPack.Create(
             request.OrderId,
             request.WarehouseId,
@@ -76,11 +69,9 @@ public class CreatePickPackCommandHandler(
         await context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
 
         // Create pick pack items from order items
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
         var items = new List<PickPackItem>(order.OrderItems.Count);
         foreach (var orderItem in order.OrderItems)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var pickPackItem = PickPackItem.Create(
                 pickPack.Id,
                 orderItem.Id,
@@ -111,14 +102,12 @@ public class CreatePickPackCommandHandler(
 
         logger.LogInformation("Pick-pack created successfully. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<PickPackDto>(createdPickPack);
     }
 
     private async Task<string> GeneratePackNumberAsync(CancellationToken cancellationToken)
     {
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var existingCount = await context.Set<PickPack>()
             .AsNoTracking()
             .CountAsync(pp => pp.PackNumber.StartsWith($"PK-{date}"), cancellationToken);

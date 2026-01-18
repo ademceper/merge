@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// PaymentMethod Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record PaymentMethodCreatedEvent(
     Guid PaymentMethodId,
     string Name,

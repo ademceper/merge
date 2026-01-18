@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetTopReviewedProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetTopReviewedProductsQueryHandler(
     IDbContext context,
     ILogger<GetTopReviewedProductsQueryHandler> logger,
@@ -27,13 +25,8 @@ public class GetTopReviewedProductsQueryHandler(
     {
         logger.LogInformation("Fetching top reviewed products. Limit: {Limit}", request.Limit);
 
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
         var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)

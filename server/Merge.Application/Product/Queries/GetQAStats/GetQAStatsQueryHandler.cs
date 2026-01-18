@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetQAStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetQAStatsQuery, QAStatsDto>
 {
     private readonly CacheSettings cacheConfig = cacheSettings.Value;
@@ -26,7 +24,6 @@ public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryH
     {
         logger.LogInformation("Fetching QA stats. ProductId: {ProductId}", request.ProductId);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_QA_STATS}{request.ProductId ?? Guid.Empty}";
         var cachedStats = await cache.GetAsync<QAStatsDto>(cacheKey, cancellationToken);
         if (cachedStats != null)
@@ -37,7 +34,6 @@ public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryH
 
         logger.LogInformation("Cache miss for QA stats. Fetching from database.");
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var query = context.Set<ProductQuestion>().AsNoTracking();
 
         if (request.ProductId.HasValue)
@@ -52,7 +48,6 @@ public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryH
             .AsNoTracking()
             .CountAsync(a => request.ProductId == null || a.Question.ProductId == request.ProductId.Value, cancellationToken);
 
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var stats = new QAStatsDto(
             TotalQuestions: totalQuestions,
             TotalAnswers: totalAnswers,
@@ -63,8 +58,6 @@ public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryH
             MostHelpfulQuestions: Array.Empty<ProductQuestionDto>()
         );
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, stats, TimeSpan.FromMinutes(cacheConfig.QAStatsCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Retrieved QA stats. ProductId: {ProductId}, TotalQuestions: {TotalQuestions}, TotalAnswers: {TotalAnswers}",

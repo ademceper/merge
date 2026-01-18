@@ -46,11 +46,15 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.B2B;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// B2B API endpoints.
+/// B2B kullanıcıları, siparişler ve fiyatlandırma işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/b2b")]
 [Authorize]
+[Tags("B2B")]
 public class B2BController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -72,8 +76,6 @@ public class B2BController(
         [FromBody] CreateB2BUserDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var command = new CreateB2BUserCommand(
             dto.UserId,
             dto.OrganizationId,
@@ -85,11 +87,7 @@ public class B2BController(
         
         var b2bUser = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
-        
-        return CreatedAtAction(nameof(GetB2BUser), new { id = b2bUser.Id }, new { b2bUser, _links = links });
+        return CreatedAtAction(nameof(GetB2BUser), new { id = b2bUser.Id }, b2bUser);
     }
 
     /// <summary>
@@ -106,27 +104,21 @@ public class B2BController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetB2BUserByIdQuery(id);
         var b2bUser = await mediator.Send(query, cancellationToken);
         
         if (b2bUser == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var userId = GetUserId();
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         if (b2bUser.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
 
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
-        
-        return Ok(new { b2bUser, _links = links });
+        return Ok(b2bUser);
     }
 
     /// <summary>
@@ -140,21 +132,16 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<B2BUserDto>> GetMyB2BProfile(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var query = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(query, cancellationToken);
         
         if (b2bUser == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
-        
-        return Ok(new { b2bUser, _links = links });
+        return Ok(b2bUser);
     }
 
     /// <summary>
@@ -174,20 +161,12 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetOrganizationB2BUsersQuery(organizationId, status, page, pageSize);
         var users = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)users.TotalCount / users.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationB2BUsers", users.Page, users.PageSize, totalPages, new { version, organizationId, status }, version);
-        
-        return Ok(new { users.Items, users.TotalCount, users.Page, users.PageSize, _links = links });
+        return Ok(users);
     }
 
     /// <summary>
@@ -204,8 +183,6 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateB2BUser(Guid id, [FromBody] UpdateB2BUserDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByIdQuery(id);
@@ -213,10 +190,9 @@ public class B2BController(
         
         if (b2bUser == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         // Admin/Manager rolü varsa tüm B2B kullanıcıları güncelleyebilir
         // Normal kullanıcı sadece kendi B2B profilini güncelleyebilir
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && b2bUser.UserId != userId)
@@ -229,7 +205,7 @@ public class B2BController(
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -247,14 +223,13 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ApproveB2BUser(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
         var command = new ApproveB2BUserCommand(id, approvedBy);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -273,17 +248,11 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<WholesalePriceDto>> CreateWholesalePrice([FromBody] CreateWholesalePriceDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateWholesalePriceCommand(dto);
         var price = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateWholesalePriceLinks(Url, price.Id, price.ProductId, version);
-        
-        return CreatedAtAction(nameof(GetProductWholesalePrices), new { productId = price.ProductId }, new { price, _links = links });
+        return CreatedAtAction(nameof(GetProductWholesalePrices), new { productId = price.ProductId }, price);
     }
 
     /// <summary>
@@ -302,20 +271,12 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetProductWholesalePricesQuery(productId, organizationId, page, pageSize);
         var prices = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)prices.TotalCount / prices.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetProductWholesalePrices", prices.Page, prices.PageSize, totalPages, new { version, productId, organizationId }, version);
-        
-        return Ok(new { prices.Items, prices.TotalCount, prices.Page, prices.PageSize, _links = links });
+        return Ok(prices);
     }
 
     /// <summary>
@@ -333,8 +294,6 @@ public class B2BController(
         [FromQuery] Guid? organizationId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel validation gereksiz
         var query = new GetWholesalePriceQuery(productId, quantity, organizationId);
         var price = await mediator.Send(query, cancellationToken);
         
@@ -346,11 +305,7 @@ public class B2BController(
             Price = price
         };
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetWholesalePrice", new { version, productId, quantity, organizationId }, version);
-        
-        return Ok(new { response, _links = links });
+        return Ok(response);
     }
 
     /// <summary>
@@ -370,14 +325,12 @@ public class B2BController(
         [FromBody] CreateWholesalePriceDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateWholesalePriceCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -408,7 +361,7 @@ public class B2BController(
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -426,13 +379,12 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteWholesalePrice(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteWholesalePriceCommand(id);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -451,17 +403,11 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CreditTermDto>> CreateCreditTerm([FromBody] CreateCreditTermDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateCreditTermCommand(dto);
         var creditTerm = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateCreditTermLinks(Url, creditTerm.Id, version);
-        
-        return CreatedAtAction(nameof(GetOrganizationCreditTerms), new { organizationId = creditTerm.OrganizationId }, new { creditTerm, _links = links });
+        return CreatedAtAction(nameof(GetOrganizationCreditTerms), new { organizationId = creditTerm.OrganizationId }, creditTerm);
     }
 
     /// <summary>
@@ -481,8 +427,6 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -490,7 +434,6 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
         if (b2bUser == null || (b2bUser.OrganizationId != organizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
@@ -498,13 +441,7 @@ public class B2BController(
 
         var query = new GetOrganizationCreditTermsQuery(organizationId, isActive, page, pageSize);
         var creditTerms = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)creditTerms.TotalCount / creditTerms.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationCreditTerms", creditTerms.Page, creditTerms.PageSize, totalPages, new { version, organizationId, isActive }, version);
-        
-        return Ok(new { creditTerms.Items, creditTerms.TotalCount, creditTerms.Page, creditTerms.PageSize, _links = links });
+        return Ok(creditTerms);
     }
 
     /// <summary>
@@ -518,30 +455,24 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CreditTermDto>> GetCreditTerm(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCreditTermByIdQuery(id);
         var creditTerm = await mediator.Send(query, cancellationToken);
         
         if (creditTerm == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
         if (b2bUser == null || (creditTerm.OrganizationId != b2bUser.OrganizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
         }
 
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateCreditTermLinks(Url, creditTerm.Id, version);
-        
-        return Ok(new { creditTerm, _links = links });
+        return Ok(creditTerm);
     }
 
     /// <summary>
@@ -561,14 +492,12 @@ public class B2BController(
         [FromBody] CreateCreditTermDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditTermCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -599,7 +528,7 @@ public class B2BController(
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -617,13 +546,12 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteCreditTerm(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteCreditTermCommand(id);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -640,8 +568,6 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> CreatePurchaseOrder([FromBody] CreatePurchaseOrderDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
@@ -655,11 +581,7 @@ public class B2BController(
         var command = new CreatePurchaseOrderCommand(b2bUser.Id, dto);
         var po = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
-        
-        return CreatedAtAction(nameof(GetPurchaseOrder), new { id = po.Id }, new { po, _links = links });
+        return CreatedAtAction(nameof(GetPurchaseOrder), new { id = po.Id }, po);
     }
 
     /// <summary>
@@ -674,17 +596,15 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> GetPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
@@ -693,11 +613,7 @@ public class B2BController(
             return Forbid();
         }
 
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
-        
-        return Ok(new { po, _links = links });
+        return Ok(po);
     }
 
     /// <summary>
@@ -712,17 +628,15 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> GetPurchaseOrderByPONumber(string poNumber, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByPONumberQuery(poNumber);
         var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
@@ -731,11 +645,7 @@ public class B2BController(
             return Forbid();
         }
 
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
-        
-        return Ok(new { po, _links = links });
+        return Ok(po);
     }
 
     /// <summary>
@@ -756,20 +666,12 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetOrganizationPurchaseOrdersQuery(organizationId, status, page, pageSize);
         var pos = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)pos.TotalCount / pos.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationPurchaseOrders", pos.Page, pos.PageSize, totalPages, new { version, organizationId, status }, version);
-        
-        return Ok(new { pos.Items, pos.TotalCount, pos.Page, pos.PageSize, _links = links });
+        return Ok(pos);
     }
 
     /// <summary>
@@ -788,8 +690,6 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -799,18 +699,12 @@ public class B2BController(
         
         if (b2bUser == null)
         {
-            return BadRequest();
+            return Problem("Invalid request", "Bad Request", StatusCodes.Status400BadRequest);
         }
 
         var query = new GetB2BUserPurchaseOrdersQuery(b2bUser.Id, status, page, pageSize);
         var pos = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)pos.TotalCount / pos.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetMyPurchaseOrders", pos.Page, pos.PageSize, totalPages, new { version, status }, version);
-        
-        return Ok(new { pos.Items, pos.TotalCount, pos.Page, pos.PageSize, _links = links });
+        return Ok(pos);
     }
 
     /// <summary>
@@ -826,17 +720,15 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SubmitPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only submit their own purchase orders
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
@@ -868,7 +760,6 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ApprovePurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
         var command = new ApprovePurchaseOrderCommand(id, approvedBy);
         var success = await mediator.Send(command, cancellationToken);
@@ -893,8 +784,6 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RejectPurchaseOrder(Guid id, [FromBody] RejectPODto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new RejectPurchaseOrderCommand(id, dto.Reason);
         var success = await mediator.Send(command, cancellationToken);
@@ -919,17 +808,15 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> CancelPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only cancel their own purchase orders
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
@@ -962,17 +849,11 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<VolumeDiscountDto>> CreateVolumeDiscount([FromBody] CreateVolumeDiscountDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateVolumeDiscountCommand(dto);
         var discount = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateVolumeDiscountLinks(Url, discount.Id, discount.ProductId, version);
-        
-        return CreatedAtAction(nameof(GetVolumeDiscounts), new { productId = discount.ProductId }, new { discount, _links = links });
+        return CreatedAtAction(nameof(GetVolumeDiscounts), new { productId = discount.ProductId }, discount);
     }
 
     /// <summary>
@@ -992,20 +873,12 @@ public class B2BController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetVolumeDiscountsQuery(productId, categoryId, organizationId, page, pageSize);
         var discounts = await mediator.Send(query, cancellationToken);
-        
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var totalPages = (int)Math.Ceiling((double)discounts.TotalCount / discounts.PageSize);
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetVolumeDiscounts", discounts.Page, discounts.PageSize, totalPages, new { version, productId, categoryId, organizationId }, version);
-        
-        return Ok(new { discounts.Items, discounts.TotalCount, discounts.Page, discounts.PageSize, _links = links });
+        return Ok(discounts);
     }
 
     /// <summary>
@@ -1025,14 +898,12 @@ public class B2BController(
         [FromBody] CreateVolumeDiscountDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateVolumeDiscountCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1063,7 +934,7 @@ public class B2BController(
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1081,13 +952,12 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteVolumeDiscount(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteVolumeDiscountCommand(id);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1113,7 +983,7 @@ public class B2BController(
         
         if (b2bUser == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && b2bUser.UserId != userId)
@@ -1133,7 +1003,7 @@ public class B2BController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1151,13 +1021,12 @@ public class B2BController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteB2BUser(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteB2BUserCommand(id);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1177,16 +1046,10 @@ public class B2BController(
         [FromQuery] Guid? organizationId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new CalculateVolumeDiscountQuery(productId, quantity, organizationId);
         var discount = await mediator.Send(query, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "CalculateVolumeDiscount", new { version, productId, quantity, organizationId }, version);
-        
-        return Ok(new { discount, _links = links });
+        return Ok(discount);
     }
 
     /// <summary>
@@ -1206,14 +1069,12 @@ public class B2BController(
         [FromBody] UpdateCreditUsageDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditUsageCommand(id, dto.Amount);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -1249,7 +1110,7 @@ public class B2BController(
         
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

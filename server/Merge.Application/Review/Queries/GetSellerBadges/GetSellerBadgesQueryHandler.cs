@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetSellerBadges;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerBadgesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerBadgesQueryHandler> logger) : IRequestHandler<GetSellerBadgesQuery, IEnumerable<SellerTrustBadgeDto>>
 {
 
@@ -21,8 +20,6 @@ public class GetSellerBadgesQueryHandler(IDbContext context, IMapper mapper, ILo
     {
         logger.LogInformation("Fetching seller badges. SellerId: {SellerId}", request.SellerId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !stb.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var badges = await context.Set<SellerTrustBadge>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -32,7 +29,6 @@ public class GetSellerBadgesQueryHandler(IDbContext context, IMapper mapper, ILo
             .OrderBy(stb => stb.TrustBadge.DisplayOrder)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<SellerTrustBadgeDto>>(badges);
     }
 }

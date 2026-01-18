@@ -23,8 +23,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.SendRecoveryEmail;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SendRecoveryEmailCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -43,14 +41,12 @@ public class SendRecoveryEmailCommandHandler(
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == request.CartId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
             throw new NotFoundException("Sepet", request.CartId);
         }
 
         var user = cart.User;
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (user is null || string.IsNullOrEmpty(user.Email))
         {
             throw new NotFoundException("Kullanıcı email", Guid.Empty);
@@ -61,10 +57,8 @@ public class SendRecoveryEmailCommandHandler(
         string? couponCode = null;
         if (request.IncludeCoupon)
         {
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
             var discount = request.CouponDiscountPercentage ?? cartSettings.Value.DefaultAbandonedCartCouponDiscount;
             
-            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
             var createCouponCommand = new CreateCouponCommand(
                 Code: $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
                 Description: $"{discount}% off for completing your purchase",
@@ -85,7 +79,6 @@ public class SendRecoveryEmailCommandHandler(
         }
 
         // Prepare email content
-        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var subject = request.EmailType switch
         {
             AbandonedCartEmailType.First => "You left items in your cart!",
@@ -94,14 +87,12 @@ public class SendRecoveryEmailCommandHandler(
             _ => "Complete your purchase"
         };
 
-        // ✅ PERFORMANCE: Email body oluşturma için string concatenation (minimal memory işlem)
         var itemsHtml = new System.Text.StringBuilder();
         foreach (var ci in cart.CartItems)
         {
             itemsHtml.Append($"<li>{ci.Product.Name} - {ci.Quantity} x ${ci.Price}</li>");
         }
 
-        // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var totalValue = await context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => ci.CartId == request.CartId)
@@ -116,10 +107,8 @@ public class SendRecoveryEmailCommandHandler(
             <p><a href='https://yoursite.com/cart/{request.CartId}'>Complete your purchase now</a></p>
         ";
 
-        // ✅ NOTE: IEmailService interface'inde CancellationToken var
         await emailService.SendEmailAsync(user.Email, subject, body, true, cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         var abandonedCartEmail = AbandonedCartEmail.Create(request.CartId, user.Id, request.EmailType, couponId);
 
         await context.Set<AbandonedCartEmail>().AddAsync(abandonedCartEmail, cancellationToken);

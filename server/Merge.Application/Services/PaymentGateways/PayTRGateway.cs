@@ -97,7 +97,6 @@ public class PayTRGateway(IConfiguration configuration, ILogger<PayTRGateway> lo
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        // ✅ SECURITY FIX: PayTR webhook signature doğrulama implement edildi
         var merchantSalt = configuration["PaymentGateways:PayTR:MerchantSalt"];
 
         if (string.IsNullOrEmpty(merchantSalt))

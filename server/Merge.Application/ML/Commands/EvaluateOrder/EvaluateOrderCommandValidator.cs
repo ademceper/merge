@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.ML.Commands.EvaluateOrder;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class EvaluateOrderCommandValidator : AbstractValidator<EvaluateOrderCommand>
 {
     public EvaluateOrderCommandValidator()

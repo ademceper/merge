@@ -19,23 +19,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.CalculateAndRecordCommission;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CalculateAndRecordCommissionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IOptions<SellerSettings> sellerSettings, ILogger<CalculateAndRecordCommissionCommandHandler> logger) : IRequestHandler<CalculateAndRecordCommissionCommand, SellerCommissionDto>
 {
-    private readonly SellerSettings sellerConfig = sellerSettings.Value;
-
     public async Task<SellerCommissionDto> Handle(CalculateAndRecordCommissionCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Calculating commission for OrderId: {OrderId}, OrderItemId: {OrderItemId}",
             request.OrderId, request.OrderItemId);
 
         var orderItem = await context.Set<OrderItem>()
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Order)
             .Include(oi => oi.Product)
             .FirstOrDefaultAsync(oi => oi.Id == request.OrderItemId && oi.OrderId == request.OrderId, cancellationToken);
 
-        if (orderItem == null)
+        if (orderItem is null)
         {
             logger.LogWarning("Order item not found. OrderId: {OrderId}, OrderItemId: {OrderItemId}",
                 request.OrderId, request.OrderItemId);
@@ -53,12 +51,13 @@ public class CalculateAndRecordCommissionCommandHandler(IDbContext context, IUni
 
         var existing = await context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
             .FirstOrDefaultAsync(sc => sc.OrderItemId == request.OrderItemId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             logger.LogInformation("Commission already exists. CommissionId: {CommissionId}",
                 existing.Id);
@@ -73,7 +72,7 @@ public class CalculateAndRecordCommissionCommandHandler(IDbContext context, IUni
         decimal commissionRate;
         decimal platformFeeRate = 0;
 
-        if (settings != null && settings.UseCustomRate)
+        if (settings is not null && settings.UseCustomRate)
         {
             commissionRate = settings.CustomCommissionRate;
         }
@@ -85,22 +84,20 @@ public class CalculateAndRecordCommissionCommandHandler(IDbContext context, IUni
                 .SumAsync(o => o.TotalAmount, cancellationToken);
 
             var tier = await GetTierForSalesAsync(totalSales, cancellationToken);
-            if (tier != null)
+            if (tier is not null)
             {
                 commissionRate = tier.CommissionRate;
                 platformFeeRate = tier.PlatformFeeRate;
             }
             else
             {
-                // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-                commissionRate = sellerConfig.DefaultCommissionRateWhenNoTier;
-                platformFeeRate = sellerConfig.DefaultPlatformFeeRate;
+                commissionRate = sellerSettings.Value.DefaultCommissionRateWhenNoTier;
+                platformFeeRate = sellerSettings.Value.DefaultPlatformFeeRate;
             }
         }
 
         var orderAmount = orderItem.TotalPrice;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var commission = SellerCommission.Create(
             sellerId: sellerId,
             orderId: request.OrderId,
@@ -110,11 +107,11 @@ public class CalculateAndRecordCommissionCommandHandler(IDbContext context, IUni
             platformFee: orderAmount * (platformFeeRate / 100));
 
         await context.Set<SellerCommission>().AddAsync(commission, cancellationToken);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         commission = await context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)

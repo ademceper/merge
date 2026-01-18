@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.CompleteReturnRequest;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CompleteReturnRequestCommandValidator : AbstractValidator<CompleteReturnRequestCommand>
 {
     public CompleteReturnRequestCommandValidator()

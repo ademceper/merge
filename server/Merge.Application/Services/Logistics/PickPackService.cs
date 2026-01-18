@@ -23,9 +23,6 @@ namespace Merge.Application.Services.Logistics;
 public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger) : IPickPackService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<PickPackDto> CreatePickPackAsync(CreatePickPackDto dto, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Pick-pack olusturuluyor. OrderId: {OrderId}, WarehouseId: {WarehouseId}", dto.OrderId, dto.WarehouseId);
@@ -43,7 +40,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                 throw new NotFoundException("Sipariş", dto.OrderId);
             }
 
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
             var warehouse = await context.Set<Warehouse>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == dto.WarehouseId && w.IsActive, cancellationToken);
@@ -53,7 +49,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                 throw new NotFoundException("Depo", dto.WarehouseId);
             }
 
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
             // Check if pick pack already exists for this order
             var existing = await context.Set<PickPack>()
                 .AsNoTracking()
@@ -78,7 +73,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Create pick pack items from order items
-            // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
             var items = new List<PickPackItem>(order.OrderItems.Count);
             foreach (var orderItem in order.OrderItems)
             {
@@ -107,7 +101,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
 
             logger.LogInformation("Pick-pack olusturuldu. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<PickPackDto>(createdPickPack!);
         }
         catch (Exception ex)
@@ -117,7 +110,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         }
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PickPackDto?> GetPickPackByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
 
@@ -132,11 +124,9 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PickPackDto?> GetPickPackByPackNumberAsync(string packNumber, CancellationToken cancellationToken = default)
     {
 
@@ -151,17 +141,11 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.PackNumber == packNumber, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
     public async Task<IEnumerable<PickPackDto>> GetPickPacksByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var pickPacks = await context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -177,20 +161,14 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
             .Take(50) // ✅ Güvenlik: Maksimum 50 pick-pack
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<PickPackDto>> GetAllPickPacksAsync(string? status = null, Guid? warehouseId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (page < 1) page = 1;
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         IQueryable<PickPack> query = context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -224,7 +202,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var items = mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
 
         return new PagedResult<PickPackDto>
@@ -236,17 +213,13 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdatePickPackStatusAsync(Guid id, UpdatePickPackStatusDto dto, Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null) return false;
 
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!Enum.TryParse<PickPackStatus>(dto.Status, out var statusEnum))
         {
             throw new ValidationException("Geçersiz pick-pack durumu.");
@@ -263,11 +236,8 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> StartPickingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
@@ -280,17 +250,13 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> CompletePickingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null || pickPack.Status != PickPackStatus.Picking) return false;
 
-        // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are picked
         var totalItems = await context.Set<PickPackItem>()
             .AsNoTracking()
@@ -312,11 +278,8 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> StartPackingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
@@ -329,17 +292,13 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> CompletePackingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null || pickPack.Status != PickPackStatus.Packing) return false;
 
-        // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are packed
         var totalItems = await context.Set<PickPackItem>()
             .AsNoTracking()
@@ -362,11 +321,8 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> MarkAsShippedAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
@@ -379,11 +335,8 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdatePickPackItemStatusAsync(Guid itemId, PickPackItemStatusDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
         var item = await context.Set<PickPackItem>()
             .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
 
@@ -391,19 +344,16 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
 
         if (dto.IsPicked && !item.IsPicked)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             item.MarkAsPicked();
         }
 
         if (dto.IsPacked && !item.IsPacked)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             item.MarkAsPacked();
         }
 
         if (dto.Location != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             item.UpdateLocation(dto.Location);
         }
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -411,11 +361,9 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ⚠️ NOTE: Dictionary<string, int> burada kabul edilebilir çünkü stats için key-value çiftleri dinamik
     public async Task<Dictionary<string, int>> GetPickPackStatsAsync(Guid? warehouseId = null, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
         var query = context.Set<PickPack>()
             .AsNoTracking();
 
@@ -434,7 +382,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
             query = query.Where(pp => pp.CreatedAt <= endDate.Value);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var total = await query.CountAsync(cancellationToken);
         var pending = await query.CountAsync(pp => pp.Status == PickPackStatus.Pending, cancellationToken);
         var picking = await query.CountAsync(pp => pp.Status == PickPackStatus.Picking, cancellationToken);
@@ -443,7 +390,6 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var shipped = await query.CountAsync(pp => pp.Status == PickPackStatus.Shipped, cancellationToken);
         var cancelled = await query.CountAsync(pp => pp.Status == PickPackStatus.Cancelled, cancellationToken);
 
-        // ✅ PERFORMANCE: Memory'de minimal işlem (sadece Dictionary oluşturma)
         return new Dictionary<string, int>
         {
             { "Total", total },
@@ -456,11 +402,9 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task<string> GeneratePackNumberAsync(CancellationToken cancellationToken = default)
     {
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
         var existingCount = await context.Set<PickPack>()
             .AsNoTracking()
             .CountAsync(pp => pp.PackNumber.StartsWith($"PK-{date}"), cancellationToken);

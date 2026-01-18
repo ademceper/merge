@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Commands.ApprovePurchaseOrder;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ApprovePurchaseOrderCommandValidator : AbstractValidator<ApprovePurchaseOrderCommand>
 {
     public ApprovePurchaseOrderCommandValidator()

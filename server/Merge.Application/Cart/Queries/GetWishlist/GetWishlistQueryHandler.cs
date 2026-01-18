@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetWishlist;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetWishlistQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -30,11 +28,9 @@ public class GetWishlistQueryHandler(
     {
         logger.LogInformation("Retrieving wishlist (page {Page}) for user {UserId}", request.Page, request.UserId);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var query = context.Set<Wishlist>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -44,7 +40,6 @@ public class GetWishlistQueryHandler(
             .Select(w => w.Product)
             .Where(p => p.IsActive);
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
         
         var wishlistItems = await query
@@ -55,7 +50,6 @@ public class GetWishlistQueryHandler(
         logger.LogInformation("Retrieved {Count} items (page {Page}) from wishlist for user {UserId}",
             wishlistItems.Count, page, request.UserId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<ProductDto>
         {
             Items = mapper.Map<List<ProductDto>>(wishlistItems),

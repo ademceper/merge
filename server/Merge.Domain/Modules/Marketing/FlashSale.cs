@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class FlashSale : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Title { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public DateTime StartDate { get; private set; }
@@ -23,20 +22,15 @@ public class FlashSale : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? BannerImageUrl { get; private set; }
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
     private readonly List<FlashSaleProduct> _flashSaleProducts = [];
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
     public IReadOnlyCollection<FlashSaleProduct> FlashSaleProducts => _flashSaleProducts.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private FlashSale() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static FlashSale Create(
         string title,
         string description,
@@ -65,13 +59,11 @@ public class FlashSale : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleCreatedEvent
         flashSale.AddDomainEvent(new FlashSaleCreatedEvent(flashSale.Id, flashSale.Title, flashSale.StartDate, flashSale.EndDate));
 
         return flashSale;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string title,
         string description,
@@ -92,11 +84,9 @@ public class FlashSale : BaseEntity, IAggregateRoot
         BannerImageUrl = bannerImageUrl;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleUpdatedEvent
         AddDomainEvent(new FlashSaleUpdatedEvent(Id, Title));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate
     public void Activate()
     {
         if (IsActive) return;
@@ -104,11 +94,9 @@ public class FlashSale : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleActivatedEvent
         AddDomainEvent(new FlashSaleActivatedEvent(Id, Title));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -116,17 +104,14 @@ public class FlashSale : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleDeactivatedEvent
         AddDomainEvent(new FlashSaleDeactivatedEvent(Id, Title));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if flash sale is active
     public bool IsCurrentlyActive()
     {
         return IsActive && DateTime.UtcNow >= StartDate && DateTime.UtcNow <= EndDate;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -135,7 +120,6 @@ public class FlashSale : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleDeletedEvent
         AddDomainEvent(new FlashSaleDeletedEvent(Id, Title));
     }
 }

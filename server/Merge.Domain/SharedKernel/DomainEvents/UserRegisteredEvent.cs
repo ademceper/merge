@@ -4,9 +4,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// User Registered Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record UserRegisteredEvent(
     Guid UserId,
     string Email,

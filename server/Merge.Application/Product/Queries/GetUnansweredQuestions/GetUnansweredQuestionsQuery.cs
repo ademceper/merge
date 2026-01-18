@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.GetUnansweredQuestions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetUnansweredQuestionsQuery(
     Guid? ProductId = null,
     int Limit = 20

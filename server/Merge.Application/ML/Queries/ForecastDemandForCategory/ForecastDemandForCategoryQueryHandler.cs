@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Queries.ForecastDemandForCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ForecastDemandForCategoryQueryHandler(IDbContext context, ILogger<ForecastDemandForCategoryQueryHandler> logger, IOptions<MLSettings> mlSettings, IOptions<PaginationSettings> paginationSettings, DemandForecastingHelper helper) : IRequestHandler<ForecastDemandForCategoryQuery, PagedResult<DemandForecastDto>>
 {
     private readonly MLSettings mlConfig = mlSettings.Value;
@@ -26,32 +24,24 @@ public class ForecastDemandForCategoryQueryHandler(IDbContext context, ILogger<F
 
     public async Task<PagedResult<DemandForecastDto>> Handle(ForecastDemandForCategoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Forecasting demand for category. CategoryId: {CategoryId}, ForecastDays: {ForecastDays}, Page: {Page}, PageSize: {PageSize}",
             request.CategoryId, request.ForecastDays, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Unbounded query koruması - forecastDays limiti
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var forecastDays = request.ForecastDays;
         if (forecastDays > mlConfig.DemandForecastMaxDays) forecastDays = mlConfig.DemandForecastMaxDays;
         if (forecastDays < mlConfig.DemandForecastMinDays) forecastDays = mlConfig.DemandForecastMinDays;
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var page = request.Page;
         var pageSize = request.PageSize;
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == request.CategoryId && p.IsActive)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load historical sales (N+1 fix)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
         var productIds = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == request.CategoryId && p.IsActive)
@@ -70,14 +60,13 @@ public class ForecastDemandForCategoryQueryHandler(IDbContext context, ILogger<F
             })
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası GroupBy() ve ToDictionary() YASAK
         // Not: Bu durumda anonymous type kullanılıyor, database'de ToDictionaryAsync yapılamaz
         // Ancak bu minimal bir işlem ve business logic için gerekli (ML algoritması için grouping)
         var salesByProduct = allHistoricalSales
             .GroupBy(s => s.ProductId)
             .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Date).ToList());
 
-        var results = new List<DemandForecastDto>();
+        List<DemandForecastDto> results = [];
 
         foreach (var product in products)
         {
@@ -101,12 +90,10 @@ public class ForecastDemandForCategoryQueryHandler(IDbContext context, ILogger<F
             ));
         }
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası OrderByDescending() YASAK
         // Not: Bu durumda `results` zaten memory'de (List), bu yüzden bu minimal bir işlem
         // Ancak business logic için gerekli (sıralama için)
         var orderedResults = results.OrderByDescending(r => r.ForecastedQuantity).ToList();
 
-        // ✅ BOLUM 3.4: Pagination implementation
         var totalCount = orderedResults.Count;
         var pagedForecasts = orderedResults
             .Skip((page - 1) * pageSize)

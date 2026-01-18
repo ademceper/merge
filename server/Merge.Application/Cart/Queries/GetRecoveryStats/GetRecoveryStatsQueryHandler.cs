@@ -13,8 +13,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Cart.Queries.GetRecoveryStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetRecoveryStatsQueryHandler(
     IDbContext context,
     ILogger<GetRecoveryStatsQueryHandler> logger) : IRequestHandler<GetRecoveryStatsQuery, AbandonedCartRecoveryStatsDto>
@@ -26,8 +24,6 @@ public class GetRecoveryStatsQueryHandler(
         var minDate = DateTime.UtcNow.AddDays(-request.Days);
         var maxDate = DateTime.UtcNow.AddHours(-1);
 
-        // ✅ PERFORMANCE: Database'de Count ve Sum yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var abandonedCartIds = await context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
@@ -58,17 +54,13 @@ public class GetRecoveryStatsQueryHandler(
             .Select(c => c.Id)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         var totalAbandonedCarts = finalAbandonedCartIds.Count;
 
-        // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var totalAbandonedValue = await context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var emailsSent = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.SentAt >= startDate)
@@ -89,7 +81,6 @@ public class GetRecoveryStatsQueryHandler(
             .Where(e => e.SentAt >= startDate && e.ResultedInPurchase)
             .CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var recoveredRevenue = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate)

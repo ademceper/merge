@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.GetOrderStatistics;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetOrderStatisticsQueryValidator : AbstractValidator<GetOrderStatisticsQuery>
 {
     public GetOrderStatisticsQueryValidator()

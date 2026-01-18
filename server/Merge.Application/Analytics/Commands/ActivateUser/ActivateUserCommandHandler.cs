@@ -9,8 +9,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.ActivateUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ActivateUserCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -21,7 +19,6 @@ public class ActivateUserCommandHandler(
     {
         logger.LogInformation("Activating user. UserId: {UserId}", request.UserId);
         
-        // ✅ FIX: Use FirstOrDefaultAsync instead of FindAsync to respect Global Query Filter
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
         if (user == null)
@@ -30,7 +27,6 @@ public class ActivateUserCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         user.Activate();
         await unitOfWork.SaveChangesAsync(cancellationToken);
         

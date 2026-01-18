@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetSavedItems;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSavedItemsQueryValidator : AbstractValidator<GetSavedItemsQuery>
 {
     public GetSavedItemsQueryValidator()

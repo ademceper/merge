@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.SendEmailCampaign;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class SendEmailCampaignCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -37,25 +36,20 @@ public class SendEmailCampaignCommandHandler(
         }
 
         // Prepare recipients if not already done
-        // ✅ BOLUM 1.1: Rich Domain Model - IReadOnlyCollection kullanımı
         if (campaign.Recipients.Count == 0)
         {
             await PrepareCampaignRecipientsAsync(campaign, cancellationToken);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         campaign.StartSending(campaign.TotalRecipients);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send emails (in production, this would be queued)
         var sentCount = await SendCampaignEmailsAsync(campaign, cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         campaign.MarkAsSent(sentCount);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -67,7 +61,6 @@ public class SendEmailCampaignCommandHandler(
 
         foreach (var subscriber in subscribers)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var recipient = EmailCampaignRecipient.Create(
                 campaignId: campaign.Id,
                 subscriberId: subscriber.Id);
@@ -101,7 +94,6 @@ public class SendEmailCampaignCommandHandler(
 
     private async Task<int> SendCampaignEmailsAsync(EmailCampaign campaign, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery ile N+1 query önleme
         var recipients = await context.Set<EmailCampaignRecipient>()
             .Include(r => r.Subscriber)
             .Where(r => r.CampaignId == campaign.Id && r.Status == EmailRecipientStatus.Pending)
@@ -124,20 +116,16 @@ public class SendEmailCampaignCommandHandler(
                     cancellationToken
                 );
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 recipient.MarkAsSent();
                 sentCount++;
                 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 var subscriber = recipient.Subscriber;
                 subscriber.RecordEmailSent();
             }
             catch (Exception ex)
             {
-                // ✅ BOLUM 2.1: Exception handling - Exception yutulmuyor, loglanıyor ve işlem devam ediyor
                 logger.LogError(ex, "Email gönderilemedi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
                     campaign.Id, recipient.SubscriberId);
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 recipient.MarkAsFailed(ex.Message);
             }
         }

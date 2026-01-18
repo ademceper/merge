@@ -7,8 +7,6 @@ namespace Merge.Application.DTOs.Seller;
 /// <summary>
 /// Store ayarlari icin typed DTO - Dictionary yerine guvenli
 /// </summary>
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
-// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
 public record StoreSettingsDto
 {
     /// <summary>

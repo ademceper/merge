@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.ExportProductsToExcel;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class ExportProductsToExcelQueryValidator : AbstractValidator<ExportProductsToExcelQuery>
 {
     public ExportProductsToExcelQueryValidator()

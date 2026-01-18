@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Queries.GetBlogAnalytics;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class GetBlogAnalyticsQueryValidator : AbstractValidator<GetBlogAnalyticsQuery>
 {
     public GetBlogAnalyticsQueryValidator()

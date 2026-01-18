@@ -14,20 +14,15 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.GetUserSessions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserSessionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserSessionsQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetUserSessionsQuery, IEnumerable<UserSessionDto>>
 {
-
-    private readonly UserSettings config = userSettings.Value;
-
     public async Task<IEnumerable<UserSessionDto>> Handle(GetUserSessionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", request.UserId, request.Days);
         var days = request.Days;
-        if (days > config.Activity.MaxSessionDays) days = config.Activity.MaxSessionDays;
-        if (days < 1) days = config.Activity.DefaultSessionDays;
+        if (days > userSettings.Value.Activity.MaxSessionDays) days = userSettings.Value.Activity.MaxSessionDays;
+        if (days < 1) days = userSettings.Value.Activity.DefaultSessionDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
@@ -39,9 +34,9 @@ public class GetUserSessionsQueryHandler(IDbContext context, IMapper mapper, ILo
             .OrderBy(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / config.Activity.AverageActivitiesPerSession : 1);
-        var currentSession = new List<UserActivityLog>();
-        var sessionTimeout = TimeSpan.FromMinutes(config.Activity.SessionTimeoutMinutes);
+        var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / userSettings.Value.Activity.AverageActivitiesPerSession : 1);
+        List<UserActivityLog> currentSession = [];
+        var sessionTimeout = TimeSpan.FromMinutes(userSettings.Value.Activity.SessionTimeoutMinutes);
 
         foreach (var activity in activities)
         {
@@ -49,7 +44,7 @@ public class GetUserSessionsQueryHandler(IDbContext context, IMapper mapper, ILo
                 (activity.CreatedAt - currentSession.Last().CreatedAt) > sessionTimeout)
             {
                 sessions.Add(CreateSessionDto(currentSession));
-                currentSession = new List<UserActivityLog>();
+                currentSession = [];
             }
 
             currentSession.Add(activity);
@@ -67,8 +62,7 @@ public class GetUserSessionsQueryHandler(IDbContext context, IMapper mapper, ILo
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
-        // ✅ ERROR HANDLING FIX: Safe First()/Last() operations with null check
-        if (activities == null || activities.Count == 0)
+        if (activities is null || activities.Count == 0)
         {
             throw new ArgumentException("Activities list cannot be empty", nameof(activities));
         }

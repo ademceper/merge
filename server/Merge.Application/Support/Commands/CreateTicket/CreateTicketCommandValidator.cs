@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Commands.CreateTicket;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateTicketCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateTicketCommand>
 {
     private readonly SupportSettings config = settings.Value;

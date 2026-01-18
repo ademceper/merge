@@ -13,26 +13,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Queries.GetPriceOptimizationStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPriceOptimizationStatsQueryHandler(IDbContext context, ILogger<GetPriceOptimizationStatsQueryHandler> logger, IOptions<MLSettings> mlSettings) : IRequestHandler<GetPriceOptimizationStatsQuery, PriceOptimizationStatsDto>
 {
     private readonly MLSettings mlConfig = mlSettings.Value;
 
     public async Task<PriceOptimizationStatsDto> Handle(GetPriceOptimizationStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting price optimization stats. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var start = request.StartDate ?? DateTime.UtcNow.AddDays(-mlConfig.DefaultAnalysisPeriodDays);
         var end = request.EndDate ?? DateTime.UtcNow;
 
         // Bu basit implementasyonda, gerçek optimizasyon istatistikleri tutulmuyor
         // Gerçek implementasyonda bir PriceOptimizationHistory tablosu olmalı
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var totalProducts = await context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive, cancellationToken);
 

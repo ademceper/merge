@@ -34,9 +34,14 @@ using Merge.Application.International.Queries.GetTranslationStats;
 
 namespace Merge.API.Controllers.International;
 
+/// <summary>
+/// Languages API endpoints.
+/// Dil yönetimi ve çeviri işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/international/languages")]
+[Tags("Languages")]
 public class LanguagesController(IMediator mediator) : BaseController
 {
     // Language Management
@@ -90,7 +95,7 @@ public class LanguagesController(IMediator mediator) : BaseController
 
         if (language == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(language);
@@ -114,7 +119,7 @@ public class LanguagesController(IMediator mediator) : BaseController
 
         if (language == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(language);
@@ -283,7 +288,7 @@ public class LanguagesController(IMediator mediator) : BaseController
 
         if (translation == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(translation);
@@ -643,7 +648,7 @@ public class LanguagesController(IMediator mediator) : BaseController
     [HttpGet("preference")]
     [Authorize]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<string>> GetLanguagePreference(
@@ -656,7 +661,7 @@ public class LanguagesController(IMediator mediator) : BaseController
 
         var query = new GetUserLanguagePreferenceQuery(userId);
         var languageCode = await mediator.Send(query, cancellationToken);
-        return Ok(new { languageCode });
+        return Ok(languageCode);
     }
 
     // Statistics

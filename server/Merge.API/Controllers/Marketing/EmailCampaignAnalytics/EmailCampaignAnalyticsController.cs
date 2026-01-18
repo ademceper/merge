@@ -10,10 +10,15 @@ using Merge.Application.Marketing.Commands.RecordEmailClick;
 
 namespace Merge.API.Controllers.Marketing.EmailCampaignAnalytics;
 
+/// <summary>
+/// Email Campaign Analytics API endpoints.
+/// E-posta kampanya analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/email-campaigns")]
 [Authorize]
+[Tags("EmailCampaignAnalytics")]
 public class EmailCampaignAnalyticsController(IMediator mediator) : BaseController
 {
     [HttpGet("{campaignId}/analytics")]
@@ -33,7 +38,7 @@ public class EmailCampaignAnalyticsController(IMediator mediator) : BaseControll
 
         if (analytics == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(analytics);

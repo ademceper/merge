@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class CommissionPayout : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public string PayoutNumber { get; private set; } = string.Empty; // Auto-generated: PAY-XXXXXX
     public decimal TotalAmount { get; private set; }
@@ -34,7 +33,6 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
     private readonly List<CommissionPayoutItem> _items = new();
     public IReadOnlyCollection<CommissionPayoutItem> Items => _items.AsReadOnly();
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -43,10 +41,8 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CommissionPayout() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CommissionPayout Create(
         Guid sellerId,
         string payoutNumber,
@@ -80,13 +76,11 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - CommissionPayout Created
         payout.AddDomainEvent(new CommissionPayoutCreatedEvent(payout.Id, sellerId, netAmount));
 
         return payout;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add payout item
     public void AddItem(Guid commissionId)
     {
         Guard.AgainstDefault(commissionId, nameof(commissionId));
@@ -102,7 +96,6 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Process payout
     public void Process(string transactionReference)
     {
         Guard.AgainstNullOrEmpty(transactionReference, nameof(transactionReference));
@@ -115,11 +108,9 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         ProcessedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - CommissionPayout Processed
         AddDomainEvent(new CommissionPayoutProcessedEvent(Id, SellerId, NetAmount, transactionReference));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Complete payout
     public void Complete()
     {
         if (Status != PayoutStatus.Processing)
@@ -129,11 +120,9 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - CommissionPayout Completed
         AddDomainEvent(new CommissionPayoutCompletedEvent(Id, SellerId, NetAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Fail payout
     public void Fail(string? reason = null)
     {
         if (Status == PayoutStatus.Completed)
@@ -146,11 +135,9 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         Notes = reason;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - CommissionPayout Failed
         AddDomainEvent(new CommissionPayoutFailedEvent(Id, SellerId, NetAmount, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel payout
     public void Cancel(string? reason = null)
     {
         if (Status == PayoutStatus.Completed)
@@ -163,18 +150,15 @@ public class CommissionPayout : BaseEntity, IAggregateRoot
         Notes = reason;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - CommissionPayout Cancelled
         AddDomainEvent(new CommissionPayoutCancelledEvent(Id, SellerId, NetAmount, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update notes
     public void UpdateNotes(string? notes)
     {
         Notes = notes;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if can be processed
     public bool CanBeProcessed() => Status == PayoutStatus.Pending;
 }
 

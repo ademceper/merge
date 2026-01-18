@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.International;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record CreateCategoryTranslationDto(
     [Required]
     Guid CategoryId,

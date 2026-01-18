@@ -14,16 +14,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerBalance;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerBalanceQueryHandler(IDbContext context, ILogger<GetSellerBalanceQueryHandler> logger) : IRequestHandler<GetSellerBalanceQuery, SellerBalanceDto>
 {
 
     public async Task<SellerBalanceDto> Handle(GetSellerBalanceQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller balance. SellerId: {SellerId}", request.SellerId);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var seller = await context.Set<SellerProfile>()
             .AsNoTracking()
             .Include(sp => sp.User)
@@ -35,7 +32,6 @@ public class GetSellerBalanceQueryHandler(IDbContext context, ILogger<GetSellerB
             throw new NotFoundException("Satıcı", request.SellerId);
         }
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate in-transit balance (payouts being processed)
         var inTransitBalance = await context.Set<CommissionPayout>()
             .AsNoTracking()
@@ -43,7 +39,6 @@ public class GetSellerBalanceQueryHandler(IDbContext context, ILogger<GetSellerB
                    (p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing))
             .SumAsync(p => p.TotalAmount, cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate total payouts
         var totalPayouts = await context.Set<CommissionPayout>()
             .AsNoTracking()

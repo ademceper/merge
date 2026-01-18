@@ -3,7 +3,6 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Commands.CreateAuditLog;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateAuditLogCommand(
     Guid? UserId,
     string UserEmail,

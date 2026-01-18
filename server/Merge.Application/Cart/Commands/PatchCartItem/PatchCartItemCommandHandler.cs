@@ -45,7 +45,6 @@ public class PatchCartItemCommandHandler(
             return false;
         }
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only product query
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
@@ -67,7 +66,6 @@ public class PatchCartItemCommandHandler(
 
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Cart aggregate root üzerinden güncelleme
             var cart = await context.Set<CartEntity>()
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
@@ -81,7 +79,6 @@ public class PatchCartItemCommandHandler(
 
             var maxQuantity = cartSettings.Value.MaxCartItemQuantity;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Cart entity method kullanımı
             cart.UpdateItemQuantity(request.CartItemId, request.Quantity.Value, maxQuantity);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

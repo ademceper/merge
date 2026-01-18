@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.GetAllReturnRequests;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetAllReturnRequestsQueryValidator : AbstractValidator<GetAllReturnRequestsQuery>
 {
     public GetAllReturnRequestsQueryValidator()

@@ -4,6 +4,5 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetPreOrderStatsQuery : IRequest<PreOrderStatsDto>;
 

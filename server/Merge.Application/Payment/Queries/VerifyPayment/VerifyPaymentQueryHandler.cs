@@ -20,7 +20,6 @@ public class VerifyPaymentQueryHandler(IDbContext context, ILogger<VerifyPayment
     {
         logger.LogInformation("Verifying payment with transaction ID: {TransactionId}", request.TransactionId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var payment = await context.Set<PaymentEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.TransactionId == request.TransactionId, cancellationToken);

@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// CustomsDeclaration Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record CustomsDeclarationCreatedEvent(
     Guid DeclarationId,
     Guid OrderId,

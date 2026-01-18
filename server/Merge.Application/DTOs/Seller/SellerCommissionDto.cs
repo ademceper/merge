@@ -2,9 +2,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Seller;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
-// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
-// ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
 public record SellerCommissionDto
 {
     public Guid Id { get; init; }
@@ -17,7 +14,6 @@ public record SellerCommissionDto
     public decimal CommissionAmount { get; init; }
     public decimal PlatformFee { get; init; }
     public decimal NetAmount { get; init; }
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public CommissionStatus Status { get; init; }
     public DateTime? ApprovedAt { get; init; }
     public DateTime? PaidAt { get; init; }

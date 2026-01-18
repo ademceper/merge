@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class LiveStreamViewer : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid LiveStreamId { get; private set; }
     public LiveStream LiveStream { get; private set; } = null!;
     public Guid? UserId { get; private set; } // Nullable for anonymous viewers
@@ -52,14 +51,11 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         } 
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStreamViewer() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LiveStreamViewer Create(
         Guid liveStreamId,
         Guid? userId = null,
@@ -81,10 +77,8 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         viewer.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ViewerJoinedEvent
         viewer.AddDomainEvent(new ViewerJoinedEvent(
             liveStreamId,
             viewer.Id,
@@ -95,7 +89,6 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         return viewer;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Leave stream
     public void Leave()
     {
         if (!IsActive) return;
@@ -105,10 +98,8 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         WatchDuration = (int)(LeftAt.Value - JoinedAt).TotalSeconds;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ViewerLeftEvent
         AddDomainEvent(new ViewerLeftEvent(
             LiveStreamId,
             Id,
@@ -118,7 +109,6 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
             WatchDuration));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update watch duration
     public void UpdateWatchDuration(int durationInSeconds)
     {
         Guard.AgainstNegative(durationInSeconds, nameof(durationInSeconds));
@@ -126,11 +116,9 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         _watchDuration = durationInSeconds;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -144,14 +132,11 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamViewerDeletedEvent
         AddDomainEvent(new LiveStreamViewerDeletedEvent(LiveStreamId, Id, UserId, GuestId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted viewer
     public void Restore()
     {
         if (!IsDeleted)
@@ -160,14 +145,11 @@ public class LiveStreamViewer : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamViewerRestoredEvent
         AddDomainEvent(new LiveStreamViewerRestoredEvent(LiveStreamId, Id, UserId, GuestId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == LiveStreamId)

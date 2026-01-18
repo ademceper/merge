@@ -16,12 +16,10 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 {
     private readonly List<IDomainEvent> _domainEvents = new();
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation (mümkün olduğunca)
     public string? Description { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method
     public static Role Create(string name, string? description = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
@@ -42,13 +40,11 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
             ConcurrencyStamp = Guid.NewGuid().ToString()
         };
 
-        // ✅ BOLUM 1.5: Domain Events - RoleCreatedEvent
         role.AddDomainEvent(new RoleCreatedEvent(role.Id, name, description));
 
         return role;
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
     public void AddDomainEvent(IDomainEvent domainEvent)
@@ -72,7 +68,6 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
         _domainEvents.Remove(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update description
     public void UpdateDescription(string? description)
     {
         if (!string.IsNullOrEmpty(description))
@@ -83,11 +78,9 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
         Description = description;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - RoleUpdatedEvent
         AddDomainEvent(new RoleUpdatedEvent(Id, Name ?? string.Empty, Description));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update name
     public void UpdateName(string name)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
@@ -97,7 +90,6 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
         NormalizedName = name.ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - RoleUpdatedEvent
         AddDomainEvent(new RoleUpdatedEvent(Id, Name, Description));
     }
 }

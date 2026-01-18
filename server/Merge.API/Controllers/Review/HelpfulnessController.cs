@@ -10,9 +10,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Review;
 
-[ApiController]
+/// <summary>
+/// Review Helpfulness API endpoints.
+/// Yorum faydalılık işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/reviews/helpfulness")]
+[Tags("ReviewHelpfulness")]
 public class ReviewHelpfulnessController(IMediator mediator) : BaseController
 {
     [HttpPost("mark")]

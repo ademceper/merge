@@ -30,10 +30,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Analytics;
 
+/// <summary>
+/// Admin Analytics API endpoints.
+/// Admin analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = "Admin")]
+[Tags("AdminAnalytics")]
 public class AdminController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -240,7 +245,7 @@ public class AdminController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -263,9 +268,9 @@ public class AdminController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("User not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        return Ok();
+        return NoContent();
     }
 
     /// <summary>
@@ -288,9 +293,9 @@ public class AdminController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        return Ok(new { message = $"User role changed to {roleDto.Role}" });
+        return NoContent();
     }
 
     /// <summary>
@@ -311,7 +316,7 @@ public class AdminController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }

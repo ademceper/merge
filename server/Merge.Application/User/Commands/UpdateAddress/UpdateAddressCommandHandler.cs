@@ -14,13 +14,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.UpdateAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateAddressCommandHandler> logger) : IRequestHandler<UpdateAddressCommand, AddressDto>
 {
 
     public async Task<AddressDto> Handle(UpdateAddressCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
 
@@ -81,11 +79,9 @@ public class UpdateAddressCommandHandler(IDbContext context, IUnitOfWork unitOfW
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogInformation("Address updated successfully with ID: {AddressId}", request.Id);
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<AddressDto>(address);
     }
 }

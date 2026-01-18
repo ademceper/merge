@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Support.Commands.AssignAgentToSession;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class AssignAgentToSessionCommandValidator : AbstractValidator<AssignAgentToSessionCommand>
 {
     public AssignAgentToSessionCommandValidator()

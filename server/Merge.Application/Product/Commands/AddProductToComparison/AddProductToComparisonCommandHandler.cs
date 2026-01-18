@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.AddProductToComparison;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddProductToComparisonCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -47,7 +46,6 @@ public class AddProductToComparisonCommandHandler(
 
             if (comparison == null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                 comparison = ProductComparison.Create(
                     request.UserId,
                     "Current Comparison",
@@ -65,15 +63,12 @@ public class AddProductToComparisonCommandHandler(
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Domain method içinde zaten duplicate check ve max 10 products check var
             comparison.AddProduct(request.ProductId, comparison.Items.Count);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);
@@ -102,7 +97,6 @@ public class AddProductToComparisonCommandHandler(
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
@@ -114,7 +108,6 @@ public class AddProductToComparisonCommandHandler(
                 .ThenInclude(p => p.Category)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries (subquery ile)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
         var reviews = await context.Set<ReviewEntity>()
@@ -130,8 +123,7 @@ public class AddProductToComparisonCommandHandler(
             .ToListAsync(cancellationToken);
         reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
-        var products = new List<ComparisonProductDto>();
+        List<ComparisonProductDto> products = [];
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
@@ -142,7 +134,7 @@ public class AddProductToComparisonCommandHandler(
                 Rating = hasReviewStats ? (decimal?)stats.Rating : null,
                 ReviewCount = hasReviewStats ? stats.Count : 0,
                 Specifications = new Dictionary<string, string>().AsReadOnly(),
-                Features = new List<string>().AsReadOnly()
+                Features = Array.Empty<string>()
             };
             products.Add(compProduct);
         }

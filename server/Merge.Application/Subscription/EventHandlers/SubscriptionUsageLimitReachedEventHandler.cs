@@ -10,28 +10,20 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// SubscriptionUsage Limit Reached Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class SubscriptionUsageLimitReachedEventHandler(ILogger<SubscriptionUsageLimitReachedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SubscriptionUsageLimitReachedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(SubscriptionUsageLimitReachedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogWarning(
             "Subscription usage limit reached event received. UsageId: {UsageId}, UserSubscriptionId: {UserSubscriptionId}, UserId: {UserId}, Feature: {Feature}, UsageCount: {UsageCount}, Limit: {Limit}",
             notification.UsageId, notification.UserSubscriptionId, notification.UserId, notification.Feature, notification.UsageCount, notification.Limit);
 
         try
         {
-            // ✅ NOTIFICATION: Kullanıcıya limit aşıldı bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Warning,
                     "Kullanım Limiti Aşıldı",
@@ -48,7 +40,6 @@ public class SubscriptionUsageLimitReachedEventHandler(ILogger<SubscriptionUsage
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling SubscriptionUsageLimitReachedEvent. UsageId: {UsageId}, UserSubscriptionId: {UserSubscriptionId}",
                 notification.UsageId, notification.UserSubscriptionId);

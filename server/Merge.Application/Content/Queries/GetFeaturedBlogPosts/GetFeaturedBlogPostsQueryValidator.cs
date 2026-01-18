@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetFeaturedBlogPosts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetFeaturedBlogPostsQueryValidator(IOptions<ContentSettings> contentSettings) : AbstractValidator<GetFeaturedBlogPostsQuery>
 {
     private readonly ContentSettings config = contentSettings.Value;

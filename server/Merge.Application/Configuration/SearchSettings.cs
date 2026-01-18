@@ -1,8 +1,6 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// Search domain ayarları - Magic number'ları config'e taşıma (BOLUM 12.0)
-/// </summary>
+
 public class SearchSettings
 {
     public const string SectionName = "SearchSettings";

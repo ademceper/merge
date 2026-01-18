@@ -2,7 +2,6 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Product;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
 public record ProductDto(
     Guid Id,
     string Name,
@@ -19,7 +18,6 @@ public record ProductDto(
     bool IsActive,
     Guid CategoryId,
     string CategoryName,
-    // ✅ SECURITY: Seller ownership için gerekli
     Guid? SellerId,
     Guid? StoreId
 );

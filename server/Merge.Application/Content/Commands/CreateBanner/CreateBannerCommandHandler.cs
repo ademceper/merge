@@ -14,8 +14,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.CreateBanner;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateBannerCommandHandler(
     IRepository bannerRepository,
     IDbContext context,
@@ -33,11 +31,9 @@ public class CreateBannerCommandHandler(
         logger.LogInformation("Creating banner. Title: {Title}, Position: {Position}",
             request.Title, request.Position);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var banner = Banner.Create(
                 request.Title,
                 request.ImageUrl,
@@ -58,7 +54,6 @@ public class CreateBannerCommandHandler(
             logger.LogInformation("Banner created successfully. BannerId: {BannerId}, Title: {Title}",
                 banner.Id, banner.Title);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all banner-related cache
             await cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{banner.Id}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
@@ -74,7 +69,6 @@ public class CreateBannerCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating banner. Title: {Title}, Position: {Position}",
                 request.Title, request.Position);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);

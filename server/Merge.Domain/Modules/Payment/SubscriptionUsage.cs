@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class SubscriptionUsage : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserSubscriptionId { get; private set; }
     public string Feature { get; private set; } = string.Empty; // Feature name being used
     public int UsageCount { get; private set; } = 0;
@@ -22,17 +21,14 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
     public DateTime PeriodStart { get; private set; }
     public DateTime PeriodEnd { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public UserSubscription UserSubscription { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SubscriptionUsage() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SubscriptionUsage Create(
         UserSubscription subscription,
         string feature,
@@ -62,7 +58,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionUsageCreatedEvent
         usage.AddDomainEvent(new SubscriptionUsageCreatedEvent(
             usage.Id,
             subscription.Id,
@@ -75,7 +70,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         return usage;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment usage
     public void IncrementUsage(int count = 1)
     {
         Guard.AgainstNegativeOrZero(count, nameof(count));
@@ -87,7 +81,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         UsageCount += count;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - Limit reached event
         if (Limit.HasValue && !wasLimitReached && IsLimitReached() && UserSubscription != null)
         {
             AddDomainEvent(new SubscriptionUsageLimitReachedEvent(
@@ -100,13 +93,11 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if usage limit is reached
     public bool IsLimitReached()
     {
         return Limit.HasValue && UsageCount >= Limit.Value;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if can use feature
     public bool CanUse(int requestedCount = 1)
     {
         Guard.AgainstNegativeOrZero(requestedCount, nameof(requestedCount));
@@ -117,7 +108,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         return UsageCount + requestedCount <= Limit.Value;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Get remaining usage
     public int? GetRemainingUsage()
     {
         if (!Limit.HasValue)
@@ -126,7 +116,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         return Math.Max(0, Limit.Value - UsageCount);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update limit
     public void UpdateLimit(int? limit)
     {
         if (limit.HasValue)
@@ -140,7 +129,6 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         Limit = limit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionUsageUpdatedEvent
         AddDomainEvent(new SubscriptionUsageUpdatedEvent(
             Id,
             UserSubscriptionId,

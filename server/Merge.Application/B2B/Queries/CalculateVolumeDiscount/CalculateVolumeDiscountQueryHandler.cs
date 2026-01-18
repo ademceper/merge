@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.CalculateVolumeDiscount;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CalculateVolumeDiscountQueryHandler(
     IDbContext context,
     ILogger<CalculateVolumeDiscountQueryHandler> logger) : IRequestHandler<CalculateVolumeDiscountQuery, decimal>
@@ -19,8 +17,6 @@ public class CalculateVolumeDiscountQueryHandler(
 
     public async Task<decimal> Handle(CalculateVolumeDiscountQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
         // First try organization-specific discount
         if (request.OrganizationId.HasValue)
         {

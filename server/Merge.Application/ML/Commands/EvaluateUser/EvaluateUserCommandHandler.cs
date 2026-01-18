@@ -18,17 +18,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Commands.EvaluateUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<EvaluateUserCommandHandler> logger, FraudDetectionHelper helper) : IRequestHandler<EvaluateUserCommand, FraudAlertDto>
 {
 
     public async Task<FraudAlertDto> Handle(EvaluateUserCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Evaluating user for fraud. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
@@ -38,11 +34,9 @@ public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
 
-        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
         var riskScore = await helper.CalculateRiskScoreAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
         var matchedRules = await helper.GetMatchedRulesAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
         var alert = FraudAlert.Create(
             userId: request.UserId,
@@ -53,7 +47,6 @@ public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         await context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var createdAlert = await context.Set<FraudAlert>()
@@ -67,7 +60,6 @@ public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         logger.LogInformation("User evaluated. UserId: {UserId}, AlertId: {AlertId}, RiskScore: {RiskScore}",
             request.UserId, alert.Id, alert.RiskScore);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<FraudAlertDto>(createdAlert!);
     }
 }

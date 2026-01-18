@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Catalog.Commands.UpdateCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateCategoryCommand(
     Guid Id,
     string Name,

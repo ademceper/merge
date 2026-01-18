@@ -20,7 +20,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.SplitOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SplitOrderCommandHandler> logger) : IRequestHandler<SplitOrderCommand, OrderSplitDto>
 {
 
@@ -51,7 +50,6 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             throw new BusinessException("Sipariş sadece Beklemede veya İşleniyor durumundayken bölünebilir.");
         }
 
-        // ✅ PERFORMANCE: Memory'de kontrol (DTO'dan geldiği için database query gerekmez)
         if (request.Dto.Items == null || request.Dto.Items.Count == 0)
         {
             throw new ValidationException("En az bir sipariş kalemi belirtilmelidir.");
@@ -93,9 +91,8 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             var splitOrder = OrderEntity.Create(originalOrder.UserId, addressId, address);
             
             decimal splitSubTotal = 0;
-            var splitOrderItems = new List<OrderItem>();
+            List<OrderItem> splitOrderItems = [];
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (AddItem)
             foreach (var item in request.Dto.Items)
             {
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
@@ -107,14 +104,11 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                     throw new NotFoundException("Ürün", originalItem.ProductId);
                 }
 
-                // ✅ PERFORMANCE: AddItem öncesi item count'u kaydet
                 var itemCountBefore = splitOrder.OrderItems.Count;
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 splitOrder.AddItem(product, item.Quantity);
                 splitSubTotal += originalItem.UnitPrice * item.Quantity;
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (UpdateQuantity)
                 // Update original order item quantity
                 var newQuantity = originalItem.Quantity - item.Quantity;
                 if (newQuantity <= 0)
@@ -123,7 +117,6 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                 }
                 originalItem.UpdateQuantity(newQuantity);
                 
-                // ✅ PERFORMANCE: AddItem sonrası eklenen item'ı al (index kullan)
                 // AddItem sonrası collection'a yeni item eklendi, son index'teki item'ı al
                 var addedItem = splitOrder.OrderItems
                     .Skip(itemCountBefore)
@@ -134,24 +127,19 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                 }
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             var shippingCost = new Money(originalOrder.ShippingCost);
             splitOrder.SetShippingCost(shippingCost);
             
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Tax hesaplama - original order'ın tax oranını kullan
             var taxRate = originalOrder.SubTotal > 0 ? originalOrder.Tax / originalOrder.SubTotal : 0;
             var tax = new Money(splitSubTotal * taxRate);
             splitOrder.SetTax(tax);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             originalOrder.RecalculateTotals();
             
             await context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var newAddress = request.Dto.NewAddressId.HasValue
                 ? await context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.Id == request.Dto.NewAddressId.Value, cancellationToken)
@@ -168,8 +156,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
             await context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
 
-            var splitItemRecords = new List<OrderSplitItem>();
-            // ✅ PERFORMANCE: splitOrderItems'ı index'e göre eşleştir (sıralı olduğu için)
+            List<OrderSplitItem> splitItemRecords = [];
             var splitItemIndex = 0;
             foreach (var item in request.Dto.Items)
             {
@@ -188,7 +175,6 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                     throw new BusinessException($"Split order item validation failed for OrderItemId: {item.OrderItemId}");
                 }
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
                 var splitItemRecord = OrderSplitItem.Create(
                     orderSplit.Id,
                     originalItem.Id,

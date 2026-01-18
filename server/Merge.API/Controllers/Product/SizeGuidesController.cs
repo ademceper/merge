@@ -19,9 +19,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Size Guides API endpoints.
+/// Beden kılavuzlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/size-guides")]
+[Tags("SizeGuides")]
 public class SizeGuidesController(IMediator mediator) : BaseController
 {
             [HttpPost]
@@ -47,9 +52,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
             dto.MeasurementUnit,
             dto.Entries.ToList());
         var sizeGuide = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSizeGuideLinks(Url, sizeGuide.Id, version);
-        return CreatedAtAction(nameof(GetSizeGuide), new { id = sizeGuide.Id }, new { sizeGuide, _links = links });
+        return CreatedAtAction(nameof(GetSizeGuide), new { id = sizeGuide.Id }, sizeGuide);
     }
 
     [HttpGet("{id}")]
@@ -64,11 +67,9 @@ public class SizeGuidesController(IMediator mediator) : BaseController
 
         if (sizeGuide == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSizeGuideLinks(Url, sizeGuide.Id, version);
-        return Ok(new { sizeGuide, _links = links });
+        return Ok(sizeGuide);
     }
 
     [HttpGet("category/{categoryId}")]
@@ -81,9 +82,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
     {
         var query = new GetSizeGuidesByCategoryQuery(categoryId);
         var sizeGuides = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = sizeGuides.Select(sg => HateoasHelper.CreateSizeGuideLinks(Url, sg.Id, version)).ToList();
-        return Ok(new { sizeGuides, _links = links });
+        return Ok(sizeGuides);
     }
 
     [HttpGet]
@@ -94,9 +93,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
     {
         var query = new GetAllSizeGuidesQuery();
         var sizeGuides = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = sizeGuides.Select(sg => HateoasHelper.CreateSizeGuideLinks(Url, sg.Id, version)).ToList();
-        return Ok(new { sizeGuides, _links = links });
+        return Ok(sizeGuides);
     }
 
     [HttpPut("{id}")]
@@ -128,7 +125,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -157,7 +154,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -177,7 +174,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -220,11 +217,9 @@ public class SizeGuidesController(IMediator mediator) : BaseController
 
         if (productSizeGuide == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSizeGuideLinks(Url, productSizeGuide.SizeGuide.Id, version);
-        return Ok(new { productSizeGuide, _links = links });
+        return Ok(productSizeGuide);
     }
 
     [HttpDelete("product/{productId}")]
@@ -244,7 +239,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -267,8 +262,6 @@ public class SizeGuidesController(IMediator mediator) : BaseController
             dto.Chest,
             dto.Waist);
         var recommendation = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSizeRecommendation", new { dto.ProductId }, version);
-        return Ok(new { recommendation, _links = links });
+        return Ok(recommendation);
     }
 }

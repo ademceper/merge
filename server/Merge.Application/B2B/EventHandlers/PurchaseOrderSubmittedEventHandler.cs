@@ -7,10 +7,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.B2B.EventHandlers;
 
-/// <summary>
-/// Purchase Order Submitted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class PurchaseOrderSubmittedEventHandler(
     ILogger<PurchaseOrderSubmittedEventHandler> logger,
     INotificationService? notificationService = null) : INotificationHandler<PurchaseOrderSubmittedEvent>
@@ -18,7 +15,6 @@ public class PurchaseOrderSubmittedEventHandler(
 
     public async Task Handle(PurchaseOrderSubmittedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Purchase order submitted event received. PurchaseOrderId: {PurchaseOrderId}, OrganizationId: {OrganizationId}, PONumber: {PONumber}, TotalAmount: {TotalAmount}",
             notification.PurchaseOrderId, notification.OrganizationId, notification.PONumber, notification.TotalAmount);
@@ -51,7 +47,6 @@ public class PurchaseOrderSubmittedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling PurchaseOrderSubmittedEvent. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
                 notification.PurchaseOrderId, notification.PONumber);

@@ -14,9 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetDeliveryTimeEstimationById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetDeliveryTimeEstimationByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -34,7 +31,6 @@ public class GetDeliveryTimeEstimationByIdQueryHandler(
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 }

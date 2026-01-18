@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Security.Commands.ResolveAlert;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class ResolveAlertCommandValidator : AbstractValidator<ResolveAlertCommand>
 {
     public ResolveAlertCommandValidator()

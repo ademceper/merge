@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.RecordKnowledgeBaseArticleView;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RecordKnowledgeBaseArticleViewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RecordKnowledgeBaseArticleViewCommandHandler> logger) : IRequestHandler<RecordKnowledgeBaseArticleViewCommand, bool>
 {
 
     public async Task<bool> Handle(RecordKnowledgeBaseArticleViewCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Recording view for knowledge base article {ArticleId}. UserId: {UserId}",
             request.ArticleId, request.UserId);
 
@@ -30,13 +28,10 @@ public class RecordKnowledgeBaseArticleViewCommandHandler(IDbContext context, IU
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         var view = article.RecordView(request.UserId, request.IpAddress, request.UserAgent);
         
-        // ✅ BOLUM 1.1: Rich Domain Model - View entity'sini ekle
         await context.Set<KnowledgeBaseView>().AddAsync(view, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("View recorded for knowledge base article {ArticleId}. New view count: {ViewCount}",

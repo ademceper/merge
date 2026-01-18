@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.DeleteInventory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteInventoryCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -32,7 +30,6 @@ public class DeleteInventoryCommandHandler(
     {
         logger.LogInformation("Attempting to delete inventory Id: {InventoryId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -46,7 +43,6 @@ public class DeleteInventoryCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini silebilmeli
             if (inventory.Product.SellerId.HasValue && inventory.Product.SellerId != request.PerformedBy)
             {
                 logger.LogWarning("IDOR attempt: User {UserId} tried to delete inventory {InventoryId} for product {ProductId} owned by {OwnerId}",
@@ -58,19 +54,15 @@ public class DeleteInventoryCommandHandler(
             var productId = inventory.ProductId;
             var warehouseId = inventory.WarehouseId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             // Domain method içinde quantity kontrolü yapılıyor
             inventory.MarkAsDeleted();
             await inventoryRepository.UpdateAsync(inventory, cancellationToken);
             
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             logger.LogInformation("Successfully deleted inventory Id: {InventoryId}", request.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{productId}_{warehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{productId}", cancellationToken); // Invalidate product inventories list cache
@@ -85,7 +77,6 @@ public class DeleteInventoryCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error deleting inventory Id: {InventoryId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

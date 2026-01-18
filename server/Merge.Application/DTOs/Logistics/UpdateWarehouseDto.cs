@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.DTOs.Logistics;
 
-// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 public record UpdateWarehouseDto(
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Depo adı en az 2, en fazla 200 karakter olmalıdır.")]
     string? Name = null,

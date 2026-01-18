@@ -5,16 +5,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Review.EventHandlers;
 
-/// <summary>
-/// Review Helpfulness Marked Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReviewHelpfulnessMarkedEventHandler(ILogger<ReviewHelpfulnessMarkedEventHandler> logger) : INotificationHandler<ReviewHelpfulnessMarkedEvent>
 {
 
     public async Task Handle(ReviewHelpfulnessMarkedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Review helpfulness marked event received. ReviewId: {ReviewId}, UserId: {UserId}, IsHelpful: {IsHelpful}",
             notification.ReviewId, notification.UserId, notification.IsHelpful);
@@ -31,7 +27,6 @@ public class ReviewHelpfulnessMarkedEventHandler(ILogger<ReviewHelpfulnessMarked
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReviewHelpfulnessMarkedEvent. ReviewId: {ReviewId}, UserId: {UserId}",
                 notification.ReviewId, notification.UserId);

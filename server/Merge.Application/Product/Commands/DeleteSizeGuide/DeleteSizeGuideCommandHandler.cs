@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.DeleteSizeGuide;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteSizeGuideCommandHandler> logger, ICacheService cache) : IRequestHandler<DeleteSizeGuideCommand, bool>
 {
 
@@ -37,13 +36,11 @@ public class DeleteSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
             // Store category ID for cache invalidation
             var categoryId = sizeGuide.CategoryId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             sizeGuide.MarkAsDeleted();
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{categoryId}", cancellationToken);

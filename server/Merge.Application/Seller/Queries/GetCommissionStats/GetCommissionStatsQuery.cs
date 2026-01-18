@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Seller;
 
 namespace Merge.Application.Seller.Queries.GetCommissionStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetCommissionStatsQuery(
     Guid? SellerId = null
 ) : IRequest<CommissionStatsDto>;

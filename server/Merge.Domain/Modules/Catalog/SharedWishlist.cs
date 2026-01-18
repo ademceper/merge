@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class SharedWishlist : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
     private string _shareCode = string.Empty;
@@ -70,7 +69,6 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
     
     public DateTime? ExpiresAt { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -79,10 +77,8 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
     private readonly List<SharedWishlistItem> _items = new();
     public IReadOnlyCollection<SharedWishlistItem> Items => _items.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SharedWishlist() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SharedWishlist Create(
         Guid userId,
         string name,
@@ -110,10 +106,8 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         sharedWishlist.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistCreatedEvent yayınla (ÖNERİLİR)
         sharedWishlist.AddDomainEvent(new SharedWishlistCreatedEvent(
             sharedWishlist.Id,
             userId,
@@ -123,7 +117,6 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         return sharedWishlist;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Generate share code
     public void GenerateShareCode()
     {
         // Generate a unique 8-character share code
@@ -131,27 +124,21 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         ShareCode = code;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Clear share code
     public void ClearShareCode()
     {
         _shareCode = string.Empty;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update name
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
@@ -162,28 +149,22 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         _name = newName;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update description
     public void UpdateDescription(string newDescription)
     {
         Guard.AgainstNull(newDescription, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Set public/private
     public void SetPublic(bool isPublic)
     {
         if (IsPublic == isPublic) return;
@@ -191,47 +172,37 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         IsPublic = isPublic;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Increment view count
     public void IncrementViewCount()
     {
         _viewCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         // View count değişikliği önemli bir business event'tir
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update expiry date
     public void UpdateExpiryDate(DateTime? newExpiresAt)
     {
         ExpiresAt = newExpiresAt;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistUpdatedEvent(Id, UserId, _name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Check if expired
     public bool IsExpired()
     {
         return ExpiresAt.HasValue && ExpiresAt.Value < DateTime.UtcNow;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add item (collection manipulation)
     public void AddItem(SharedWishlistItem item)
     {
         Guard.AgainstNull(item, nameof(item));
@@ -246,11 +217,9 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         _items.Add(item);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove item (collection manipulation)
     public void RemoveItem(Guid itemId)
     {
         Guard.AgainstDefault(itemId, nameof(itemId));
@@ -262,11 +231,9 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         _items.Remove(item);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -274,14 +241,11 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SharedWishlistDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SharedWishlistDeletedEvent(Id, UserId, _name));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_name))

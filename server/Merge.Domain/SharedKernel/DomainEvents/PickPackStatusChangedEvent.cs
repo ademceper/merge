@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// PickPack Status Changed Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record PickPackStatusChangedEvent(
     Guid PickPackId,
     Guid OrderId,

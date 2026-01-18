@@ -4,7 +4,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Seller.Commands.CreateTransaction;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateTransactionCommand(
     Guid SellerId,
     SellerTransactionType TransactionType,

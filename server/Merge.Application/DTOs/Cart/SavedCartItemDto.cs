@@ -1,9 +1,7 @@
 using Merge.Domain.Modules.Ordering;
 namespace Merge.Application.DTOs.Cart;
 
-/// <summary>
-/// Saved Cart Item DTO - BOLUM 7.1.5: Records (ZORUNLU)
-/// </summary>
+
 public record SavedCartItemDto(
     Guid Id,
     Guid ProductId,

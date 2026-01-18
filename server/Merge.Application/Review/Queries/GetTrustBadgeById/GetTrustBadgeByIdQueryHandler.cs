@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetTrustBadgeById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTrustBadgeByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTrustBadgeByIdQueryHandler> logger) : IRequestHandler<GetTrustBadgeByIdQuery, TrustBadgeDto?>
 {
 
@@ -21,7 +20,6 @@ public class GetTrustBadgeByIdQueryHandler(IDbContext context, IMapper mapper, I
     {
         logger.LogInformation("Fetching trust badge by Id: {BadgeId}", request.BadgeId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         var badge = await context.Set<TrustBadge>()
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
@@ -32,7 +30,6 @@ public class GetTrustBadgeByIdQueryHandler(IDbContext context, IMapper mapper, I
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<TrustBadgeDto>(badge);
     }
 }

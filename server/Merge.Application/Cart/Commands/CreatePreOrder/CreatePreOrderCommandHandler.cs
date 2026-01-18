@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.CreatePreOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreatePreOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -36,7 +34,6 @@ public class CreatePreOrderCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
@@ -48,7 +45,6 @@ public class CreatePreOrderCommandHandler(
                 .Where(c => c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (campaign is null)
             {
                 throw new BusinessException("Bu ürün için aktif ön sipariş kampanyası yok.");
@@ -62,8 +58,6 @@ public class CreatePreOrderCommandHandler(
             var price = campaign.SpecialPrice > 0 ? campaign.SpecialPrice : product.Price;
             var depositAmount = price * (campaign.DepositPercentage / 100);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (PreOrder.Create için gerekli)
-            // ✅ User entity'si BaseEntity'den türemediği için IDbContext.Users property'si kullanılıyor
             var user = await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
@@ -73,8 +67,6 @@ public class CreatePreOrderCommandHandler(
                 throw new NotFoundException("Kullanıcı", request.UserId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var priceMoney = new Money(price);
             var depositAmountMoney = new Money(depositAmount);
             var preOrder = PreOrder.Create(
@@ -100,7 +92,6 @@ public class CreatePreOrderCommandHandler(
             var campaignToUpdate = await context.Set<PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (campaignToUpdate is null)
             {
                 throw new NotFoundException("Kampanya", campaign.Id);

@@ -15,22 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetAllCustomerCommunications;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAllCustomerCommunicationsQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetAllCustomerCommunicationsQuery, PagedResult<CustomerCommunicationDto>>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<PagedResult<CustomerCommunicationDto>> Handle(GetAllCustomerCommunicationsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         var pageSize = request.PageSize > 0 && request.PageSize <= supportConfig.MaxPageSize 
             ? request.PageSize 
             : supportConfig.DefaultPageSize;
         var page = request.Page > 0 ? request.Page : 1;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<CustomerCommunication> query = context.Set<CustomerCommunication>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -70,7 +65,6 @@ public class GetAllCustomerCommunicationsQueryHandler(IDbContext context, IMappe
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return new PagedResult<CustomerCommunicationDto>
         {
             Items = mapper.Map<List<CustomerCommunicationDto>>(communications),

@@ -11,18 +11,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// UserSubscription Renewed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UserSubscriptionRenewedEventHandler(ILogger<UserSubscriptionRenewedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionRenewedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(UserSubscriptionRenewedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "User subscription renewed event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}, NewEndDate: {NewEndDate}, RenewalCount: {RenewalCount}",
             notification.SubscriptionId, notification.UserId, notification.NewEndDate, notification.RenewalCount);
@@ -30,9 +23,9 @@ public class UserSubscriptionRenewedEventHandler(ILogger<UserSubscriptionRenewed
         try
         {
             // Email gönderimi
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Account,
                     "Abonelik Yenilendi",
@@ -49,7 +42,6 @@ public class UserSubscriptionRenewedEventHandler(ILogger<UserSubscriptionRenewed
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling UserSubscriptionRenewedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);

@@ -15,8 +15,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.UpdateCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateCategoryCommandHandler(
     IRepository categoryRepository,
     IDbContext context,
@@ -34,7 +32,6 @@ public class UpdateCategoryCommandHandler(
     {
         logger.LogInformation("Updating category with Id: {CategoryId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -44,10 +41,8 @@ public class UpdateCategoryCommandHandler(
                 throw new NotFoundException("Kategori", request.Id);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             category.UpdateName(request.Name);
             category.UpdateDescription(request.Description);
-            // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
             if (!string.IsNullOrEmpty(request.Slug))
             {
                 var slug = new Slug(request.Slug);
@@ -58,12 +53,9 @@ public class UpdateCategoryCommandHandler(
 
             await categoryRepository.UpdateAsync(category, cancellationToken);
             
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedCategory = await context.Set<Category>()
                 .AsNoTracking()
                 .Include(c => c.ParentCategory)
@@ -76,7 +68,6 @@ public class UpdateCategoryCommandHandler(
                 throw new NotFoundException("Kategori", request.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all category-related cache
             await cache.RemoveAsync(CACHE_KEY_ALL_CATEGORIES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_MAIN_CATEGORIES, cancellationToken);
             await cache.RemoveAsync($"category_{request.Id}", cancellationToken); // Single category cache
@@ -96,7 +87,6 @@ public class UpdateCategoryCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error updating category Id: {CategoryId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

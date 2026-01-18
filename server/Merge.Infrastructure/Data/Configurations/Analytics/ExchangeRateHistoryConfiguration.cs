@@ -4,21 +4,17 @@ using Merge.Domain.Modules.Analytics;
 
 namespace Merge.Infrastructure.Data.Configurations.Analytics;
 
-/// <summary>
-/// ExchangeRateHistory Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class ExchangeRateHistoryConfiguration : IEntityTypeConfiguration<ExchangeRateHistory>
 {
     public void Configure(EntityTypeBuilder<ExchangeRateHistory> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.CurrencyId);
         builder.HasIndex(e => e.CurrencyCode);
         builder.HasIndex(e => e.RecordedAt);
         builder.HasIndex(e => new { e.CurrencyId, e.RecordedAt });
         builder.HasIndex(e => new { e.CurrencyCode, e.RecordedAt });
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
@@ -42,7 +38,6 @@ public class ExchangeRateHistoryConfiguration : IEntityTypeConfiguration<Exchang
             .HasForeignKey(e => e.CurrencyId)
             .OnDelete(DeleteBehavior.Restrict);
         
-        // ✅ BOLUM 6.1: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_ExchangeRateHistory_ExchangeRate_NonNegative", "\"ExchangeRate\" >= 0");

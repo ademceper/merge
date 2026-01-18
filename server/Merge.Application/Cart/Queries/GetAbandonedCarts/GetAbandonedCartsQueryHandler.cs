@@ -20,8 +20,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCarts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAbandonedCartsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -32,7 +30,6 @@ public class GetAbandonedCartsQueryHandler(
 
     public async Task<PagedResult<AbandonedCartDto>> Handle(GetAbandonedCartsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
@@ -40,9 +37,6 @@ public class GetAbandonedCartsQueryHandler(
         var maxDate = DateTime.UtcNow.AddHours(-request.MinHours);
         var now = DateTime.UtcNow;
 
-        // ✅ PERFORMANCE: Database'de tüm hesaplamaları yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // Step 1-4: Get final abandoned cart IDs using subqueries (no materialization)
         var abandonedCartsQuery = context.Set<CartEntity>()
             .AsNoTracking()
@@ -75,21 +69,20 @@ public class GetAbandonedCartsQueryHandler(
         {
             return new PagedResult<AbandonedCartDto>
             {
-                Items = new List<AbandonedCartDto>(),
+                Items = [],
                 TotalCount = 0,
                 Page = page,
                 PageSize = pageSize
             };
         }
 
-        // ✅ PERFORMANCE: TotalCount için subquery kullan (memory'de materialize etme)
         var totalCount = await finalAbandonedCartIdsQuery.CountAsync(cancellationToken);
 
         if (totalCount == 0)
         {
             return new PagedResult<AbandonedCartDto>
             {
-                Items = new List<AbandonedCartDto>(),
+                Items = [],
                 TotalCount = 0,
                 Page = page,
                 PageSize = pageSize
@@ -104,7 +97,6 @@ public class GetAbandonedCartsQueryHandler(
             {
                 CartId = c.Id,
                 UserId = c.UserId,
-                // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching (ifade ağacında != null kullan)
                 UserEmail = c.User != null ? c.User.Email : "",
                 UserName = c.User != null ? (c.User.FirstName + " " + c.User.LastName) : "",
                 LastModified = c.UpdatedAt ?? c.CreatedAt,
@@ -136,8 +128,6 @@ public class GetAbandonedCartsQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Dictionary oluşturma minimal bir işlem (O(n) lookup için gerekli)
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
         var emailStatsDict = new Dictionary<Guid, (int EmailsSentCount, bool HasReceivedEmail, DateTime? LastEmailSent)>(emailStats.Count);
         foreach (var stat in emailStats)
         {
@@ -151,20 +141,17 @@ public class GetAbandonedCartsQueryHandler(
             .Where(ci => paginatedCartIds.Contains(ci.CartId))
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Dictionary oluşturma minimal bir işlem (O(1) lookup için gerekli)
-        var cartItemsDict = new Dictionary<Guid, List<CartItem>>();
+        Dictionary<Guid, List<CartItem>> cartItemsDict = [];
         foreach (var item in cartItems)
         {
             if (!cartItemsDict.ContainsKey(item.CartId))
             {
-                cartItemsDict[item.CartId] = new List<CartItem>();
+                cartItemsDict[item.CartId] = [];
             }
             cartItemsDict[item.CartId].Add(item);
         }
-
-        // Step 8: Build DTOs (minimal memory operations - only property assignment)
-        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
-        var result = new List<AbandonedCartDto>();
+        
+        List<AbandonedCartDto> result = [];
         foreach (var c in cartsData)
         {
             var items = cartItemsDict.ContainsKey(c.CartId)
@@ -188,7 +175,6 @@ public class GetAbandonedCartsQueryHandler(
             result.Add(dto);
         }
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<AbandonedCartDto>
         {
             Items = result,

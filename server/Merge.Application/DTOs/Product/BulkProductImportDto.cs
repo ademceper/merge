@@ -2,7 +2,6 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Product;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
 public record BulkProductImportDto(
     string Name,
     string Description,

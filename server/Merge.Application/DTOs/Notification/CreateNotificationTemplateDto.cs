@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.DTOs.Notification;
 
-/// <summary>
-/// Create Notification Template DTO - BOLUM 7.1.5: Records (C# 12 modern features)
-/// </summary>
+
 public record CreateNotificationTemplateDto(
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "İsim en az 2, en fazla 100 karakter olmalıdır.")]

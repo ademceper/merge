@@ -18,13 +18,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.CreateStore;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateStoreCommandHandler> logger) : IRequestHandler<CreateStoreCommand, StoreDto>
 {
 
     public async Task<StoreDto> Handle(CreateStoreCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating store for seller {SellerId}, StoreName: {StoreName}",
             request.SellerId, request.Dto.StoreName);
 
@@ -38,7 +36,6 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             throw new ValidationException("Mağaza adı boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
         var seller = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.SellerId, cancellationToken);
@@ -52,7 +49,6 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         // If this is primary, unset other primary stores
         if (request.Dto.IsPrimary)
         {
-            // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
             var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == request.SellerId && s.IsPrimary)
                 .ToListAsync(cancellationToken);
@@ -63,7 +59,6 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var store = Store.Create(
             sellerId: request.SellerId,
             storeName: request.Dto.StoreName,
@@ -86,11 +81,8 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
 
         await context.Set<Store>().AddAsync(store, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         var reloadedStore = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
@@ -102,11 +94,8 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             return mapper.Map<StoreDto>(store);
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var storeDto = mapper.Map<StoreDto>(reloadedStore);
         
-        // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        // ✅ FIX: Record immutable - with expression kullan
         var productCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);

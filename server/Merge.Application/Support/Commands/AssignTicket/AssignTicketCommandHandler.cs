@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.AssignTicket;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AssignTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<AssignTicketCommandHandler> logger) : IRequestHandler<AssignTicketCommand, bool>
 {
 
     public async Task<bool> Handle(AssignTicketCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Assigning ticket {TicketId} to user {AssignedToId}", request.TicketId, request.AssignedToId);
 
         var ticket = await context.Set<SupportTicket>()
@@ -29,10 +27,8 @@ public class AssignTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             throw new NotFoundException("Destek bileti", request.TicketId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         ticket.AssignTo(request.AssignedToId);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Ticket {TicketNumber} assigned to user {AssignedToId}", ticket.TicketNumber, request.AssignedToId);

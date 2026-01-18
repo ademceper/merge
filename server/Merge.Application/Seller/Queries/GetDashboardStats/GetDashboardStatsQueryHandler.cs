@@ -20,17 +20,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetDashboardStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetDashboardStatsQueryHandler(IDbContext context, ILogger<GetDashboardStatsQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetDashboardStatsQuery, SellerDashboardStatsDto>
 {
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerDashboardStatsDto> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting dashboard stats. SellerId: {SellerId}", request.SellerId);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
@@ -43,7 +40,6 @@ public class GetDashboardStatsQueryHandler(IDbContext context, ILogger<GetDashbo
 
         var today = DateTime.UtcNow.Date;
         
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var stats = new SellerDashboardStatsDto
         {
             TotalProducts = await context.Set<ProductEntity>()

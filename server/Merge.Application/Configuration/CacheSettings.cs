@@ -1,13 +1,10 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// Cache expiration settings - BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-/// </summary>
+
 public class CacheSettings
 {
     public const string SectionName = "CacheSettings";
 
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     // Product-related cache expiration times (in minutes)
     public int ProductCacheExpirationMinutes { get; set; } = 15; // Products change more frequently
     public int ProductSearchCacheExpirationMinutes { get; set; } = 5; // Search results can be dynamic

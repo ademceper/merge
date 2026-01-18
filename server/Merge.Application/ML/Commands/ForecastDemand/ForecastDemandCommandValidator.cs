@@ -5,8 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.ML.Commands.ForecastDemand;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class ForecastDemandCommandValidator(IOptions<MLSettings> mlSettings) : AbstractValidator<ForecastDemandCommand>
 {
     private readonly MLSettings config = mlSettings.Value;

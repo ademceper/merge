@@ -22,16 +22,12 @@ namespace Merge.Application.Services.Product;
 public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SizeGuideService> logger) : ISizeGuideService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SizeGuideDto> CreateSizeGuideAsync(CreateSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Size guide oluşturuluyor. Name: {Name}, CategoryId: {CategoryId}",
             dto.Name, dto.CategoryId);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var sizeGuide = SizeGuide.Create(
             dto.Name,
             dto.Description,
@@ -43,7 +39,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         await context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         foreach (var entryDto in dto.Entries)
         {
             var additionalMeasurementsJson = entryDto.AdditionalMeasurements != null 
@@ -66,7 +61,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
                 additionalMeasurementsJson,
                 entryDto.DisplayOrder);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             sizeGuide.AddEntry(entry);
         }
 
@@ -74,37 +68,32 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
 
         sizeGuide = await context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Size guide oluşturuldu. SizeGuideId: {SizeGuideId}, Name: {Name}",
             sizeGuide!.Id, sizeGuide.Name);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<SizeGuideDto>(sizeGuide);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SizeGuideDto?> GetSizeGuideAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var sizeGuide = await context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return sizeGuide != null ? mapper.Map<SizeGuideDto>(sizeGuide) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<SizeGuideDto>> GetSizeGuidesByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var sizeGuides = await context.Set<SizeGuide>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -113,14 +102,11 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             .Where(sg => sg.CategoryId == categoryId && sg.IsActive)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<SizeGuideDto>> GetAllSizeGuidesAsync(CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuides = await context.Set<SizeGuide>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -129,21 +115,17 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             .Where(sg => sg.IsActive)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdateSizeGuideAsync(Guid id, CreateSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuide = await context.Set<SizeGuide>()
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
         if (sizeGuide == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         sizeGuide.Update(
             dto.Name,
             dto.Description,
@@ -152,7 +134,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             dto.Brand,
             dto.MeasurementUnit);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Remove old entries
         var entryIdsToRemove = sizeGuide.Entries.Select(e => e.Id).ToList();
         foreach (var entryId in entryIdsToRemove)
@@ -160,7 +141,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             sizeGuide.RemoveEntry(entryId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         // Add new entries
         foreach (var entryDto in dto.Entries)
         {
@@ -184,7 +164,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
                 additionalMeasurementsJson,
                 entryDto.DisplayOrder);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             sizeGuide.AddEntry(entry);
         }
 
@@ -193,10 +172,8 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteSizeGuideAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuide = await context.Set<SizeGuide>()
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
@@ -208,11 +185,11 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductSizeGuideDto?> GetProductSizeGuideAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         var productSizeGuide = await context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.Product)
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Category)
@@ -222,7 +199,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
 
         if (productSizeGuide == null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var sizeGuideDto = mapper.Map<SizeGuideDto>(productSizeGuide.SizeGuide);
         return new ProductSizeGuideDto(
             productSizeGuide.ProductId,
@@ -232,16 +208,13 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             productSizeGuide.FitDescription);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task AssignSizeGuideToProductAsync(AssignSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !psg.IsDeleted (Global Query Filter)
         var existing = await context.Set<ProductSizeGuide>()
             .FirstOrDefaultAsync(psg => psg.ProductId == dto.ProductId, cancellationToken);
 
         if (existing != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             existing.Update(
                 dto.SizeGuideId,
                 dto.CustomNotes,
@@ -250,7 +223,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         }
         else
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var productSizeGuide = ProductSizeGuide.Create(
                 dto.ProductId,
                 dto.SizeGuideId,
@@ -264,10 +236,8 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> RemoveSizeGuideFromProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !psg.IsDeleted (Global Query Filter)
         var productSizeGuide = await context.Set<ProductSizeGuide>()
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
@@ -279,11 +249,11 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SizeRecommendationDto> GetSizeRecommendationAsync(Guid productId, decimal height, decimal weight, decimal? chest = null, decimal? waist = null, CancellationToken cancellationToken = default)
     {
         var productSizeGuide = await context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
@@ -297,7 +267,6 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
                 Reasoning: "No size guide available for this product");
         }
 
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
         var entries = productSizeGuide.SizeGuide.Entries
             .OrderBy(e => e.DisplayOrder)
             .ToList();
@@ -350,7 +319,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         if (bestMatch != null)
         {
             var currentIndex = entries.IndexOf(bestMatch);
-            var alternatives = new List<string>();
+            List<string> alternatives = [];
 
             if (currentIndex > 0)
                 alternatives.Add(entries[currentIndex - 1].SizeLabel);

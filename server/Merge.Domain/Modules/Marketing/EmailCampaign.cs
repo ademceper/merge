@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class EmailCampaign : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Subject { get; private set; } = string.Empty;
     public string FromName { get; private set; } = string.Empty;
@@ -26,7 +25,6 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
     public Guid? TemplateId { get; private set; }
     public EmailTemplate? Template { get; private set; }
     public string Content { get; private set; } = string.Empty; // HTML content
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public EmailCampaignStatus Status { get; private set; } = EmailCampaignStatus.Draft;
     public EmailCampaignType Type { get; private set; } = EmailCampaignType.Promotional;
     public DateTime? ScheduledAt { get; private set; }
@@ -138,20 +136,15 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
     
     public string? Tags { get; private set; } // JSON array of tags
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
     private readonly List<EmailCampaignRecipient> _recipients = [];
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
     public IReadOnlyCollection<EmailCampaignRecipient> Recipients => _recipients.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private EmailCampaign() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static EmailCampaign Create(
         string name,
         string subject,
@@ -191,13 +184,11 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignCreatedEvent
         campaign.AddDomainEvent(new EmailCampaignCreatedEvent(campaign.Id, campaign.Name, campaign.Type));
 
         return campaign;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string name,
         string subject,
@@ -223,32 +214,26 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         Tags = tags;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignUpdatedEvent
         AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set template ID
     public void SetTemplateId(Guid? templateId)
     {
         TemplateId = templateId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignUpdatedEvent
         AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set target segment
     public void SetTargetSegment(string targetSegment)
     {
         Guard.AgainstNullOrEmpty(targetSegment, nameof(targetSegment));
         TargetSegment = targetSegment;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignUpdatedEvent
         AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Schedule campaign
     public void Schedule(DateTime scheduledAt)
     {
         if (scheduledAt <= DateTime.UtcNow)
@@ -261,11 +246,9 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         Status = EmailCampaignStatus.Scheduled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignScheduledEvent
         AddDomainEvent(new EmailCampaignScheduledEvent(Id, Name, scheduledAt));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Start sending
     public void StartSending(int totalRecipients)
     {
         if (Status != EmailCampaignStatus.Scheduled && Status != EmailCampaignStatus.Draft)
@@ -275,11 +258,9 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         TotalRecipients = totalRecipients;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignStartedEvent
         AddDomainEvent(new EmailCampaignStartedEvent(Id, Name, totalRecipients));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as sent
     public void MarkAsSent(int sentCount)
     {
         if (Status != EmailCampaignStatus.Sending)
@@ -290,11 +271,9 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         SentCount = sentCount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignSentEvent
         AddDomainEvent(new EmailCampaignSentEvent(Id, Name, sentCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update statistics
     public void UpdateStatistics(
         int deliveredCount,
         int openedCount,
@@ -318,7 +297,6 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Pause campaign
     public void Pause()
     {
         if (Status != EmailCampaignStatus.Sending)
@@ -327,11 +305,9 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         Status = EmailCampaignStatus.Paused;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignPausedEvent
         AddDomainEvent(new EmailCampaignPausedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel campaign
     public void Cancel()
     {
         if (Status == EmailCampaignStatus.Sent)
@@ -340,21 +316,17 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         Status = EmailCampaignStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignCancelledEvent
         AddDomainEvent(new EmailCampaignCancelledEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as failed
     public void MarkAsFailed()
     {
         Status = EmailCampaignStatus.Failed;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignFailedEvent
         AddDomainEvent(new EmailCampaignFailedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -365,7 +337,6 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailCampaignDeletedEvent
         AddDomainEvent(new EmailCampaignDeletedEvent(Id, Name));
     }
 }

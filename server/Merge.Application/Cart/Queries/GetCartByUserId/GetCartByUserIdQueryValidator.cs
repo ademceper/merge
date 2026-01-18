@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetCartByUserId;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetCartByUserIdQueryValidator : AbstractValidator<GetCartByUserIdQuery>
 {
     public GetCartByUserIdQueryValidator()

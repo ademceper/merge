@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Commands.UpdateVolumeDiscount;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateVolumeDiscountCommandValidator : AbstractValidator<UpdateVolumeDiscountCommand>
 {
     public UpdateVolumeDiscountCommandValidator()

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetAdminLowStockProducts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAdminLowStockProductsQueryValidator : AbstractValidator<GetAdminLowStockProductsQuery>
 {
     public GetAdminLowStockProductsQueryValidator()

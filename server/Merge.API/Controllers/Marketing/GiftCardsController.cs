@@ -16,10 +16,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing;
 
+/// <summary>
+/// Gift Cards API endpoints.
+/// Hediye kartı işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/gift-cards")]
 [Authorize]
+[Tags("GiftCards")]
 public class GiftCardsController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -66,7 +71,7 @@ public class GiftCardsController(
         
         if (giftCard == null)
         {
-            return NotFound();
+            return Problem("Gift card not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (giftCard.PurchasedByUserId != userId && giftCard.AssignedToUserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -91,7 +96,7 @@ public class GiftCardsController(
         
         if (giftCard == null)
         {
-            return NotFound();
+            return Problem("Gift card not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return Ok(giftCard);
@@ -138,9 +143,19 @@ public class GiftCardsController(
         return Ok(giftCard);
     }
 
+    /// <summary>
+    /// Hediye kartı indirimini hesaplar
+    /// </summary>
+    /// <param name="code">Hediye kartı kodu</param>
+    /// <param name="orderAmount">Sipariş tutarı</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İndirim tutarı</returns>
+    /// <response code="200">İndirim başarıyla hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("calculate-discount")]
     [RateLimit(30, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<decimal>> CalculateDiscount(
@@ -150,6 +165,6 @@ public class GiftCardsController(
     {
         var query = new CalculateGiftCardDiscountQuery(code, orderAmount);
         var discount = await mediator.Send(query, cancellationToken);
-        return Ok(new { discount });
+        return Ok(discount);
     }
 }

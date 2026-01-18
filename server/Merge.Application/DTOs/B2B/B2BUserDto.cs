@@ -18,7 +18,6 @@ public class B2BUserDto
     public decimal? UsedCredit { get; set; }
     public decimal? AvailableCredit { get; set; }
     
-    // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
     // Typed DTO kullanılıyor
     public B2BUserSettingsDto? Settings { get; set; }
     

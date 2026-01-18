@@ -14,9 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetPickPackByPackNumber;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetPickPackByPackNumberQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -38,7 +35,6 @@ public class GetPickPackByPackNumberQueryHandler(
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.PackNumber == request.PackNumber, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 }

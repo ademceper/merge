@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.ML.Commands.OptimizePrice;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class OptimizePriceCommandValidator : AbstractValidator<OptimizePriceCommand>
 {
     public OptimizePriceCommandValidator()

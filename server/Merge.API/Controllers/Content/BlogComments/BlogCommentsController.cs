@@ -13,9 +13,14 @@ using Merge.Application.Content.Queries.GetBlogPostComments;
 
 namespace Merge.API.Controllers.Content.BlogComments;
 
+/// <summary>
+/// Blog Comments API endpoints.
+/// Blog yorumlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/blog/comments")]
+[Tags("BlogComments")]
 public class BlogCommentsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -46,7 +51,6 @@ public class BlogCommentsController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostCommentsQuery(postId, isApproved, page, pageSize);
         var comments = await mediator.Send(query, cancellationToken);
         return Ok(comments);
@@ -75,7 +79,6 @@ public class BlogCommentsController(
         [FromBody] CreateBlogCommentCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         Guid? userId = null;
         if (User.Identity?.IsAuthenticated == true)
         {
@@ -111,12 +114,11 @@ public class BlogCommentsController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new ApproveBlogCommentCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -146,12 +148,11 @@ public class BlogCommentsController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBlogCommentCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

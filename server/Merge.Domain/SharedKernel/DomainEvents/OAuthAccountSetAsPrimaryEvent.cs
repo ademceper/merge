@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// OAuth Account Set As Primary Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record OAuthAccountSetAsPrimaryEvent(
     Guid OAuthAccountId,
     Guid UserId,

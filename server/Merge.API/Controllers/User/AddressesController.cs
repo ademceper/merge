@@ -13,9 +13,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.User;
 
+/// <summary>
+/// User Addresses API endpoints.
+/// Kullanıcı adreslerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/user/addresses")]
 [Authorize]
+[Tags("UserAddresses")]
 public class AddressesController(IMediator mediator) : BaseController
 {
 
@@ -46,7 +52,7 @@ public class AddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(query, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(address);
     }
@@ -153,7 +159,7 @@ public class AddressesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -172,7 +178,7 @@ public class AddressesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

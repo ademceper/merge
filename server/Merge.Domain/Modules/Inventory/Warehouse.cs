@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Inventory;
 /// </summary>
 public class Warehouse : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Code { get; private set; } = string.Empty; // Unique warehouse code (WH001, WH002, etc.)
     public string Address { get; private set; } = string.Empty;
@@ -41,13 +40,11 @@ public class Warehouse : BaseEntity, IAggregateRoot
     public string? Description { get; private set; }
 
     // Navigation properties
-    public ICollection<Inventory> Inventories { get; private set; } = new List<Inventory>();
-    public ICollection<StockMovement> StockMovements { get; private set; } = new List<StockMovement>();
+    public ICollection<Inventory> Inventories { get; private set; } = [];
+    public ICollection<StockMovement> StockMovements { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Warehouse() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Warehouse Create(
         string name,
         string code,
@@ -89,13 +86,11 @@ public class Warehouse : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - WarehouseCreatedEvent
         warehouse.AddDomainEvent(new WarehouseCreatedEvent(warehouse.Id, warehouse.Name, warehouse.Code));
 
         return warehouse;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update warehouse details
     public void UpdateDetails(
         string name,
         string address,
@@ -129,11 +124,9 @@ public class Warehouse : BaseEntity, IAggregateRoot
         Description = description;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - WarehouseUpdatedEvent
         AddDomainEvent(new WarehouseUpdatedEvent(Id, Name, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate warehouse
     public void Activate()
     {
         if (IsActive) return;
@@ -141,11 +134,9 @@ public class Warehouse : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - WarehouseActivatedEvent
         AddDomainEvent(new WarehouseActivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate warehouse
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -153,11 +144,9 @@ public class Warehouse : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - WarehouseDeactivatedEvent
         AddDomainEvent(new WarehouseDeactivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;

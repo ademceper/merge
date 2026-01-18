@@ -10,15 +10,9 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Order Shipped Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class OrderShippedEventHandler(ILogger<OrderShippedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<OrderShippedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(OrderShippedEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation(
@@ -28,7 +22,7 @@ public class OrderShippedEventHandler(ILogger<OrderShippedEventHandler> logger, 
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -37,7 +31,7 @@ public class OrderShippedEventHandler(ILogger<OrderShippedEventHandler> logger, 
                     $"Siparişiniz kargoya verildi. Sipariş No: {notification.OrderId}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -45,7 +39,6 @@ public class OrderShippedEventHandler(ILogger<OrderShippedEventHandler> logger, 
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling OrderShippedEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);

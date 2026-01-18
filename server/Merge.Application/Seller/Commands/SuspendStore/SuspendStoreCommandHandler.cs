@@ -11,17 +11,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.SuspendStore;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SuspendStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SuspendStoreCommandHandler> logger) : IRequestHandler<SuspendStoreCommand, bool>
 {
 
     public async Task<bool> Handle(SuspendStoreCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Suspending store. StoreId: {StoreId}, Reason: {Reason}",
             request.StoreId, request.Reason);
 
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
@@ -31,11 +28,8 @@ public class SuspendStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.Suspend(request.Reason);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Store suspended. StoreId: {StoreId}", request.StoreId);

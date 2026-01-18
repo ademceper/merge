@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetQuestionAnswers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetQuestionAnswersQueryHandler(
     IDbContext context,
     ILogger<GetQuestionAnswersQueryHandler> logger,
@@ -34,7 +32,6 @@ public class GetQuestionAnswersQueryHandler(
         logger.LogInformation("Fetching answers for question. QuestionId: {QuestionId}, UserId: {UserId}", 
             request.QuestionId, request.UserId);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern (UserId-specific cache key for user-specific data)
         var cacheKey = $"{CACHE_KEY_ANSWERS_BY_QUESTION}{request.QuestionId}";
         // Note: UserId-specific data (HasUserVoted) is not cached, only answer data
         var cachedAnswers = await cache.GetAsync<IEnumerable<ProductAnswerDto>>(cacheKey, cancellationToken);
@@ -46,7 +43,6 @@ public class GetQuestionAnswersQueryHandler(
 
         logger.LogInformation("Cache miss for answers. QuestionId: {QuestionId}", request.QuestionId);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var answersQuery = context.Set<ProductAnswer>()
             .AsNoTracking()
             .Where(a => a.QuestionId == request.QuestionId && a.IsApproved)
@@ -66,7 +62,6 @@ public class GetQuestionAnswersQueryHandler(
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
             : new Dictionary<Guid, AnswerHelpfulness>();
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
         var dtos = new List<ProductAnswerDto>(answers.Count);
         foreach (var answer in answers)
         {
@@ -75,8 +70,6 @@ public class GetQuestionAnswersQueryHandler(
             dtos.Add(dto);
         }
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz (sadece UserId yoksa)
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         if (!request.UserId.HasValue)
         {
             await cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(cacheConfig.AnswerCacheExpirationMinutes), cancellationToken);

@@ -1,7 +1,6 @@
 using Merge.Application.DTOs.Security;
 using Merge.Application.Common;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Security;
 
 public interface IPaymentFraudPreventionService

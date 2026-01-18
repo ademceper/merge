@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.CreateDeliveryTimeEstimation;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateDeliveryTimeEstimationCommandValidator : AbstractValidator<CreateDeliveryTimeEstimationCommand>
 {
     public CreateDeliveryTimeEstimationCommandValidator()

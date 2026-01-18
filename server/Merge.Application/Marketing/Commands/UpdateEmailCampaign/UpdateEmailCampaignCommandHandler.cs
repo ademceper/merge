@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.UpdateEmailCampaign;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class UpdateEmailCampaignCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +23,6 @@ public class UpdateEmailCampaignCommandHandler(
 {
     public async Task<EmailCampaignDto> Handle(UpdateEmailCampaignCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
@@ -38,7 +36,6 @@ public class UpdateEmailCampaignCommandHandler(
             throw new BusinessException("Sadece taslak kampanyalar güncellenebilir.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         campaign.UpdateDetails(
             request.Name ?? campaign.Name,
             request.Subject ?? campaign.Subject,
@@ -49,23 +46,19 @@ public class UpdateEmailCampaignCommandHandler(
 
         if (request.TemplateId.HasValue)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             campaign.SetTemplateId(request.TemplateId.Value);
         }
 
         if (request.ScheduledAt.HasValue && request.ScheduledAt != campaign.ScheduledAt)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             campaign.Schedule(request.ScheduledAt.Value);
         }
 
         if (!string.IsNullOrEmpty(request.TargetSegment) && request.TargetSegment != campaign.TargetSegment)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             campaign.SetTargetSegment(request.TargetSegment);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var updatedCampaign = await context.Set<EmailCampaign>()
@@ -73,7 +66,6 @@ public class UpdateEmailCampaignCommandHandler(
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<EmailCampaignDto>(updatedCampaign!);
     }
 }

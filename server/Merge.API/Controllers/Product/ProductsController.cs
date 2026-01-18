@@ -14,25 +14,40 @@ using Merge.Application.Product.Commands.CreateProduct;
 using Merge.Application.Product.Commands.UpdateProduct;
 using Merge.Application.Product.Commands.PatchProduct;
 using Merge.Application.Product.Commands.DeleteProduct;
-using Merge.Application.DTOs.Product;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.API.Extensions;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Product API endpoints.
+/// Tüm CRUD ve özel operasyonları içerir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products")]
+[Tags("Products")]
 public class ProductsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
 {
     private readonly PaginationSettings _paginationSettings = paginationSettings.Value;
 
+    /// <summary>
+    /// Get all products with pagination.
+    /// </summary>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Items per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of products</returns>
+    /// <response code="200">Returns paginated products</response>
+    /// <response code="400">Invalid parameters</response>
     [HttpGet]
+    [AllowAnonymous]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<ProductDto>>> GetAll(
         [FromQuery] int page = 1,
@@ -43,19 +58,19 @@ public class ProductsController(
         if (page < 1) page = 1;
         var query = new GetAllProductsQuery(page, pageSize);
         var products = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url, 
-            "GetAllProducts", 
-            page, 
-            pageSize, 
-            products.TotalPages,
-            null,
-            version);
-        return Ok(new { products, _links = paginationLinks });
+        return Ok(products);
     }
 
-    [HttpGet("{id}")]
+    /// <summary>
+    /// Get a specific product by ID.
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Product details</returns>
+    /// <response code="200">Returns the product</response>
+    /// <response code="404">Product not found</response>
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -67,10 +82,9 @@ public class ProductsController(
         var product = await mediator.Send(query, cancellationToken);
         if (product == null)
         {
-            return NotFound();
+            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
         // Generate ETag from product data (in real scenario, use RowVersion or LastModified)
         var productJson = System.Text.Json.JsonSerializer.Serialize(product);
         Response.SetETag(productJson);
@@ -83,12 +97,14 @@ public class ProductsController(
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductLinks(Url, id, version);
-        return Ok(new { product, _links = links });
+        return Ok(product);
     }
 
-    [HttpGet("category/{categoryId}")]
+    /// <summary>
+    /// Get products by category.
+    /// </summary>
+    [HttpGet("category/{categoryId:guid}")]
+    [AllowAnonymous]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -102,19 +118,14 @@ public class ProductsController(
         if (page < 1) page = 1;
         var query = new GetProductsByCategoryQuery(categoryId, page, pageSize);
         var products = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url, 
-            "GetByCategory", 
-            page, 
-            pageSize, 
-            products.TotalPages,
-            new { categoryId },
-            version);
-        return Ok(new { products, _links = paginationLinks });
+        return Ok(products);
     }
 
+    /// <summary>
+    /// Search products.
+    /// </summary>
     [HttpGet("search")]
+    [AllowAnonymous]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -129,18 +140,20 @@ public class ProductsController(
         if (page < 1) page = 1;
         var query = new SearchProductsQuery(q, page, pageSize);
         var products = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url, 
-            "Search", 
-            page, 
-            pageSize, 
-            products.TotalPages,
-            new { q },
-            version);
-        return Ok(new { products, _links = paginationLinks });
+        return Ok(products);
     }
 
+    /// <summary>
+    /// Create a new product.
+    /// </summary>
+    /// <param name="command">Product creation data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Created product</returns>
+    /// <response code="201">Product created successfully</response>
+    /// <response code="400">Validation errors</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="403">Not authorized</response>
+    /// <response code="409">SKU already exists</response>
     [HttpPost]
     [Authorize(Roles = "Admin,Seller")]
     [RateLimit(10, 60)]
@@ -148,7 +161,7 @@ public class ProductsController(
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> Create(
         [FromBody] CreateProductCommand command,
@@ -163,12 +176,21 @@ public class ProductsController(
         var sellerId = User.IsInRole("Admin") ? command.SellerId : userId;
         var updatedCommand = command with { SellerId = sellerId };
         var product = await mediator.Send(updatedCommand, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
-        return CreatedAtAction(nameof(GetById), new { id = product.Id }, new { product, _links = links });
+        return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
     }
 
-    [HttpPut("{id}")]
+    /// <summary>
+    /// Update entire product (full replacement).
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="command">Updated product data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated product</returns>
+    /// <response code="200">Product updated successfully</response>
+    /// <response code="400">Validation errors or ID mismatch</response>
+    /// <response code="404">Product not found</response>
+    /// <response code="409">Concurrency conflict</response>
+    [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin,Seller")]
     [RateLimit(30, 60)]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
@@ -176,7 +198,7 @@ public class ProductsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> Update(
         Guid id,
@@ -193,7 +215,7 @@ public class ProductsController(
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
         if (existingProduct == null)
         {
-            return NotFound();
+            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
         {
@@ -201,16 +223,21 @@ public class ProductsController(
         }
         var updatedCommand = command with { Id = id, SellerId = existingProduct.SellerId, PerformedBy = userId };
         var product = await mediator.Send(updatedCommand, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
-        return Ok(new { product, _links = links });
+        return Ok(product);
     }
 
     /// <summary>
-    /// Ürünü kısmi olarak günceller (PATCH)
-    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// Partially update a product.
+    /// Only provided fields will be updated.
     /// </summary>
-    [HttpPatch("{id}")]
+    /// <param name="id">Product ID</param>
+    /// <param name="patchDto">Fields to update (null = unchanged)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated product</returns>
+    /// <response code="200">Product patched successfully</response>
+    /// <response code="400">Validation errors</response>
+    /// <response code="404">Product not found</response>
+    [HttpPatch("{id:guid}")]
     [Authorize(Roles = "Admin,Seller")]
     [RateLimit(30, 60)]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
@@ -218,7 +245,6 @@ public class ProductsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> Patch(
         Guid id,
@@ -235,7 +261,7 @@ public class ProductsController(
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
         if (existingProduct == null)
         {
-            return NotFound();
+            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
         {
@@ -243,19 +269,24 @@ public class ProductsController(
         }
         var command = new PatchProductCommand(id, patchDto, userId);
         var product = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
-        return Ok(new { product, _links = links });
+        return Ok(product);
     }
 
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Seller")]
+    /// <summary>
+    /// Delete a product (soft delete).
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>No content</returns>
+    /// <response code="204">Product deleted successfully</response>
+    /// <response code="404">Product not found</response>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
@@ -267,7 +298,7 @@ public class ProductsController(
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
         if (existingProduct == null)
         {
-            return NotFound();
+            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
         {
@@ -277,7 +308,7 @@ public class ProductsController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

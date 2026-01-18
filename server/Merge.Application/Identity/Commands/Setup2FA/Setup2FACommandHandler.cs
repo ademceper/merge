@@ -144,7 +144,6 @@ public class Setup2FACommandHandler(
             rng.GetBytes(bytes);
         }
         var code = BitConverter.ToString(bytes).Replace("-", "");
-        // ✅ PERFORMANCE: Span<char> kullanımı (zero allocation)
         var codeSpan = code.AsSpan();
         return $"{codeSpan[..4]}-{codeSpan[4..8]}";
     }

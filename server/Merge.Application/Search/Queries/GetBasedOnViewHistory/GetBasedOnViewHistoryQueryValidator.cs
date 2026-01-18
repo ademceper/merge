@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetBasedOnViewHistory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetBasedOnViewHistoryQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetBasedOnViewHistoryQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

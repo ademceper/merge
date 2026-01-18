@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Analytics.Commands.ChangeUserRole;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ChangeUserRoleCommandValidator : AbstractValidator<ChangeUserRoleCommand>
 {
     public ChangeUserRoleCommandValidator()

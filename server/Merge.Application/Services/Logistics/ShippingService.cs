@@ -45,7 +45,6 @@ public class ShippingService(
 
         if (shipping == null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ShippingDto>(shipping);
     }
 
@@ -58,7 +57,6 @@ public class ShippingService(
 
         if (shipping == null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ShippingDto>(shipping);
     }
 
@@ -89,9 +87,7 @@ public class ShippingService(
             throw new BusinessException("Bu sipariş için zaten bir kargo kaydı var.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var shippingCost = new Money(dto.ShippingCost);
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         // CreateShippingDto'da EstimatedDeliveryDate yok, null geçiyoruz
         var shipping = Shipping.Create(
             dto.OrderId,
@@ -106,14 +102,11 @@ public class ShippingService(
         logger.LogInformation("Shipping created for order {OrderId} with provider {Provider}",
             dto.OrderId, dto.ShippingProvider);
 
-        // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var createdShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == shipping.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ShippingDto>(createdShipping!);
     }
 
@@ -133,13 +126,11 @@ public class ShippingService(
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             shipping.Ship(trackingNumber);
             shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(3));
 
             await shippingRepository.UpdateAsync(shipping);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Order status'unu güncelle
             var order = await orderRepository.GetByIdAsync(shipping.OrderId);
             if (order != null)
@@ -153,8 +144,6 @@ public class ShippingService(
                 logger.LogInformation("Shipping tracking updated for order {OrderId}. Tracking: {TrackingNumber}",
                     shipping.OrderId, trackingNumber);
 
-                // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - INotificationService yerine MediatR kullan
-                // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
                 await mediator.Send(new CreateNotificationCommand(
                     order.UserId,
                     NotificationType.Shipping,
@@ -180,14 +169,11 @@ public class ShippingService(
                 await unitOfWork.CommitTransactionAsync();
             }
 
-            // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
             var updatedShipping = await context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<ShippingDto>(updatedShipping!);
         }
         catch (Exception ex)
@@ -198,7 +184,6 @@ public class ShippingService(
         }
     }
 
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public async Task<ShippingDto> UpdateStatusAsync(Guid shippingId, ShippingStatus status, CancellationToken cancellationToken = default)
     {
         await unitOfWork.BeginTransactionAsync();
@@ -210,12 +195,10 @@ public class ShippingService(
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             shipping.TransitionTo(status);
 
             if (status == ShippingStatus.Delivered)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 // Order status'unu güncelle
                 var order = await orderRepository.GetByIdAsync(shipping.OrderId);
                 if (order != null)
@@ -231,14 +214,11 @@ public class ShippingService(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync();
 
-            // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
             var updatedShipping = await context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<ShippingDto>(updatedShipping!);
         }
         catch (Exception ex)
@@ -256,7 +236,6 @@ public class ShippingService(
             throw new ValidationException("Kargo firması boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
@@ -278,7 +257,6 @@ public class ShippingService(
             _ => 50m
         };
 
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         // Not: OrderSettings inject edilmeli, şimdilik hardcoded bırakıldı (refactoring gerekli)
         if (order.SubTotal >= 500)
         {

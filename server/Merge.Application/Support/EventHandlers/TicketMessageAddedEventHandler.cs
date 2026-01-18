@@ -8,10 +8,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Support.EventHandlers;
 
-/// <summary>
-/// Ticket Message Added Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class TicketMessageAddedEventHandler(
     ILogger<TicketMessageAddedEventHandler> logger,
     INotificationService? notificationService) : INotificationHandler<TicketMessageAddedEvent>
@@ -19,7 +16,6 @@ public class TicketMessageAddedEventHandler(
 
     public async Task Handle(TicketMessageAddedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Ticket message added event received. MessageId: {MessageId}, TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}, IsStaffResponse: {IsStaffResponse}",
             notification.MessageId, notification.TicketId, notification.TicketNumber, notification.UserId, notification.IsStaffResponse);
@@ -46,7 +42,6 @@ public class TicketMessageAddedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling TicketMessageAddedEvent. MessageId: {MessageId}, TicketId: {TicketId}, TicketNumber: {TicketNumber}",
                 notification.MessageId, notification.TicketId, notification.TicketNumber);

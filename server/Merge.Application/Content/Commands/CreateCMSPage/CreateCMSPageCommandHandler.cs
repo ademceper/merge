@@ -17,8 +17,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.CreateCMSPage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateCMSPageCommandHandler(
     IRepository cmsPageRepository,
     IDbContext context,
@@ -38,7 +36,6 @@ public class CreateCMSPageCommandHandler(
         logger.LogInformation("Creating CMS page. AuthorId: {AuthorId}, Title: {Title}",
             request.AuthorId, request.Title);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -51,12 +48,10 @@ public class CreateCMSPageCommandHandler(
 
                 foreach (var existingPage in existingHomePages)
                 {
-                    // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                     existingPage.UnsetAsHomePage();
                 }
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var statusEnum = Enum.TryParse<ContentStatus>(request.Status, true, out var status) ? status : ContentStatus.Draft;
             var page = CMSPage.Create(
                 request.Title,
@@ -79,7 +74,6 @@ public class CreateCMSPageCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<CMSPage>()
                 .AsNoTracking()
                 .Include(p => p.Author)
@@ -95,7 +89,6 @@ public class CreateCMSPageCommandHandler(
             logger.LogInformation("CMS page created successfully. PageId: {PageId}, Slug: {Slug}",
                 page.Id, page.Slug);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all CMS page-related cache
             await cache.RemoveAsync($"{CACHE_KEY_CMS_PAGE_BY_ID}{page.Id}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_CMS_PAGE_BY_SLUG}{reloadedPage.Slug}", cancellationToken);
             if (request.IsHomePage)
@@ -117,7 +110,6 @@ public class CreateCMSPageCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating CMS page. Title: {Title}", request.Title);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

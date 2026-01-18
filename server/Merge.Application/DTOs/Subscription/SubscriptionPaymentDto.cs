@@ -7,7 +7,6 @@ public class SubscriptionPaymentDto
 {
     public Guid Id { get; set; }
     public Guid UserSubscriptionId { get; set; }
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public PaymentStatus PaymentStatus { get; set; }
     public decimal Amount { get; set; }
     public string? TransactionId { get; set; }

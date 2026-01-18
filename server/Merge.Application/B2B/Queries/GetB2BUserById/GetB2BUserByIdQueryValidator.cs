@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Queries.GetB2BUserById;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetB2BUserByIdQueryValidator : AbstractValidator<GetB2BUserByIdQuery>
 {
     public GetB2BUserByIdQueryValidator()

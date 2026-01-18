@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Marketing;
 
 namespace Merge.Application.Marketing.Commands.CreateEmailCampaign;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateEmailCampaignCommand(
     string Name,
     string Subject,

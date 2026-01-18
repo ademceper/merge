@@ -18,7 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.CreateProductFromTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateProductFromTemplateCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -52,7 +51,6 @@ public class CreateProductFromTemplateCommandHandler(
                 throw new NotFoundException("Şablon", request.TemplateId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var sku = new SKU(request.SKU);
             var price = new Money(request.Price);
             var product = ProductEntity.Create(
@@ -67,7 +65,6 @@ public class CreateProductFromTemplateCommandHandler(
                 request.StoreId
             );
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             if (request.DiscountPrice.HasValue)
             {
                 product.SetDiscountPrice(new Money(request.DiscountPrice.Value));
@@ -83,15 +80,12 @@ public class CreateProductFromTemplateCommandHandler(
             }
             else if (request.ImageUrls != null && request.ImageUrls.Any())
             {
-                // ✅ ERROR HANDLING FIX: Safe First() operation - Any() kontrolü yapıldı
-                // ✅ FIX: CS8625 - UpdateImages non-nullable string bekliyor, ilk imageUrl'i kullan
                 product.UpdateImages(request.ImageUrls.First(), request.ImageUrls);
             }
 
             await context.Set<ProductEntity>().AddAsync(product, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Increment template usage count
             var templateToUpdate = await context.Set<ProductTemplate>()
                 .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
@@ -104,13 +98,11 @@ public class CreateProductFromTemplateCommandHandler(
 
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
-            // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
             if (product == null)
             {
                 logger.LogError("Product not found after creation. ProductId: {ProductId}", product?.Id);
@@ -120,13 +112,11 @@ public class CreateProductFromTemplateCommandHandler(
             logger.LogInformation("Product created from template successfully. ProductId: {ProductId}, TemplateId: {TemplateId}",
                 product.Id, request.TemplateId);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Invalidate template cache (usage count changed)
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATE_BY_ID}{request.TemplateId}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_TEMPLATES, cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATES_BY_CATEGORY}{template.CategoryId}_", cancellationToken);
             // Invalidate popular templates cache (all possible limits)
-            // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
             for (int limit = paginationConfig.DefaultPageSize; limit <= paginationConfig.MaxPageSize; limit += paginationConfig.DefaultPageSize)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_POPULAR_TEMPLATES}{limit}", cancellationToken);

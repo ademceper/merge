@@ -11,18 +11,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// UserSubscription Activated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UserSubscriptionActivatedEventHandler(ILogger<UserSubscriptionActivatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionActivatedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(UserSubscriptionActivatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "User subscription activated event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
             notification.SubscriptionId, notification.UserId);
@@ -30,9 +23,9 @@ public class UserSubscriptionActivatedEventHandler(ILogger<UserSubscriptionActiv
         try
         {
             // Email gönderimi
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Account,
                     "Abonelik Aktifleştirildi",
@@ -49,7 +42,6 @@ public class UserSubscriptionActivatedEventHandler(ILogger<UserSubscriptionActiv
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling UserSubscriptionActivatedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);

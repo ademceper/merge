@@ -14,8 +14,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Product.Commands.DeleteProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteProductCommandHandler(IRepository productRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, ILogger<DeleteProductCommandHandler> logger) : IRequestHandler<DeleteProductCommand, bool>
 {
 
@@ -38,7 +36,6 @@ public class DeleteProductCommandHandler(IRepository productRepository, IDbConte
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerini silebilmeli
             if (request.PerformedBy.HasValue && product.SellerId.HasValue && product.SellerId.Value != request.PerformedBy.Value)
             {
                 logger.LogWarning("Unauthorized attempt to delete product {ProductId} by user {UserId}. Product belongs to {SellerId}",
@@ -59,7 +56,6 @@ public class DeleteProductCommandHandler(IRepository productRepository, IDbConte
                 throw new BusinessException("Siparişleri olan bir ürün silinemez.");
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             product.MarkAsDeleted();
             await productRepository.UpdateAsync(product, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -67,7 +63,6 @@ public class DeleteProductCommandHandler(IRepository productRepository, IDbConte
 
             logger.LogInformation("Product deleted successfully. ProductId: {ProductId}", request.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (products_all_paged_*, products_by_category_*, products_search_*)
             // pattern-based invalidation gerektirir. ICacheService'de RemoveByPrefixAsync yok.
             // Şimdilik cache expiration'a güveniyoruz (15 dakika TTL)

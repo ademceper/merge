@@ -20,11 +20,9 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class UserSubscription : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public Guid SubscriptionPlanId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public SubscriptionStatus Status { get; private set; } = SubscriptionStatus.Active;
     
     public DateTime StartDate { get; private set; } = DateTime.UtcNow;
@@ -35,7 +33,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
     public bool AutoRenew { get; private set; } = true;
     public DateTime? NextBillingDate { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects - CurrentPrice backing field (EF Core compatibility)
     private decimal _currentPrice;
     public decimal CurrentPrice 
     { 
@@ -50,23 +47,19 @@ public class UserSubscription : BaseEntity, IAggregateRoot
     public string? PaymentMethodId { get; private set; } // Reference to payment method
     public int RenewalCount { get; private set; } = 0; // How many times renewed
 
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money CurrentPriceMoney => new Money(_currentPrice, SubscriptionPlan?.Currency ?? "TRY");
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User User { get; private set; } = null!;
     public SubscriptionPlan SubscriptionPlan { get; private set; } = null!;
-    public ICollection<SubscriptionPayment> Payments { get; private set; } = new List<SubscriptionPayment>();
+    public ICollection<SubscriptionPayment> Payments { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private UserSubscription() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static UserSubscription Create(
         Guid userId,
         SubscriptionPlan plan,
@@ -108,7 +101,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         subscription.AddDomainEvent(new UserSubscriptionCreatedEvent(
             subscription.Id,
             userId,
@@ -121,7 +113,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         return subscription;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel subscription
     public void Cancel(string? reason = null)
     {
         if (Status == SubscriptionStatus.Cancelled)
@@ -136,11 +127,9 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         AutoRenew = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new UserSubscriptionCancelledEvent(Id, UserId, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Renew subscription
     public void Renew(SubscriptionPlan plan)
     {
         Guard.AgainstNull(plan, nameof(plan));
@@ -157,11 +146,9 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         _currentPrice = plan.Price; // Update to current plan price
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new UserSubscriptionRenewedEvent(Id, UserId, EndDate, RenewalCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Suspend subscription
     public void Suspend()
     {
         if (Status != SubscriptionStatus.Active)
@@ -170,11 +157,9 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         Status = SubscriptionStatus.Suspended;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new UserSubscriptionSuspendedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate subscription
     public void Activate()
     {
         if (Status != SubscriptionStatus.Suspended)
@@ -183,11 +168,9 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         Status = SubscriptionStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new UserSubscriptionActivatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update auto-renew setting
     public void UpdateAutoRenew(bool autoRenew)
     {
         if (AutoRenew == autoRenew)
@@ -196,31 +179,26 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         AutoRenew = autoRenew;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new UserSubscriptionUpdatedEvent(Id, UserId, AutoRenewChanged: true, PaymentMethodChanged: null));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update payment method
     public void UpdatePaymentMethod(string? paymentMethodId)
     {
         var paymentMethodChanged = PaymentMethodId != paymentMethodId;
         PaymentMethodId = paymentMethodId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         if (paymentMethodChanged)
         {
             AddDomainEvent(new UserSubscriptionUpdatedEvent(Id, UserId, AutoRenewChanged: null, PaymentMethodChanged: true));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if subscription is active
     public bool IsActive()
     {
         return Status == SubscriptionStatus.Active && EndDate > DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if subscription is in trial
     public bool IsInTrial()
     {
         return Status == SubscriptionStatus.Trial && 
@@ -228,7 +206,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
                TrialEndDate.Value > DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Get days remaining
     public int GetDaysRemaining()
     {
         if (EndDate <= DateTime.UtcNow)
@@ -237,7 +214,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
         return (int)(EndDate - DateTime.UtcNow).TotalDays;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as expired
     public void MarkAsExpired()
     {
         if (Status == SubscriptionStatus.Expired)
@@ -249,7 +225,6 @@ public class UserSubscription : BaseEntity, IAggregateRoot
             AutoRenew = false;
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
             AddDomainEvent(new UserSubscriptionExpiredEvent(Id, UserId));
         }
     }

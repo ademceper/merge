@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Seller.Commands.UpdateSellerCommissionSettings;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateSellerCommissionSettingsCommandValidator : AbstractValidator<UpdateSellerCommissionSettingsCommand>
 {
     public UpdateSellerCommissionSettingsCommandValidator()

@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.DeleteVolumeDiscount;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteVolumeDiscountCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,7 +20,6 @@ public class DeleteVolumeDiscountCommandHandler(
     {
         logger.LogInformation("Deleting volume discount. VolumeDiscountId: {VolumeDiscountId}", request.Id);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var discount = await context.Set<VolumeDiscount>()
             .FirstOrDefaultAsync(vd => vd.Id == request.Id, cancellationToken);
 
@@ -32,7 +29,6 @@ public class DeleteVolumeDiscountCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
         discount.Delete();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

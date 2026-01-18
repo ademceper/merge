@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetDashboardSummary;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetDashboardSummaryQueryHandler(
     IDbContext context,
     ILogger<GetDashboardSummaryQueryHandler> logger,
@@ -31,14 +29,10 @@ public class GetDashboardSummaryQueryHandler(
             request.StartDate, request.EndDate);
         
         var end = request.EndDate ?? DateTime.UtcNow;
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var start = request.StartDate ?? end.AddDays(-settings.Value.DefaultDashboardPeriodDays);
         var previousStart = start.AddDays(-(end - start).Days);
         var previousEnd = start;
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= start && o.CreatedAt <= end);
@@ -55,7 +49,6 @@ public class GetDashboardSummaryQueryHandler(
         var previousOrderCount = await previousOrdersQuery.CountAsync(cancellationToken);
         var ordersChange = previousOrderCount > 0 ? ((decimal)(totalOrders - previousOrderCount) / previousOrderCount) * 100 : 0;
 
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted check (Global Query Filter handles it)
         var totalCustomers = await context.Users
             .AsNoTracking()
             .CountAsync(u => u.CreatedAt >= start && u.CreatedAt <= end, cancellationToken);
@@ -70,12 +63,10 @@ public class GetDashboardSummaryQueryHandler(
         var previousAOV = previousOrderCount > 0 ? previousRevenue / previousOrderCount : 0;
         var aovChange = previousAOV > 0 ? ((aov - previousAOV) / previousAOV) * 100 : 0;
 
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted and !p.IsDeleted checks (Global Query Filter handles it)
         var pendingOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.Status == OrderStatus.Pending, cancellationToken);
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var lowStockProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity < settings.Value.LowStockThreshold, cancellationToken);
@@ -83,7 +74,6 @@ public class GetDashboardSummaryQueryHandler(
         logger.LogInformation("Dashboard summary calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}, TotalCustomers: {TotalCustomers}",
             totalRevenue, totalOrders, totalCustomers);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new DashboardSummaryDto(
             totalRevenue,
             revenueChange,

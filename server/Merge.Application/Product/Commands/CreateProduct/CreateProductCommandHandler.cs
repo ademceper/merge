@@ -15,8 +15,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Product.Commands.CreateProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateProductCommandHandler(IRepository productRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, IMapper mapper, ILogger<CreateProductCommandHandler> logger) : IRequestHandler<CreateProductCommand, ProductDto>
 {
 
@@ -30,7 +28,6 @@ public class CreateProductCommandHandler(IRepository productRepository, IDbConte
         logger.LogInformation("Creating product. Name: {Name}, SKU: {SKU}, SellerId: {SellerId}",
             request.Name, request.SKU, request.SellerId);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var sku = new SKU(request.SKU);
         var price = new Money(request.Price);
         var product = ProductEntity.Create(
@@ -60,7 +57,6 @@ public class CreateProductCommandHandler(IRepository productRepository, IDbConte
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedProduct = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Include(p => p.Category)
@@ -72,7 +68,6 @@ public class CreateProductCommandHandler(IRepository productRepository, IDbConte
                 throw new NotFoundException("Ürün", product.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (products_all_paged_*, products_by_category_*, products_search_*)
             // pattern-based invalidation gerektirir. ICacheService'de RemoveByPrefixAsync yok.
             // Şimdilik cache expiration'a güveniyoruz (15 dakika TTL)

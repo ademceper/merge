@@ -4,14 +4,11 @@ using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// LiveStreamViewer Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class LiveStreamViewerConfiguration : IEntityTypeConfiguration<LiveStreamViewer>
 {
     public void Configure(EntityTypeBuilder<LiveStreamViewer> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.LiveStreamId);
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.GuestId);
@@ -24,12 +21,10 @@ public class LiveStreamViewerConfiguration : IEntityTypeConfiguration<LiveStream
         builder.Property(e => e.GuestId)
             .HasMaxLength(100);
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
         
-        // ✅ BOLUM 6.2: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_LiveStreamViewer_WatchDuration_NonNegative", "\"WatchDuration\" >= 0");

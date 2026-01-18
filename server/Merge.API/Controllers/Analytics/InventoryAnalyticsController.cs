@@ -12,10 +12,15 @@ using Merge.Application.Analytics.Queries.GetStockByWarehouse;
 
 namespace Merge.API.Controllers.Analytics.Inventory;
 
+/// <summary>
+/// Inventory Analytics API endpoints.
+/// Envanter analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/inventory")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("InventoryAnalytics")]
 public class InventoryAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -33,7 +38,6 @@ public class InventoryAnalyticsController(
     public async Task<ActionResult<InventoryAnalyticsDto>> GetInventoryAnalytics(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoryAnalyticsQuery();
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
@@ -53,8 +57,6 @@ public class InventoryAnalyticsController(
         [FromQuery] int threshold = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetLowStockProductsQuery(threshold);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
@@ -72,7 +74,6 @@ public class InventoryAnalyticsController(
     public async Task<ActionResult<List<WarehouseStockDto>>> GetStockByWarehouse(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetStockByWarehouseQuery();
         var stock = await mediator.Send(query, cancellationToken);
         return Ok(stock);

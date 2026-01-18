@@ -18,23 +18,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetPerformanceMetrics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetPerformanceMetricsQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetPerformanceMetricsQuery, SellerPerformanceDto>
 {
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerPerformanceDto> Handle(GetPerformanceMetricsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-sellerConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var totalSales = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
             join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
@@ -54,8 +49,6 @@ public class GetPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetPe
 
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales by date
         var salesByDate = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -73,7 +66,6 @@ public class GetPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetPe
             }
         ).OrderBy(s => s.Date).ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top products
         var topProducts = await context.Set<OrderItem>()
             .AsNoTracking()
@@ -90,16 +82,13 @@ public class GetPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetPe
                 Revenue = g.Sum(oi => oi.TotalPrice)
             })
             .OrderByDescending(p => p.Revenue)
-            // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
             .Take(sellerConfig.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var uniqueCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&

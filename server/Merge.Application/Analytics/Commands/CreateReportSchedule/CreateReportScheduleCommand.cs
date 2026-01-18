@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Analytics;
 
 namespace Merge.Application.Analytics.Commands.CreateReportSchedule;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateReportScheduleCommand(
     Guid UserId,
     string Name,

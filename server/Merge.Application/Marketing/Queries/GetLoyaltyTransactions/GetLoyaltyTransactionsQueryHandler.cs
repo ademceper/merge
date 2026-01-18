@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetLoyaltyTransactions;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetLoyaltyTransactionsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetLoyaltyTransactionsQuery, PagedResult<LoyaltyTransactionDto>>
 {
     public async Task<PagedResult<LoyaltyTransactionDto>> Handle(GetLoyaltyTransactionsQuery request, CancellationToken cancellationToken)

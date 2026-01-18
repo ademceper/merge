@@ -8,18 +8,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Support.EventHandlers;
 
-/// <summary>
-/// Live Chat Session Assigned Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class LiveChatSessionAssignedEventHandler(ILogger<LiveChatSessionAssignedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<LiveChatSessionAssignedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(LiveChatSessionAssignedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Live chat session assigned event received. SessionId: {SessionId}, SessionIdentifier: {SessionIdentifier}, AgentId: {AgentId}",
             notification.SessionId, notification.SessionIdentifier, notification.AgentId);
@@ -27,7 +20,7 @@ public class LiveChatSessionAssignedEventHandler(ILogger<LiveChatSessionAssigned
         try
         {
             // Agent'a bildirim gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.AgentId,
@@ -36,7 +29,7 @@ public class LiveChatSessionAssignedEventHandler(ILogger<LiveChatSessionAssigned
                     $"Size yeni bir canlı sohbet atandı. Oturum: {notification.SessionIdentifier}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -44,7 +37,6 @@ public class LiveChatSessionAssignedEventHandler(ILogger<LiveChatSessionAssigned
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling LiveChatSessionAssignedEvent. SessionId: {SessionId}, SessionIdentifier: {SessionIdentifier}, AgentId: {AgentId}",
                 notification.SessionId, notification.SessionIdentifier, notification.AgentId);

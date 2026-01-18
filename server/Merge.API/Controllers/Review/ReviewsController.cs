@@ -16,9 +16,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Review;
 
-[ApiController]
+/// <summary>
+/// Reviews API endpoints.
+/// Ürün yorumlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/reviews")]
+[Tags("Reviews")]
 public class ReviewsController(IMediator mediator) : BaseController
 {
     [HttpGet("product/{productId}")]
@@ -99,7 +104,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
         if (existingReview == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
@@ -135,7 +140,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
         if (existingReview == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
@@ -161,7 +166,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
         if (existingReview == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
@@ -171,7 +176,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -191,7 +196,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -217,7 +222,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

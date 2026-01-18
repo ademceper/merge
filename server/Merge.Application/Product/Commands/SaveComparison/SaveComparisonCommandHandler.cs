@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.SaveComparison;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SaveComparisonCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SaveComparisonCommandHandler> logger, ICacheService cache) : IRequestHandler<SaveComparisonCommand, bool>
 {
 
@@ -35,14 +34,11 @@ public class SaveComparisonCommandHandler(IDbContext context, IUnitOfWork unitOf
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             comparison.Save(request.Name);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_true_", cancellationToken);

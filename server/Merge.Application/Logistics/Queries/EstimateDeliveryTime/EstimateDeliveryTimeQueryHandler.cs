@@ -15,9 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.EstimateDeliveryTime;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class EstimateDeliveryTimeQueryHandler(
     IDbContext context,
     ILogger<EstimateDeliveryTimeQueryHandler> logger,
@@ -35,7 +32,6 @@ public class EstimateDeliveryTimeQueryHandler(
         string? source = null;
 
         // 1. Product-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (request.ProductId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -54,7 +50,6 @@ public class EstimateDeliveryTimeQueryHandler(
         }
 
         // 2. Category-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null && request.CategoryId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -73,7 +68,6 @@ public class EstimateDeliveryTimeQueryHandler(
         }
 
         // 3. Warehouse-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null && request.WarehouseId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -91,7 +85,6 @@ public class EstimateDeliveryTimeQueryHandler(
         }
 
         // 4. Default estimation (no specific match)
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -110,7 +103,6 @@ public class EstimateDeliveryTimeQueryHandler(
             }
         }
 
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         // If no estimation found, use default values from configuration
         if (estimation == null)
         {

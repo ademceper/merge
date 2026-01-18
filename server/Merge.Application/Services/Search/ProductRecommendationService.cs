@@ -22,10 +22,8 @@ namespace Merge.Application.Services.Search;
 public class ProductRecommendationService(IDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger) : IProductRecommendationService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetSimilarProductsAsync(Guid productId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -40,7 +38,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         var priceMin = product.Price * 0.7m;
         var priceMax = product.Price * 1.3m;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var similarProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
@@ -53,8 +50,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -72,12 +67,8 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendations;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetFrequentlyBoughtTogetherAsync(Guid productId, int maxResults = 5, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !oi.IsDeleted, !oi2.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Find products that are frequently purchased together
         var frequentlyBought = await (
             from oi1 in context.Set<OrderItem>().AsNoTracking()
@@ -93,16 +84,13 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             }
         ).Take(maxResults).ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = frequentlyBought.Select(fb => fb.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var fb in frequentlyBought)
         {
             if (products.TryGetValue(fb.ProductId, out var product))
@@ -126,10 +114,8 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendations;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetPersonalizedRecommendationsAsync(Guid userId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // Get user's purchase history categories
         var userOrderCategoriesSubquery = (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -156,7 +142,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             return await GetTrendingProductsAsync(7, maxResults, cancellationToken);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get highly rated products from preferred categories
         var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
@@ -168,8 +153,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -187,12 +170,9 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendationDtos;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetBasedOnViewHistoryAsync(Guid userId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted (Global Query Filter)
         // Get recently viewed products
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var recentlyViewed = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -208,7 +188,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             return Enumerable.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: recentlyViewed zaten materialize edilmiş küçük liste (5 item), bu yüzden ID'leri almak kabul edilebilir
         // Ancak category'ler için subquery kullanıyoruz (ISSUE #3.1 fix)
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
         
@@ -223,7 +202,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
                                       orderby rv.ViewedAt descending
                                       select p.CategoryId;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get products from same categories, excluding already viewed
         var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
@@ -235,8 +213,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -254,13 +230,10 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendationDtos;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetTrendingProductsAsync(int days = 7, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var trendingProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
@@ -275,16 +248,13 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = trendingProducts.Select(tp => tp.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var tp in trendingProducts)
         {
             if (products.TryGetValue(tp.ProductId, out var product))
@@ -307,11 +277,8 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendations;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetBestSellersAsync(int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var bestSellers = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
@@ -325,16 +292,13 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = bestSellers.Select(bs => bs.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var bs in bestSellers)
         {
             if (products.TryGetValue(bs.ProductId, out var product))
@@ -357,12 +321,10 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendations;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetNewArrivalsAsync(int days = 30, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var newArrivals = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && p.CreatedAt >= startDate)
@@ -370,8 +332,6 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -389,11 +349,8 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
         return recommendations;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PersonalizedRecommendationsDto> GetCompleteRecommendationsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu sadece property assignment (kabul edilebilir)
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = new PersonalizedRecommendationsDto(
             ForYou: (await GetPersonalizedRecommendationsAsync(userId, 10, cancellationToken)).ToList(),
             BasedOnHistory: (await GetBasedOnViewHistoryAsync(userId, 10, cancellationToken)).ToList(),

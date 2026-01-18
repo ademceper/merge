@@ -2,9 +2,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// Analytics Settings - BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
-/// </summary>
+
 public class AnalyticsSettings
 {
     public const string SectionName = "AnalyticsSettings";

@@ -15,14 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetNewArrivals;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetNewArrivalsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetNewArrivalsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetNewArrivalsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetNewArrivalsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "New arrivals isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
@@ -43,7 +41,6 @@ public class GetNewArrivalsQueryHandler(IDbContext context, IMapper mapper, ILog
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -59,7 +56,6 @@ public class GetNewArrivalsQueryHandler(IDbContext context, IMapper mapper, ILog
             ))
             .ToList();
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "New arrivals tamamlandı. Days: {Days}, Count: {Count}",
             days, recommendations.Count);

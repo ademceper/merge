@@ -14,28 +14,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetStore;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetStoreQueryHandler(IDbContext context, IMapper mapper, ILogger<GetStoreQueryHandler> logger) : IRequestHandler<GetStoreQuery, StoreDto?>
 {
 
     public async Task<StoreDto?> Handle(GetStoreQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting store. StoreId: {StoreId}", request.StoreId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var store = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         if (store == null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         
-        // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        // ✅ FIX: Record immutable - with expression kullan
         var productCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);

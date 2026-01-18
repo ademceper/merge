@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Subscription.Commands.UpdateUserSubscription;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class UpdateUserSubscriptionCommandValidator : AbstractValidator<UpdateUserSubscriptionCommand>
 {
     public UpdateUserSubscriptionCommandValidator()

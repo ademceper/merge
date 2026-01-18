@@ -16,9 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CreateDeliveryTimeEstimation;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CreateDeliveryTimeEstimationCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -32,12 +29,10 @@ public class CreateDeliveryTimeEstimationCommandHandler(
         logger.LogInformation("Creating delivery time estimation. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.CategoryId, request.WarehouseId);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var conditionsJson = request.Conditions != null
             ? JsonSerializer.Serialize(request.Conditions, JsonOptions)
             : null;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // Factory method parametre sırası: minDays, maxDays, averageDays, productId, categoryId, warehouseId, shippingProviderId, city, country, conditions, isActive
         var estimation = DeliveryTimeEstimation.Create(
             request.MinDays,
@@ -54,8 +49,6 @@ public class CreateDeliveryTimeEstimationCommandHandler(
 
         await context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
         
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var createdEstimation = await context.Set<DeliveryTimeEstimation>()
@@ -73,7 +66,6 @@ public class CreateDeliveryTimeEstimationCommandHandler(
 
         logger.LogInformation("Delivery time estimation created successfully. EstimationId: {EstimationId}", estimation.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<DeliveryTimeEstimationDto>(createdEstimation);
     }
 }

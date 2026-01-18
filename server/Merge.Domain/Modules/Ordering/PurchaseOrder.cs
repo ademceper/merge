@@ -27,15 +27,12 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
 {
     private readonly List<PurchaseOrderItem> _items = new();
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrganizationId { get; private set; }
     public Guid? B2BUserId { get; private set; } // User who created the PO
     public string PONumber { get; private set; } = string.Empty; // Auto-generated: PO-XXXXXX
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public PurchaseOrderStatus Status { get; private set; } = PurchaseOrderStatus.Draft;
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _subTotal;
     private decimal _tax;
     private decimal _totalAmount;
@@ -71,7 +68,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money SubTotalMoney => new Money(_subTotal);
     
@@ -88,7 +84,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     public DateTime? ExpectedDeliveryDate { get; private set; }
     public Guid? CreditTermId { get; private set; }
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -100,7 +95,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -112,11 +106,9 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     public IReadOnlyCollection<PurchaseOrderItem> Items => _items.AsReadOnly();
     
     // Navigation properties
@@ -125,10 +117,8 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     public User? ApprovedBy { get; private set; }
     public CreditTerm? CreditTerm { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PurchaseOrder() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PurchaseOrder Create(
         Guid organizationId,
         Guid? b2bUserId,
@@ -157,7 +147,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Created
         purchaseOrder.AddDomainEvent(new PurchaseOrderCreatedEvent(
             purchaseOrder.Id,
             organizationId,
@@ -168,7 +157,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         return purchaseOrder;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Add item to purchase order
     public void AddItem(Product product, int quantity, Money unitPrice, string? notes = null)
     {
         Guard.AgainstNull(product, nameof(product));
@@ -176,11 +164,9 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         Guard.AgainstNull(unitPrice, nameof(unitPrice));
         Guard.AgainstNegative(unitPrice.Amount, nameof(unitPrice));
 
-        // ✅ BOLUM 1.1: Business rule - Can only add items to draft orders
         if (Status != PurchaseOrderStatus.Draft)
             throw new DomainException("Sadece taslak durumundaki siparişlere ürün eklenebilir");
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var item = PurchaseOrderItem.Create(
             Id,
             product.Id,
@@ -193,13 +179,11 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Added
         // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
         // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
         AddDomainEvent(new PurchaseOrderItemAddedEvent(Id, product.Id, quantity, unitPrice.Amount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Remove item from purchase order
     public void RemoveItem(Guid purchaseOrderItemId)
     {
         if (Status != PurchaseOrderStatus.Draft)
@@ -214,13 +198,11 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Removed
         // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
         // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
         AddDomainEvent(new PurchaseOrderItemRemovedEvent(Id, productId, purchaseOrderItemId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update item quantity in purchase order
     public void UpdateItemQuantity(Guid purchaseOrderItemId, int newQuantity)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
@@ -237,24 +219,20 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Updated
         // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
         // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
         AddDomainEvent(new PurchaseOrderItemUpdatedEvent(Id, item.ProductId, purchaseOrderItemId, oldQuantity, newQuantity));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate totals
     private void RecalculateTotals()
     {
         _subTotal = _items.Sum(i => i.TotalPrice);
         // Tax will be calculated externally based on tax rate
         _totalAmount = _subTotal + _tax;
         
-        // ✅ BOLUM 1.6: Invariant validation - Validate after recalculation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - Total amount must be non-negative
     private void ValidateInvariants()
     {
         if (_totalAmount < 0)
@@ -264,7 +242,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             throw new DomainException("Sipariş en az bir ürün içermelidir");
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set tax amount
     public void SetTax(Money taxAmount)
     {
         Guard.AgainstNull(taxAmount, nameof(taxAmount));
@@ -277,14 +254,11 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         _totalAmount = _subTotal + _tax;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.6: Invariant validation - Validate after setting tax
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: State Transition - Submit purchase order
     public void Submit()
     {
-        // ✅ BOLUM 1.6: Invariant validation
         if (Status != PurchaseOrderStatus.Draft)
             throw new DomainException("Sadece taslak durumundaki siparişler gönderilebilir");
 
@@ -298,7 +272,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         SubmittedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Submitted
         AddDomainEvent(new PurchaseOrderSubmittedEvent(
             Id,
             OrganizationId,
@@ -306,7 +279,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             TotalAmount));
     }
 
-    // ✅ BOLUM 1.1: State Transition - Approve purchase order
     public void Approve(Guid approvedByUserId)
     {
         Guard.AgainstDefault(approvedByUserId, nameof(approvedByUserId));
@@ -319,7 +291,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         ApprovedByUserId = approvedByUserId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Approved
         AddDomainEvent(new PurchaseOrderApprovedEvent(
             Id,
             OrganizationId,
@@ -328,7 +299,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             TotalAmount));
     }
 
-    // ✅ BOLUM 1.1: State Transition - Reject purchase order
     public void Reject(string reason)
     {
         Guard.AgainstNullOrEmpty(reason, nameof(reason));
@@ -342,7 +312,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             : $"{Notes}\nRed Sebebi: {reason}";
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Rejected
         AddDomainEvent(new PurchaseOrderRejectedEvent(
             Id,
             OrganizationId,
@@ -350,7 +319,6 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             reason));
     }
 
-    // ✅ BOLUM 1.1: State Transition - Cancel purchase order
     public void Cancel()
     {
         if (Status != PurchaseOrderStatus.Draft && Status != PurchaseOrderStatus.Submitted)
@@ -359,14 +327,12 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
         Status = PurchaseOrderStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Purchase Order Cancelled
         AddDomainEvent(new PurchaseOrderCancelledEvent(
             Id,
             OrganizationId,
             PONumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update notes
     public void UpdateNotes(string notes)
     {
         if (Status != PurchaseOrderStatus.Draft)

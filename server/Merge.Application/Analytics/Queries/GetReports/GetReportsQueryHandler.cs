@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReports;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReportsQueryHandler(
     IDbContext context,
     ILogger<GetReportsQueryHandler> logger,
@@ -32,13 +30,10 @@ public class GetReportsQueryHandler(
         logger.LogInformation("Fetching reports. UserId: {UserId}, Type: {Type}, Page: {Page}, PageSize: {PageSize}",
             request.UserId, request.Type, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         IQueryable<Report> query = context.Set<Report>()
             .AsNoTracking()
             .Include(r => r.GeneratedByUser);
@@ -61,7 +56,6 @@ public class GetReportsQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<ReportDto>
         {
             Items = mapper.Map<List<ReportDto>>(reports),

@@ -26,7 +26,7 @@ public class CreateStaticTranslationCommandHandler(
             request.Key, request.LanguageCode);
 
         var language = await context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode), cancellationToken);
 
         if (language == null)
         {
@@ -36,7 +36,7 @@ public class CreateStaticTranslationCommandHandler(
 
         var exists = await context.Set<StaticTranslation>()
             .AnyAsync(st => st.Key == request.Key &&
-                           st.LanguageCode.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+                           EF.Functions.ILike(st.LanguageCode, request.LanguageCode), cancellationToken);
 
         if (exists)
         {

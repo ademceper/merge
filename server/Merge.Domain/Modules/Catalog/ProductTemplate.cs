@@ -13,14 +13,12 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductTemplate : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MinNameLength = 2;
         public const int MaxNameLength = 200;
     }
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _name = string.Empty;
     public string Name 
     { 
@@ -82,17 +80,14 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Category Category { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductTemplate() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductTemplate Create(
         string name,
         string description,
@@ -112,7 +107,6 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         
         if (!string.IsNullOrEmpty(defaultImageUrl))
         {
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(defaultImageUrl);
@@ -140,16 +134,13 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         template.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         template.AddDomainEvent(new ProductTemplateCreatedEvent(template.Id, name, categoryId));
         
         return template;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update
     public void Update(
         string? name = null,
         string? description = null,
@@ -172,7 +163,6 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         if (defaultStockQuantity.HasValue) DefaultStockQuantity = defaultStockQuantity;
         if (defaultImageUrl != null)
         {
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(defaultImageUrl);
@@ -189,28 +179,22 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Increment usage count
     public void IncrementUsageCount()
     {
         _usageCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
         // Usage count değişikliği önemli bir business event'tir
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Activate
     public void Activate()
     {
         if (IsActive) return;
@@ -218,14 +202,11 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -233,14 +214,11 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -248,14 +226,11 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductTemplateDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_name))
@@ -277,7 +252,6 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
 
         if (!string.IsNullOrEmpty(DefaultImageUrl))
         {
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(DefaultImageUrl);

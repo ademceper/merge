@@ -16,8 +16,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Payment;
 
+/// <summary>
+/// Payment Methods API endpoints.
+/// Ödeme yöntemlerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/payments/methods")]
+[Tags("PaymentMethods")]
 public class PaymentMethodsController(IMediator mediator) : BaseController
 {
     [HttpGet]
@@ -61,7 +67,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var method = await mediator.Send(query, cancellationToken);
         if (method == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(method);
     }
@@ -78,7 +84,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var method = await mediator.Send(query, cancellationToken);
         if (method == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(method);
     }
@@ -146,7 +152,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -187,7 +193,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -206,7 +212,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -225,15 +231,26 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
 
+    /// <summary>
+    /// Ödeme yöntemi için işlem ücretini hesaplar
+    /// </summary>
+    /// <param name="id">Ödeme yöntemi ID</param>
+    /// <param name="amount">Tutar</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem ücreti</returns>
+    /// <response code="200">Ücret başarıyla hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="404">Ödeme yöntemi bulunamadı</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("{id}/calculate-fee")]
     [AllowAnonymous]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -244,6 +261,6 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
     {
         var query = new CalculateProcessingFeeQuery(id, amount);
         var fee = await mediator.Send(query, cancellationToken);
-        return Ok(new { paymentMethodId = id, amount, processingFee = fee });
+        return Ok(fee);
     }
 }

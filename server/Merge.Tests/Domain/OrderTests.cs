@@ -10,7 +10,6 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Tests.Domain;
 
-// ✅ BOLUM 13.0: Test projesi (ZORUNLU - minimum %60 coverage)
 public class OrderTests
 {
     [Fact]

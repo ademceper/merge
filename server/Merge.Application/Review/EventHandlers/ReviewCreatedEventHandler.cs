@@ -6,16 +6,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Review.EventHandlers;
 
-/// <summary>
-/// Review Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReviewCreatedEventHandler(ILogger<ReviewCreatedEventHandler> logger) : INotificationHandler<ReviewCreatedEvent>
 {
 
     public async Task Handle(ReviewCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Review created event received. ReviewId: {ReviewId}, UserId: {UserId}, ProductId: {ProductId}, Rating: {Rating}, IsVerifiedPurchase: {IsVerifiedPurchase}",
             notification.ReviewId, notification.UserId, notification.ProductId, notification.Rating, notification.IsVerifiedPurchase);
@@ -35,7 +31,6 @@ public class ReviewCreatedEventHandler(ILogger<ReviewCreatedEventHandler> logger
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReviewCreatedEvent. ReviewId: {ReviewId}, UserId: {UserId}",
                 notification.ReviewId, notification.UserId);

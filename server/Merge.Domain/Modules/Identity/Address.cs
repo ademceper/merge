@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class Address : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string Title { get; private set; } = string.Empty; // Ev, İş, vb.
     public string FirstName { get; private set; } = string.Empty;
@@ -32,9 +31,8 @@ public class Address : BaseEntity, IAggregateRoot
     
     // Navigation properties
     public User User { get; private set; } = null!;
-    public ICollection<Order> Orders { get; private set; } = new List<Order>();
+    public ICollection<Order> Orders { get; private set; } = [];
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -43,7 +41,6 @@ public class Address : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -52,10 +49,8 @@ public class Address : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Address() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Address Create(
         Guid userId,
         string title,
@@ -94,7 +89,6 @@ public class Address : BaseEntity, IAggregateRoot
             Guard.AgainstLength(addressLine2, 200, nameof(addressLine2));
         }
 
-        // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation (basit format kontrolü)
         // NOT: PhoneNumber value object kullanmak için entity'yi büyük ölçüde değiştirmek gerekir
         // Şimdilik basit validation ekliyoruz
         if (!string.IsNullOrWhiteSpace(phoneNumber))
@@ -122,13 +116,11 @@ public class Address : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         address.AddDomainEvent(new AddressCreatedEvent(address.Id, userId, city, country, isDefault));
 
         return address;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update address
     public void UpdateAddress(
         string title,
         string firstName,
@@ -161,7 +153,6 @@ public class Address : BaseEntity, IAggregateRoot
             Guard.AgainstLength(addressLine2, 200, nameof(addressLine2));
         }
 
-        // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation
         if (!string.IsNullOrWhiteSpace(phoneNumber))
         {
             var cleanedPhone = phoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
@@ -180,33 +171,27 @@ public class Address : BaseEntity, IAggregateRoot
         PostalCode = postalCode;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new AddressUpdatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set as default
     public void SetAsDefault()
     {
         if (IsDefault) return;
         IsDefault = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new AddressSetAsDefaultEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Remove default flag
     public void RemoveDefault()
     {
         if (!IsDefault) return;
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new AddressRemovedDefaultEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -215,7 +200,6 @@ public class Address : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new AddressDeletedEvent(Id, UserId));
     }
 }

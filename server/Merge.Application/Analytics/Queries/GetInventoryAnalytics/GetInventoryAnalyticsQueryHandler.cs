@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetInventoryAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetInventoryAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetInventoryAnalyticsQueryHandler> logger,
@@ -36,7 +34,6 @@ public class GetInventoryAnalyticsQueryHandler(
             .AsNoTracking()
             .SumAsync(p => p.StockQuantity, cancellationToken);
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var lowStock = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < settings.Value.LowStockThreshold, cancellationToken);
@@ -49,8 +46,6 @@ public class GetInventoryAnalyticsQueryHandler(
             .AsNoTracking()
             .SumAsync(p => p.Price * p.StockQuantity, cancellationToken);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var lowStockProducts = await GetLowStockProductsAsync(settings.Value.MaxQueryLimit, cancellationToken);
         var stockByWarehouse = await GetStockByWarehouseAsync(cancellationToken);
         

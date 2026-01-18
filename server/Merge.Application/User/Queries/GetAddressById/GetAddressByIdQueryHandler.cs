@@ -11,7 +11,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.GetAddressById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAddressByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -20,7 +19,6 @@ public class GetAddressByIdQueryHandler(
 
     public async Task<AddressDto?> Handle(GetAddressByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Retrieving address with ID: {AddressId}", request.Id);
 
@@ -42,7 +40,6 @@ public class GetAddressByIdQueryHandler(
             throw new Application.Exceptions.BusinessException("Bu adrese erişim yetkiniz bulunmamaktadır.");
         }
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<AddressDto>(address);
     }
 }

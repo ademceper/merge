@@ -5,9 +5,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Queries.GetAllPickPacks;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
-// ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
 public record GetAllPickPacksQuery(
     PickPackStatus? Status,
     Guid? WarehouseId,

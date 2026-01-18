@@ -25,10 +25,8 @@ namespace Merge.Application.Services.Order;
 public class ReturnRequestService(IReturnRequestRepository returnRequestRepository, IOrderRepository orderRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<ReturnRequestService> logger) : IReturnRequestService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReturnRequestDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var returnRequest = await context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
@@ -37,19 +35,15 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
 
         if (returnRequest == null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return mapper.Map<ReturnRequestDto>(returnRequest);
     }
 
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (pageSize > 100) pageSize = 100; // Max limit
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var query = context.Set<ReturnRequest>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -65,8 +59,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         var dtos = mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
 
@@ -79,13 +71,11 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<ReturnRequestDto>> GetAllAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (pageSize > 100) pageSize = 100; // Max limit
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         IQueryable<ReturnRequest> query = context.Set<ReturnRequest>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -106,8 +96,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         var dtos = mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
 
@@ -120,15 +108,12 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReturnRequestDto> CreateAsync(CreateReturnRequestDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Return request oluşturuluyor. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
             dto.OrderId, dto.UserId, dto.Reason);
 
-        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
         ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.OrderItemIds == null || !dto.OrderItemIds.Any())
@@ -141,7 +126,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             throw new ValidationException("İade nedeni boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var order = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId && o.UserId == dto.UserId, cancellationToken);
@@ -162,7 +146,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             throw new BusinessException("İade süresi dolmuş. Teslim tarihinden itibaren 14 gün içinde iade yapılabilir.");
         }
 
-        // ✅ PERFORMANCE: Database'de Sum yap (ToListAsync() sonrası Sum YASAK)
         // İade edilecek kalemlerin toplam tutarını hesapla
         var refundAmount = await context.Set<OrderItem>()
             .Where(oi => oi.OrderId == dto.OrderId && dto.OrderItemIds.Contains(oi.Id))
@@ -173,7 +156,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             throw new ValidationException("İade edilecek ürün seçilmedi.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // Order zaten yukarıda query edildi, tekrar query etme
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
@@ -182,7 +164,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             throw new NotFoundException("Kullanıcı", dto.UserId);
         }
 
-        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
         var refundAmountMoney = new Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             dto.OrderId,
@@ -196,7 +177,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         returnRequest = await returnRequestRepository.AddAsync(returnRequest);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         var reloadedReturnRequest = await context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
@@ -209,17 +189,14 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             return mapper.Map<ReturnRequestDto>(returnRequest);
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Return request oluşturuldu. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, RefundAmount: {RefundAmount}",
             reloadedReturnRequest.Id, dto.OrderId, refundAmount);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return mapper.Map<ReturnRequestDto>(reloadedReturnRequest);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReturnRequestDto> UpdateStatusAsync(Guid id, string status, string? rejectionReason = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -233,7 +210,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             throw new NotFoundException("İade talebi", id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         var parsedStatus = Enum.Parse<ReturnRequestStatus>(status);
         if (parsedStatus == ReturnRequestStatus.Rejected && !string.IsNullOrEmpty(rejectionReason))
         {
@@ -251,19 +227,16 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         await returnRequestRepository.UpdateAsync(returnRequest);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         returnRequest = await context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return mapper.Map<ReturnRequestDto>(returnRequest);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> ApproveAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var returnRequest = await returnRequestRepository.GetByIdAsync(id);
@@ -272,7 +245,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         returnRequest.Approve();
         await returnRequestRepository.UpdateAsync(returnRequest);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -283,13 +255,11 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
         return await UpdateStatusAsync(id, "Rejected", reason, cancellationToken) != null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> CompleteAsync(Guid id, string trackingNumber, CancellationToken cancellationToken = default)
     {
         var returnRequest = await returnRequestRepository.GetByIdAsync(id);
@@ -298,7 +268,6 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         returnRequest.Complete(trackingNumber);
         await returnRequestRepository.UpdateAsync(returnRequest);
         await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.CancelPreOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CancelPreOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -30,7 +28,6 @@ public class CancelPreOrderCommandHandler(
             var preOrder = await context.Set<PreOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (preOrder is null) return false;
 
             if (preOrder.Status == PreOrderStatus.Converted)
@@ -43,7 +40,6 @@ public class CancelPreOrderCommandHandler(
             var campaign = await context.Set<PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (campaign is not null)
             {
                 campaign.DecrementQuantity(preOrder.Quantity);

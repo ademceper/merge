@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.UpdateReview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateReviewCommandHandler> logger) : IRequestHandler<UpdateReviewCommand, ReviewDto>
 {
 
@@ -25,7 +24,6 @@ public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
     {
         logger.LogInformation("Updating review. ReviewId: {ReviewId}, UserId: {UserId}", request.ReviewId, request.UserId);
 
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
@@ -35,14 +33,12 @@ public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi review'lerini güncelleyebilmeli
         // Not: Admin kontrolü controller'da yapılıyor, burada sadece UserId kontrolü yapılıyor
         if (review.UserId != request.UserId)
         {
             throw new UnauthorizedAccessException("Bu değerlendirmeyi güncelleme yetkiniz yok.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         var oldRating = review.Rating;
         var newRating = new Rating(request.Rating);
         review.UpdateRating(newRating);
@@ -60,7 +56,6 @@ public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         review = await context.Set<ReviewEntity>()
@@ -73,13 +68,11 @@ public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             "Review updated successfully. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
             request.ReviewId, oldRating, request.Rating);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReviewDto>(review!);
     }
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
         var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)

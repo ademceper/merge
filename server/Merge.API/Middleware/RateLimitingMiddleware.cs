@@ -8,7 +8,6 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
 
     private static readonly ConcurrentDictionary<string, ClientRequestInfo> _clientRequests = new();
 
-    // ✅ MEMORY LEAK FIX: Cleanup interval and last cleanup time
     private static readonly TimeSpan CleanupInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan StaleEntryThreshold = TimeSpan.FromMinutes(10);
     private static DateTime _lastCleanup = DateTime.UtcNow;
@@ -16,7 +15,6 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // ✅ MEMORY LEAK FIX: Periyodik olarak stale entry'leri temizle
         CleanupStaleEntriesIfNeeded();
 
         var endpoint = context.GetEndpoint();
@@ -53,7 +51,6 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
                 context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
                 context.Response.Headers["Retry-After"] = rateLimitAttribute.TimeWindow.TotalSeconds.ToString();
 
-                // ✅ LOGGING FIX: Structured logging kullan (string interpolation yerine)
                 logger.LogWarning("Rate limit exceeded for client {ClientId}. Endpoint: {Endpoint}",
                     clientId, context.Request.Path);
 
@@ -71,7 +68,6 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
         await next(context);
     }
 
-    // ✅ MEMORY LEAK FIX: Cleanup stale entries periodically
     private void CleanupStaleEntriesIfNeeded()
     {
         var now = DateTime.UtcNow;
@@ -128,7 +124,6 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
     }
 }
 
-// ✅ MEMORY LEAK FIX: LastAccessTime added for cleanup tracking
 public class ClientRequestInfo
 {
     public List<DateTime> RequestTimes { get; set; } = [];

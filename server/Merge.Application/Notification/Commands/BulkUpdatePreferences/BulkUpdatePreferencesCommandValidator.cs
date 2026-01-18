@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.BulkUpdatePreferences;
 
-/// <summary>
-/// Bulk Update Preferences Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class BulkUpdatePreferencesCommandValidator : AbstractValidator<BulkUpdatePreferencesCommand>
 {
     public BulkUpdatePreferencesCommandValidator()

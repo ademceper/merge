@@ -15,19 +15,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetSimilarProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSimilarProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSimilarProductsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetSimilarProductsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetSimilarProductsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Similar products isteniyor. ProductId: {ProductId}, MaxResults: {MaxResults}",
             request.ProductId, request.MaxResults);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -47,7 +44,6 @@ public class GetSimilarProductsQueryHandler(IDbContext context, IMapper mapper, 
         var priceMin = product.Price * searchConfig.SimilarProductsPriceRangeMin;
         var priceMax = product.Price * searchConfig.SimilarProductsPriceRangeMax;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var similarProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
@@ -60,7 +56,6 @@ public class GetSimilarProductsQueryHandler(IDbContext context, IMapper mapper, 
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -76,7 +71,6 @@ public class GetSimilarProductsQueryHandler(IDbContext context, IMapper mapper, 
             ))
             .ToList();
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Similar products tamamlandı. ProductId: {ProductId}, Count: {Count}",
             request.ProductId, recommendations.Count);

@@ -41,7 +41,6 @@ public class GetInvoiceByIdQueryHandler(IDbContext context, IMapper mapper, ILog
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<InvoiceDto>(invoice);
     }
 }

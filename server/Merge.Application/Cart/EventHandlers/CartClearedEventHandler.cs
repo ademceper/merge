@@ -5,10 +5,7 @@ using Merge.Application.Interfaces;
 
 namespace Merge.Application.Cart.EventHandlers;
 
-/// <summary>
-/// Cart Cleared Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class CartClearedEventHandler(
     ILogger<CartClearedEventHandler> logger,
     ICacheService? cacheService = null) : INotificationHandler<CartClearedEvent>
@@ -16,14 +13,12 @@ public class CartClearedEventHandler(
 
     public async Task Handle(CartClearedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Cart cleared event received. CartId: {CartId}, UserId: {UserId}",
             notification.CartId, notification.UserId);
 
         try
         {
-            // ✅ BOLUM 10.2: Cache invalidation - Cart cache'i temizle
             if (cacheService != null)
             {
                 await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
@@ -45,7 +40,6 @@ public class CartClearedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling CartClearedEvent. CartId: {CartId}, UserId: {UserId}",
                 notification.CartId, notification.UserId);

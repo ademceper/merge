@@ -4,14 +4,11 @@ using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// LoyaltyTransaction EF Core Configuration - BOLUM 8.0: EF Core Configuration (ZORUNLU)
-/// </summary>
+
 public class LoyaltyTransactionConfiguration : IEntityTypeConfiguration<LoyaltyTransaction>
 {
     public void Configure(EntityTypeBuilder<LoyaltyTransaction> builder)
     {
-        // ✅ BOLUM 8.1: Property Configuration
         builder.Property(e => e.Description)
             .IsRequired()
             .HasMaxLength(500);
@@ -21,7 +18,6 @@ public class LoyaltyTransactionConfiguration : IEntityTypeConfiguration<LoyaltyT
             .HasConversion<string>()
             .HasMaxLength(50);
 
-        // ✅ BOLUM 8.2: Index Configuration
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.LoyaltyAccountId);
         builder.HasIndex(e => e.Type);
@@ -31,7 +27,6 @@ public class LoyaltyTransactionConfiguration : IEntityTypeConfiguration<LoyaltyT
         builder.HasIndex(e => new { e.UserId, e.Type });
         builder.HasIndex(e => new { e.LoyaltyAccountId, e.IsExpired });
 
-        // ✅ BOLUM 8.3: Relationship Configuration
         builder.HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)

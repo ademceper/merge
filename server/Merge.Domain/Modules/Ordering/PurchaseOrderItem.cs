@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class PurchaseOrderItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid PurchaseOrderId { get; private set; }
     public Guid ProductId { get; private set; }
     
@@ -32,7 +31,6 @@ public class PurchaseOrderItem : BaseEntity
         }
     }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _unitPrice;
     private decimal _totalPrice;
     
@@ -57,7 +55,6 @@ public class PurchaseOrderItem : BaseEntity
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money UnitPriceMoney => new Money(_unitPrice);
     
@@ -70,15 +67,11 @@ public class PurchaseOrderItem : BaseEntity
     public PurchaseOrder PurchaseOrder { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PurchaseOrderItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     // PurchaseOrderItem Aggregate içinde entity olduğu için PurchaseOrder üzerinden oluşturulur
     // Ancak factory method ile invariant'ları koruyoruz
-    /// <summary>
-    /// PurchaseOrderItem oluşturur - BOLUM 1.1: Factory Method (ZORUNLU)
-    /// </summary>
+    
     public static PurchaseOrderItem Create(
         Guid purchaseOrderId,
         Guid productId,
@@ -96,7 +89,6 @@ public class PurchaseOrderItem : BaseEntity
 
         var totalPrice = new Money(unitPrice.Amount * quantity);
 
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         if (totalPrice.Amount != unitPrice.Amount * quantity)
             throw new DomainException("Toplam fiyat hesaplama hatası");
 
@@ -116,18 +108,15 @@ public class PurchaseOrderItem : BaseEntity
         return item;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity (recalculates total)
     public void UpdateQuantity(int newQuantity)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
 
         _quantity = newQuantity;
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update unit price (recalculates total)
     /// <summary>
     /// Birim fiyatı günceller ve toplam fiyatı yeniden hesaplar
     /// </summary>
@@ -137,12 +126,10 @@ public class PurchaseOrderItem : BaseEntity
         Guard.AgainstNegative(newUnitPrice.Amount, nameof(newUnitPrice));
 
         _unitPrice = newUnitPrice.Amount;
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update notes
     public void UpdateNotes(string? notes)
     {
         Notes = notes;

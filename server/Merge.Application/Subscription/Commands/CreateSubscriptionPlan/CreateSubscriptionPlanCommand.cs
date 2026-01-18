@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Subscription.Commands.CreateSubscriptionPlan;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateSubscriptionPlanCommand(
     string Name,
     string Description,

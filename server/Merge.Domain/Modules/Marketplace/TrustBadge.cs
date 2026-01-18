@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class TrustBadge : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public string IconUrl { get; private set; } = string.Empty;
@@ -28,10 +27,8 @@ public class TrustBadge : BaseEntity
     public int DisplayOrder { get; private set; } = 0;
     public string? Color { get; private set; } // Hex color code
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TrustBadge() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TrustBadge Create(
         string name,
         string description,
@@ -60,7 +57,6 @@ public class TrustBadge : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update name
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
@@ -68,21 +64,18 @@ public class TrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update description
     public void UpdateDescription(string newDescription)
     {
         Description = newDescription ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update icon URL
     public void UpdateIconUrl(string newIconUrl)
     {
         IconUrl = newIconUrl ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update badge type
     public void UpdateBadgeType(string newBadgeType)
     {
         Guard.AgainstNullOrEmpty(newBadgeType, nameof(newBadgeType));
@@ -90,14 +83,12 @@ public class TrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update criteria
     public void UpdateCriteria(string newCriteria)
     {
         Criteria = newCriteria ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate badge
     public void Activate()
     {
         if (_isActive) return;
@@ -105,7 +96,6 @@ public class TrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate badge
     public void Deactivate()
     {
         if (!_isActive) return;
@@ -113,7 +103,6 @@ public class TrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update display order
     public void UpdateDisplayOrder(int newDisplayOrder)
     {
         Guard.AgainstOutOfRange(newDisplayOrder, 0, int.MaxValue, nameof(newDisplayOrder));
@@ -121,14 +110,12 @@ public class TrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update color
     public void UpdateColor(string? newColor)
     {
         Color = newColor;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted)

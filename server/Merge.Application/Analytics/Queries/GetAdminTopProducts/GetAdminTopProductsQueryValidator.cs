@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetAdminTopProducts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAdminTopProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAdminTopProductsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

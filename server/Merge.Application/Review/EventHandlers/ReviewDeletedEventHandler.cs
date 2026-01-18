@@ -5,16 +5,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Review.EventHandlers;
 
-/// <summary>
-/// Review Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReviewDeletedEventHandler(ILogger<ReviewDeletedEventHandler> logger) : INotificationHandler<ReviewDeletedEvent>
 {
 
     public async Task Handle(ReviewDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Review deleted event received. ReviewId: {ReviewId}, UserId: {UserId}, ProductId: {ProductId}",
             notification.ReviewId, notification.UserId, notification.ProductId);
@@ -33,7 +29,6 @@ public class ReviewDeletedEventHandler(ILogger<ReviewDeletedEventHandler> logger
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReviewDeletedEvent. ReviewId: {ReviewId}, UserId: {UserId}",
                 notification.ReviewId, notification.UserId);

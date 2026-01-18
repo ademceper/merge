@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.DeleteSizeGuide;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteSizeGuideCommandValidator : AbstractValidator<DeleteSizeGuideCommand>
 {
     public DeleteSizeGuideCommandValidator()

@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Add Product To Sale DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record AddProductToSaleDto
 {
     [Required(ErrorMessage = "Product ID is required")]

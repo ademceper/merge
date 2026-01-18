@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 public record UpdateDeliveryTimeEstimationDto(
     [Range(0, int.MaxValue, ErrorMessage = "Minimum gün 0 veya daha büyük olmalıdır.")]
     int? MinDays = null,

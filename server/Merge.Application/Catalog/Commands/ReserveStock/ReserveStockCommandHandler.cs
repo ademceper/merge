@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.ReserveStock;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ReserveStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -37,12 +35,10 @@ public class ReserveStockCommandHandler(
             throw new ValidationException("Rezerve edilecek miktar 0'dan büyük olmalıdır.");
         }
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu rezerve edebilmeli
             var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
@@ -70,12 +66,10 @@ public class ReserveStockCommandHandler(
                 throw new NotFoundException("Envanter", Guid.Empty);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (validation entity içinde)
             var quantityBefore = inventory.Quantity;
             inventory.Reserve(request.Quantity);
             await inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var stockMovement = StockMovement.Create(
                 inventory.Id,
                 request.ProductId,
@@ -93,15 +87,12 @@ public class ReserveStockCommandHandler(
 
             await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             logger.LogInformation("Successfully reserved stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
                 request.ProductId, request.Quantity, request.OrderId);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
 
@@ -115,9 +106,7 @@ public class ReserveStockCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error reserving stock. ProductId: {ProductId}", request.ProductId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

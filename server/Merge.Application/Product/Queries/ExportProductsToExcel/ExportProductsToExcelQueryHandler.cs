@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.ExportProductsToExcel;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ExportProductsToExcelQueryHandler(IMediator mediator, ILogger<ExportProductsToExcelQueryHandler> logger) : IRequestHandler<ExportProductsToExcelQuery, byte[]>
 {
 

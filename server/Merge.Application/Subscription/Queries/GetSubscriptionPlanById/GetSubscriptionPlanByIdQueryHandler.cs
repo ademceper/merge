@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetSubscriptionPlanById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSubscriptionPlanByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSubscriptionPlanByIdQueryHandler> logger) : IRequestHandler<GetSubscriptionPlanByIdQuery, SubscriptionPlanDto?>
 {
 
     public async Task<SubscriptionPlanDto?> Handle(GetSubscriptionPlanByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var plan = await context.Set<SubscriptionPlan>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
@@ -30,10 +28,8 @@ public class GetSubscriptionPlanByIdQueryHandler(IDbContext context, IMapper map
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = mapper.Map<SubscriptionPlanDto>(plan);
 
-        // ✅ PERFORMANCE: Batch load subscriber count
         var subscriberCount = await context.Set<UserSubscription>()
             .AsNoTracking()
             .CountAsync(us => us.SubscriptionPlanId == plan.Id && 

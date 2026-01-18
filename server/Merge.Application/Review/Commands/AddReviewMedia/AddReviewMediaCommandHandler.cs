@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.AddReviewMedia;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AddReviewMediaCommandHandler> logger) : IRequestHandler<AddReviewMediaCommand, ReviewMediaDto>
 {
 
@@ -35,7 +34,6 @@ public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOf
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var mediaType = Enum.Parse<ReviewMediaType>(request.MediaType, true);
         var media = ReviewMedia.Create(
             request.ReviewId,
@@ -51,7 +49,6 @@ public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOf
         await context.Set<ReviewMedia>().AddAsync(media, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         var createdMedia = await context.Set<ReviewMedia>()
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == media.Id, cancellationToken);
@@ -60,7 +57,6 @@ public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOf
             "Media added to review successfully. MediaId: {MediaId}, ReviewId: {ReviewId}",
             media.Id, request.ReviewId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReviewMediaDto>(createdMedia!);
     }
 }

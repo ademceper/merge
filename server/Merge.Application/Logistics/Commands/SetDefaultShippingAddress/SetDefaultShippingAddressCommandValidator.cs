@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.SetDefaultShippingAddress;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class SetDefaultShippingAddressCommandValidator : AbstractValidator<SetDefaultShippingAddressCommand>
 {
     public SetDefaultShippingAddressCommandValidator()

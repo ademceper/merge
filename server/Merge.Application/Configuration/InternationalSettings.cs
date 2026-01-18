@@ -1,8 +1,6 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// International domain ayarları - Magic number'ları config'e taşıma (BOLUM 12.0)
-/// </summary>
+
 public class InternationalSettings
 {
     public const string SectionName = "InternationalSettings";

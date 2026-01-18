@@ -17,14 +17,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetBestSellers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetBestSellersQueryHandler(IDbContext context, IMapper mapper, ILogger<GetBestSellersQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetBestSellersQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetBestSellersQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Best sellers isteniyor. MaxResults: {MaxResults}",
             request.MaxResults);
@@ -33,7 +31,6 @@ public class GetBestSellersQueryHandler(IDbContext context, IMapper mapper, ILog
             ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var bestSellers = await context.Set<OrderItem>()
             .AsNoTracking()
             .GroupBy(oi => oi.ProductId)
@@ -51,15 +48,13 @@ public class GetBestSellersQueryHandler(IDbContext context, IMapper mapper, ILog
             return Array.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = bestSellers.Select(bs => bs.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var bs in bestSellers)
         {
             if (products.TryGetValue(bs.ProductId, out var product))
@@ -80,7 +75,6 @@ public class GetBestSellersQueryHandler(IDbContext context, IMapper mapper, ILog
             }
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Best sellers tamamlandı. Count: {Count}",
             recommendations.Count);

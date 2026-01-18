@@ -19,7 +19,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class LiveStreamOrder : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid LiveStreamId { get; private set; }
     public LiveStream LiveStream { get; private set; } = null!;
     public Guid OrderId { get; private set; }
@@ -27,7 +26,6 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
     public Guid? ProductId { get; private set; } // Product that triggered the order
     public Product? Product { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money (EF Core compatibility için decimal backing)
     private decimal _orderAmount;
     public decimal OrderAmount 
     { 
@@ -39,11 +37,9 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [NotMapped]
     public Money OrderAmountMoney => new Money(_orderAmount);
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -55,7 +51,6 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -67,15 +62,11 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStreamOrder() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public static LiveStreamOrder Create(
         Guid liveStreamId,
         Guid orderId,
@@ -97,10 +88,8 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         streamOrder.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamOrderCreatedEvent
         streamOrder.AddDomainEvent(new LiveStreamOrderCreatedEvent(
             liveStreamId,
             orderId,
@@ -111,7 +100,6 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         return streamOrder;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -119,14 +107,11 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamOrderDeletedEvent
         AddDomainEvent(new LiveStreamOrderDeletedEvent(LiveStreamId, OrderId, OrderAmount, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted order
     public void Restore()
     {
         if (!IsDeleted)
@@ -135,14 +120,11 @@ public class LiveStreamOrder : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamOrderRestoredEvent
         AddDomainEvent(new LiveStreamOrderRestoredEvent(LiveStreamId, OrderId, OrderAmount, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == LiveStreamId)

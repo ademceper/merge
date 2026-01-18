@@ -14,8 +14,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.UpdateLandingPage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateLandingPageCommandHandler(
     IRepository landingPageRepository,
     IDbContext context,
@@ -30,7 +28,6 @@ public class UpdateLandingPageCommandHandler(
     {
         logger.LogInformation("Updating landing page. LandingPageId: {LandingPageId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -41,11 +38,9 @@ public class UpdateLandingPageCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 1.7: Concurrency Control - RowVersion kontrolü
             // Note: RowVersion kontrolü genellikle HTTP ETag veya If-Match header ile yapılır
             // Burada sadece entity'nin RowVersion'ını kontrol ediyoruz
 
-            // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini güncelleyebilmeli (Admin hariç)
             if (request.PerformedBy.HasValue && landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != request.PerformedBy.Value)
             {
                 logger.LogWarning("Unauthorized attempt to update landing page {LandingPageId} by user {UserId}. Page belongs to {AuthorId}",
@@ -53,7 +48,6 @@ public class UpdateLandingPageCommandHandler(
                 throw new BusinessException("Bu landing page'i güncelleme yetkiniz bulunmamaktadır.");
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (!string.IsNullOrEmpty(request.Name))
             {
                 landingPage.UpdateName(request.Name);
@@ -72,7 +66,6 @@ public class UpdateLandingPageCommandHandler(
             }
             if (!string.IsNullOrEmpty(request.Status))
             {
-                // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
                 if (Enum.TryParse<ContentStatus>(request.Status, true, out var newStatus))
                 {
                     landingPage.UpdateStatus(newStatus);
@@ -96,7 +89,6 @@ public class UpdateLandingPageCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_PAGES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_PAGES, cancellationToken);
             await cache.RemoveAsync($"landing_page_{landingPage.Id}", cancellationToken);
@@ -113,7 +105,6 @@ public class UpdateLandingPageCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error updating landing page {LandingPageId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

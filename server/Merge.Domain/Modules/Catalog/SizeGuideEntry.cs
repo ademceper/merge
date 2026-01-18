@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class SizeGuideEntry : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SizeGuideId { get; private set; }
     public SizeGuide SizeGuide { get; private set; } = null!;
     
@@ -53,14 +52,11 @@ public class SizeGuideEntry : BaseEntity
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SizeGuideEntry() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SizeGuideEntry Create(
         Guid sizeGuideId,
         string sizeLabel,
@@ -106,13 +102,11 @@ public class SizeGuideEntry : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         entry.ValidateInvariants();
         
         return entry;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update measurements
     public void UpdateMeasurements(
         decimal? chest = null,
         decimal? waist = null,
@@ -136,22 +130,18 @@ public class SizeGuideEntry : BaseEntity
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update display order
     public void UpdateDisplayOrder(int newDisplayOrder)
     {
         Guard.AgainstNegative(newDisplayOrder, nameof(newDisplayOrder));
         _displayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -159,11 +149,9 @@ public class SizeGuideEntry : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == SizeGuideId)

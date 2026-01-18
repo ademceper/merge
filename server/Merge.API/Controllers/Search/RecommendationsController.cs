@@ -14,9 +14,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Search;
 
+/// <summary>
+/// Product Recommendations API endpoints.
+/// Ürün önerilerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/search/recommendations")]
+[Tags("Recommendations")]
 public class RecommendationsController(IMediator mediator) : BaseController
 {
     [HttpGet("similar/{productId}")]

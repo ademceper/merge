@@ -16,7 +16,6 @@ public class SharedWishlistConfiguration : IEntityTypeConfiguration<SharedWishli
               .HasForeignKey(e => e.UserId)
               .OnDelete(DeleteBehavior.Cascade);
         
-        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
         // EF Core automatically discovers backing fields by convention (_fieldName)
         // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
         builder.HasMany(e => e.Items)

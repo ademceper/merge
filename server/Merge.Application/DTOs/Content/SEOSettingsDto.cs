@@ -1,7 +1,5 @@
 namespace Merge.Application.DTOs.Content;
 
-// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
-// ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary<string, object> YASAK
 // StructuredData JSON string olarak döndürülür (güvenlik için)
 public record SEOSettingsDto(
     Guid Id,

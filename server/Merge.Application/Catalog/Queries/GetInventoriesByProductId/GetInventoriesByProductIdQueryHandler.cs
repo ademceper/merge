@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetInventoriesByProductId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetInventoriesByProductIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -32,7 +30,6 @@ public class GetInventoriesByProductIdQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_INVENTORIES_BY_PRODUCT}{request.ProductId}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for inventory lists
         var cachedInventories = await cache.GetAsync<IEnumerable<InventoryDto>>(cacheKey, cancellationToken);
         if (cachedInventories != null)
         {
@@ -42,7 +39,6 @@ public class GetInventoriesByProductIdQueryHandler(
 
         logger.LogInformation("Cache miss for inventories by product. ProductId: {ProductId}", request.ProductId);
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sine erişebilmeli
         if (request.PerformedBy.HasValue)
         {
             var product = await context.Set<ProductEntity>()
@@ -63,8 +59,6 @@ public class GetInventoriesByProductIdQueryHandler(
             }
         }
 
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Maksimum limit (100 warehouse)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var inventories = await context.Set<Inventory>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -78,7 +72,6 @@ public class GetInventoriesByProductIdQueryHandler(
         logger.LogInformation("Retrieved {Count} inventories for ProductId: {ProductId}",
             inventories.Count, request.ProductId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var inventoryDtos = mapper.Map<IEnumerable<InventoryDto>>(inventories);
 
         // Cache the result

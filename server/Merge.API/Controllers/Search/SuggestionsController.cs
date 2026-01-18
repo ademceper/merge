@@ -10,9 +10,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Search;
 
+/// <summary>
+/// Search Suggestions API endpoints.
+/// Arama önerilerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/search/suggestions")]
+[Tags("SearchSuggestions")]
 public class SearchSuggestionsController(IMediator mediator) : BaseController
 {
     [HttpGet("autocomplete")]

@@ -18,14 +18,12 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class DataQualityRule : BaseAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public string RuleType { get; private set; } = string.Empty; // Completeness, Accuracy, Consistency, Validity, Timeliness
     public string TargetEntity { get; private set; } = string.Empty; // Entity/Table name
     public string? FieldName { get; private set; } // Specific field to check
     public string? RuleExpression { get; private set; } // SQL or expression for validation
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public EntityStatus Status { get; private set; } = EntityStatus.Active;
     public int PassCount { get; private set; } = 0;
     public int FailCount { get; private set; } = 0;
@@ -33,14 +31,11 @@ public class DataQualityRule : BaseAggregateRoot
     public DateTime? LastCheckAt { get; private set; }
     public string? Severity { get; private set; } = "Medium"; // Low, Medium, High, Critical
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private DataQualityRule() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static DataQualityRule Create(
         string name,
         string description,
@@ -71,7 +66,6 @@ public class DataQualityRule : BaseAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - DataQualityRuleCreatedEvent yayınla
         rule.AddDomainEvent(new DataQualityRuleCreatedEvent(
             rule.Id,
             name,
@@ -81,10 +75,8 @@ public class DataQualityRule : BaseAggregateRoot
         return rule;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update statistics
     public void UpdateStatistics(int passCount, int failCount, DateTime lastCheckAt)
     {
-        // ✅ BOLUM 1.6: Invariant Validation - PassCount >= 0, FailCount >= 0
         if (passCount < 0)
             throw new DomainException("Geçen kayıt sayısı negatif olamaz");
         if (failCount < 0)
@@ -100,7 +92,6 @@ public class DataQualityRule : BaseAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate rule
     public void Activate()
     {
         if (Status == EntityStatus.Active)
@@ -109,11 +100,9 @@ public class DataQualityRule : BaseAggregateRoot
         Status = EntityStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataQualityRuleActivatedEvent yayınla
         AddDomainEvent(new DataQualityRuleActivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate rule
     public void Deactivate()
     {
         if (Status == EntityStatus.Inactive)
@@ -122,24 +111,20 @@ public class DataQualityRule : BaseAggregateRoot
         Status = EntityStatus.Inactive;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataQualityRuleDeactivatedEvent yayınla
         AddDomainEvent(new DataQualityRuleDeactivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update rule expression
     public void UpdateRuleExpression(string ruleExpression)
     {
         RuleExpression = ruleExpression;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataQualityRuleDeletedEvent yayınla
         AddDomainEvent(new DataQualityRuleDeletedEvent(Id));
     }
 }

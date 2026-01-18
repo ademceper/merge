@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.DeleteB2BUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteB2BUserCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,7 +20,6 @@ public class DeleteB2BUserCommandHandler(
     {
         logger.LogInformation("Deleting B2B user. B2BUserId: {B2BUserId}", request.Id);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var b2bUser = await context.Set<B2BUser>()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
@@ -32,7 +29,6 @@ public class DeleteB2BUserCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
         b2bUser.Delete();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

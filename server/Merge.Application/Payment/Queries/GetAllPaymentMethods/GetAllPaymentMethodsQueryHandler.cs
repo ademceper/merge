@@ -21,7 +21,6 @@ public class GetAllPaymentMethodsQueryHandler(IDbContext context, IMapper mapper
     {
         logger.LogInformation("Retrieving all payment methods. IsActive: {IsActive}", request.IsActive);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var query = context.Set<PaymentMethod>()
             .AsNoTracking()
             .AsQueryable();
@@ -36,8 +35,6 @@ public class GetAllPaymentMethodsQueryHandler(IDbContext context, IMapper mapper
             .ThenBy(pm => pm.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 }

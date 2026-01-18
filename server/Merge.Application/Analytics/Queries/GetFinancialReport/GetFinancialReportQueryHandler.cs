@@ -36,7 +36,6 @@ public class GetFinancialReportQueryHandler(
         var shippingRevenue = await ordersQuery.SumAsync(o => o.ShippingCost, cancellationToken);
         var taxCollected = await ordersQuery.SumAsync(o => o.Tax, cancellationToken);
         var totalOrdersCount = await ordersQuery.CountAsync(cancellationToken);
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var orderIdsSubquery = from o in ordersQuery select o.Id;
         var productCosts = await context.Set<OrderItem>()
             .AsNoTracking()

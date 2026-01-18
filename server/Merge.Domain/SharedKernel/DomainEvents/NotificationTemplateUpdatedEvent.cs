@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// NotificationTemplate Updated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record NotificationTemplateUpdatedEvent(
     Guid TemplateId,
     string Name) : IDomainEvent

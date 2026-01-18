@@ -24,7 +24,7 @@ public class CreateLanguageCommandHandler(
         logger.LogInformation("Creating language. Code: {Code}, Name: {Name}", request.Code, request.Name);
 
         var exists = await context.Set<Language>()
-            .AnyAsync(l => l.Code.ToLower() == request.Code.ToLower(), cancellationToken);
+            .AnyAsync(l => EF.Functions.ILike(l.Code, request.Code), cancellationToken);
 
         if (exists)
         {

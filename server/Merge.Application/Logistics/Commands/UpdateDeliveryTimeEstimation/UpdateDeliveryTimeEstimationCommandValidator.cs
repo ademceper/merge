@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.UpdateDeliveryTimeEstimation;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdateDeliveryTimeEstimationCommandValidator : AbstractValidator<UpdateDeliveryTimeEstimationCommand>
 {
     public UpdateDeliveryTimeEstimationCommandValidator()

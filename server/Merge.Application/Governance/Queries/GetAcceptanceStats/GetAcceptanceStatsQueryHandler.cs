@@ -28,7 +28,6 @@ public class GetAcceptanceStatsQueryHandler(
             {
                 logger.LogInformation("Cache miss for acceptance stats");
 
-                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
                 var policiesQuery = context.Set<Policy>()
                     .AsNoTracking()
                     .Select(p => new { p.Id, p.PolicyType, p.Version });
@@ -44,10 +43,10 @@ public class GetAcceptanceStatsQueryHandler(
                 var policies = await policiesQuery.ToListAsync(cancellationToken);
                 if (policies.Count == 0)
                 {
-                    return new Dictionary<string, int>();
+                    return [];
                 }
 
-                var stats = new Dictionary<string, int>();
+                Dictionary<string, int> stats = [];
                 foreach (var policy in policies)
                 {
                     var count = acceptanceCounts.GetValueOrDefault(policy.Id, 0);
@@ -59,7 +58,7 @@ public class GetAcceptanceStatsQueryHandler(
             CACHE_EXPIRATION,
             cancellationToken);
 
-        return cachedStats ?? new Dictionary<string, int>();
+        return cachedStats ?? [];
     }
 }
 

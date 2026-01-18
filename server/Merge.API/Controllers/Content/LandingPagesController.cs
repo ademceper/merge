@@ -20,9 +20,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
+/// <summary>
+/// Landing Pages API endpoints.
+/// Landing page'leri yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/content/landing-pages")]
+[Tags("LandingPages")]
 public class LandingPagesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -54,7 +59,6 @@ public class LandingPagesController(
         CancellationToken cancellationToken = default)
     {
         var authorId = GetUserId();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { AuthorId = authorId };
         var landingPage = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetLandingPageById), new { id = landingPage.Id }, landingPage);
@@ -81,12 +85,11 @@ public class LandingPagesController(
         [FromQuery] bool trackView = false,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetLandingPageByIdQuery(id, trackView);
         var landingPage = await mediator.Send(query, cancellationToken);
         if (landingPage == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(landingPage);
     }
@@ -112,12 +115,11 @@ public class LandingPagesController(
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetLandingPageBySlugQuery(slug, trackView);
         var landingPage = await mediator.Send(query, cancellationToken);
         if (landingPage == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(landingPage);
     }
@@ -147,7 +149,6 @@ public class LandingPagesController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllLandingPagesQuery(status, isActive, page, pageSize);
         var landingPages = await mediator.Send(query, cancellationToken);
         return Ok(landingPages);
@@ -187,13 +188,11 @@ public class LandingPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var updateCommand = command with { Id = id, PerformedBy = userId };
         var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -240,7 +239,7 @@ public class LandingPagesController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -275,13 +274,11 @@ public class LandingPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new DeleteLandingPageCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -316,13 +313,11 @@ public class LandingPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new PublishLandingPageCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -348,12 +343,11 @@ public class LandingPagesController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new TrackLandingPageConversionCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -387,7 +381,6 @@ public class LandingPagesController(
         [FromBody] CreateLandingPageVariantCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { OriginalId = id };
         var variant = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetLandingPageById), new { id = variant.Id }, variant);
@@ -420,7 +413,6 @@ public class LandingPagesController(
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetLandingPageAnalyticsQuery(id, startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.SearchBlogPosts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SearchBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchBlogPostsQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

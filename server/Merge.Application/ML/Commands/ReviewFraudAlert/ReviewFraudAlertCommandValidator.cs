@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.ML.Commands.ReviewFraudAlert;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ReviewFraudAlertCommandValidator : AbstractValidator<ReviewFraudAlertCommand>
 {
     public ReviewFraudAlertCommandValidator()

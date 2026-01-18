@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Logistics.Commands.UpdateWarehouse;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateWarehouseCommand(
     Guid Id,
     string Name,

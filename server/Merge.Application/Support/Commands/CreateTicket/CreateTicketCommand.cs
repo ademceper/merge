@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Commands.CreateTicket;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateTicketCommand(
     Guid UserId,
     string Category,

@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class ReportSchedule : BaseAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public ReportType Type { get; private set; } = ReportType.Sales;
@@ -35,14 +34,11 @@ public class ReportSchedule : BaseAggregateRoot
     public DateTime? NextRunAt { get; private set; }
     public string EmailRecipients { get; private set; } = string.Empty; // Comma-separated emails
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ReportSchedule() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ReportSchedule Create(
         string name,
         string description,
@@ -59,7 +55,6 @@ public class ReportSchedule : BaseAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstDefault(ownerId, nameof(ownerId));
 
-        // ✅ BOLUM 1.6: Invariant Validation - DayOfWeek 1-7, DayOfMonth 1-31
         Guard.AgainstOutOfRange(dayOfWeek, 1, 7, nameof(dayOfWeek));
         Guard.AgainstOutOfRange(dayOfMonth, 1, 31, nameof(dayOfMonth));
 
@@ -84,7 +79,6 @@ public class ReportSchedule : BaseAggregateRoot
         // Calculate initial NextRunAt
         schedule.NextRunAt = schedule.CalculateNextRunTime();
 
-        // ✅ BOLUM 1.5: Domain Events - ReportScheduleCreatedEvent yayınla
         schedule.AddDomainEvent(new ReportScheduleCreatedEvent(
             schedule.Id,
             ownerId,
@@ -94,7 +88,6 @@ public class ReportSchedule : BaseAggregateRoot
         return schedule;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate schedule
     public void Activate()
     {
         if (IsActive)
@@ -104,14 +97,12 @@ public class ReportSchedule : BaseAggregateRoot
         NextRunAt = CalculateNextRunTime();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportScheduleActivatedEvent yayınla
         AddDomainEvent(new ReportScheduleActivatedEvent(
             Id,
             OwnerId,
             NextRunAt));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate schedule
     public void Deactivate()
     {
         if (!IsActive)
@@ -120,13 +111,11 @@ public class ReportSchedule : BaseAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportScheduleDeactivatedEvent yayınla
         AddDomainEvent(new ReportScheduleDeactivatedEvent(
             Id,
             OwnerId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as run
     public void MarkAsRun()
     {
         LastRunAt = DateTime.UtcNow;
@@ -134,7 +123,6 @@ public class ReportSchedule : BaseAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate next run time
     public DateTime CalculateNextRunTime()
     {
         var now = DateTime.UtcNow;
@@ -185,19 +173,16 @@ public class ReportSchedule : BaseAggregateRoot
         return new DateTime(nextYear.Year, nextYear.Month, dayOfMonth, TimeOfDay.Hours, TimeOfDay.Minutes, TimeOfDay.Seconds);
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if schedule is due
     public bool IsDue()
     {
         return IsActive && NextRunAt.HasValue && NextRunAt.Value <= DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportScheduleDeletedEvent yayınla
         AddDomainEvent(new ReportScheduleDeletedEvent(
             Id,
             OwnerId));

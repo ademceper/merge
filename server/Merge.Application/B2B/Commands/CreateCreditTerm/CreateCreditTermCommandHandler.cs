@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreateCreditTerm;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateCreditTermCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -29,7 +27,6 @@ public class CreateCreditTermCommandHandler(
         logger.LogInformation("Creating credit term. OrganizationId: {OrganizationId}, Name: {Name}",
             request.Dto.OrganizationId, request.Dto.Name);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var organization = await context.Set<OrganizationEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.Dto.OrganizationId, cancellationToken);
@@ -39,7 +36,6 @@ public class CreateCreditTermCommandHandler(
             throw new NotFoundException("Organizasyon", Guid.Empty);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var creditTerm = CreditTerm.Create(
             request.Dto.OrganizationId,
             organization,
@@ -58,7 +54,6 @@ public class CreateCreditTermCommandHandler(
 
         logger.LogInformation("Credit term created successfully. CreditTermId: {CreditTermId}", creditTerm!.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<CreditTermDto>(creditTerm);
     }
 }

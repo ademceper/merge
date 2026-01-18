@@ -5,7 +5,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Product.Commands.UpdateProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateProductCommand(
     Guid Id,
     string Name,

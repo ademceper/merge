@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ReviewMedia : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ReviewId { get; private set; }
     public ReviewMediaType MediaType { get; private set; }
     public string Url { get; private set; } = string.Empty;
@@ -24,17 +23,14 @@ public class ReviewMedia : BaseEntity
     public int? Duration { get; private set; } // For videos in seconds
     public int DisplayOrder { get; private set; } = 0;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Review Review { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ReviewMedia() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ReviewMedia Create(
         Guid reviewId,
         ReviewMediaType mediaType,
@@ -66,45 +62,37 @@ public class ReviewMedia : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         media.ValidateInvariants();
         
         return media;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update URL
     public void UpdateUrl(string newUrl)
     {
         Guard.AgainstNullOrEmpty(newUrl, nameof(newUrl));
         Url = newUrl;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update thumbnail URL
     public void UpdateThumbnailUrl(string newThumbnailUrl)
     {
         ThumbnailUrl = newThumbnailUrl ?? Url;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update display order
     public void UpdateDisplayOrder(int newDisplayOrder)
     {
         Guard.AgainstOutOfRange(newDisplayOrder, 0, int.MaxValue, nameof(newDisplayOrder));
         DisplayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -113,11 +101,9 @@ public class ReviewMedia : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ReviewId)

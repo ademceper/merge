@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.CreateNotification;
 
-/// <summary>
-/// Create Notification Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class CreateNotificationCommandValidator : AbstractValidator<CreateNotificationCommand>
 {
     public CreateNotificationCommandValidator()

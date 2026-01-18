@@ -19,7 +19,6 @@ namespace Merge.Application.Services.Search;
 public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SearchSuggestionService> logger) : ISearchSuggestionService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<AutocompleteResultDto> GetAutocompleteSuggestionsAsync(string query, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
@@ -32,50 +31,45 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
             );
         }
 
-        var normalizedQuery = query.ToLower().Trim();
+        var trimmedQuery = query.Trim();
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Product suggestions
         var productSuggestions = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive &&
-                       (p.Name.ToLower().Contains(normalizedQuery) ||
-                        p.Description.ToLower().Contains(normalizedQuery)))
+                       (EF.Functions.ILike(p.Name, $"%{trimmedQuery}%") ||
+                        EF.Functions.ILike(p.Description, $"%{trimmedQuery}%")))
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)
             .Take(maxResults)
             .ToListAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var productSuggestionDtos = mapper.Map<IEnumerable<ProductSuggestionDto>>(productSuggestions).ToList();
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Category suggestions
         var categorySuggestions = await context.Set<Category>()
             .AsNoTracking()
-            .Where(c => c.Name.ToLower().Contains(normalizedQuery))
+            .Where(c => EF.Functions.ILike(c.Name, $"%{trimmedQuery}%"))
             .OrderBy(c => c.Name)
             .Take(5)
             .Select(c => c.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Brand suggestions
         var brandSuggestions = await context.Set<ProductEntity>()
             .AsNoTracking()
-            .Where(p => p.IsActive &&
-                       p.Brand.ToLower().Contains(normalizedQuery))
+            .Where(p => p.IsActive && p.Brand != null &&
+                       EF.Functions.ILike(p.Brand, $"%{trimmedQuery}%"))
             .Select(p => p.Brand)
             .Distinct()
             .Take(5)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !ps.IsDeleted (Global Query Filter)
         // Popular searches containing the query
         var popularSearches = await context.Set<PopularSearch>()
             .AsNoTracking()
-            .Where(ps => ps.SearchTerm.ToLower().Contains(normalizedQuery))
+            .Where(ps => EF.Functions.ILike(ps.SearchTerm, $"%{trimmedQuery}%"))
             .OrderByDescending(ps => ps.SearchCount)
             .Take(5)
             .Select(ps => ps.SearchTerm)
@@ -89,10 +83,8 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
         );
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<string>> GetPopularSearchesAsync(int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !ps.IsDeleted (Global Query Filter)
         var popularSearches = await context.Set<PopularSearch>()
             .AsNoTracking()
             .OrderByDescending(ps => ps.SearchCount)
@@ -103,8 +95,6 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
         return popularSearches;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task RecordSearchAsync(string searchTerm, Guid? userId, int resultCount, string? userAgent = null, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
@@ -112,14 +102,12 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
             return;
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Search kaydediliyor. SearchTerm: {SearchTerm}, UserId: {UserId}, ResultCount: {ResultCount}",
             searchTerm, userId, resultCount);
 
         var normalizedTerm = searchTerm.Trim();
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // Record in search history
         var searchHistory = SearchHistory.Create(
             userId: userId,
@@ -130,11 +118,9 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
 
         await context.Set<SearchHistory>().AddAsync(searchHistory, cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         // Update or create popular search
         var popularSearch = await context.Set<PopularSearch>()
-            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == normalizedTerm.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, normalizedTerm), cancellationToken);
 
         if (popularSearch == null)
         {
@@ -148,17 +134,13 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Search kaydedildi. SearchTerm: {SearchTerm}, UserId: {UserId}",
             searchTerm, userId);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task RecordClickAsync(Guid searchHistoryId, Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !sh.IsDeleted (Global Query Filter)
         var searchHistory = await context.Set<SearchHistory>()
             .FirstOrDefaultAsync(sh => sh.Id == searchHistoryId, cancellationToken);
 
@@ -167,14 +149,11 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
             return;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         searchHistory.RecordClick(productId);
 
-        // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Update popular search click-through rate
         var popularSearch = await context.Set<PopularSearch>()
-            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == searchHistory.SearchTerm.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, searchHistory.SearchTerm), cancellationToken);
 
         if (popularSearch != null)
         {
@@ -183,19 +162,15 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Search click kaydedildi. SearchHistoryId: {SearchHistoryId}, ProductId: {ProductId}",
             searchHistoryId, productId);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<SearchSuggestionDto>> GetTrendingSearchesAsync(int days = 7, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sh.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var trendingSearches = await context.Set<SearchHistory>()
             .AsNoTracking()
             .Where(sh => sh.CreatedAt >= startDate)

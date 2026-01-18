@@ -15,14 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateKnowledgeBaseCategoryCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto?>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseCategoryDto?> Handle(UpdateKnowledgeBaseCategoryCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating knowledge base category {CategoryId}", request.CategoryId);
 
         var category = await context.Set<KnowledgeBaseCategory>()
@@ -34,7 +32,6 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
             throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(request.Name))
         {
             var newSlug = GenerateSlug(request.Name);
@@ -61,18 +58,15 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
             category.UpdateIconUrl(request.IconUrl);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Knowledge base category {CategoryId} updated successfully", request.CategoryId);
 
-        // ✅ PERFORMANCE: Reload with includes for mapping
         category = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<KnowledgeBaseCategoryDto>(category!);
     }
 
@@ -97,7 +91,6 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
         slug = System.Text.RegularExpressions.Regex.Replace(slug, @"-+", "-");
         slug = slug.Trim('-');
 
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         if (slug.Length > supportConfig.MaxCategorySlugLength)
         {
             slug = slug.Substring(0, supportConfig.MaxCategorySlugLength);

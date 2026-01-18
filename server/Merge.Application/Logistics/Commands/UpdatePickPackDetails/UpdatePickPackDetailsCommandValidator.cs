@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Commands.UpdatePickPackDetails;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdatePickPackDetailsCommandValidator : AbstractValidator<UpdatePickPackDetailsCommand>
 {
     public UpdatePickPackDetailsCommandValidator()

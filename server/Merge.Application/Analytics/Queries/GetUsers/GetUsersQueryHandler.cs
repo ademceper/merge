@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetUsers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetUsersQueryHandler(
     IDbContext context,
     ILogger<GetUsersQueryHandler> logger,
@@ -30,20 +28,14 @@ public class GetUsersQueryHandler(
         logger.LogInformation("Fetching users. Page: {Page}, PageSize: {PageSize}, Role: {Role}", 
             request.Page, request.PageSize, request.Role);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted check (Global Query Filter handles it)
         var query = context.Users.AsNoTracking();
 
         if (!string.IsNullOrEmpty(request.Role))
         {
-            // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
-            // ✅ PERFORMANCE: .Any() YASAK - .cursorrules - Role'ü önce bulup join yap
             var role = await context.Roles
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);
@@ -81,7 +73,6 @@ public class GetUsersQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<UserDto>
         {
             Items = mapper.Map<List<UserDto>>(users),

@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Security.Commands.CreateSecurityAlert;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class CreateSecurityAlertCommandValidator : AbstractValidator<CreateSecurityAlertCommand>
 {
     public CreateSecurityAlertCommandValidator()

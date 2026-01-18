@@ -20,9 +20,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Review;
 
-[ApiController]
+/// <summary>
+/// Trust Badges API endpoints.
+/// Güven rozetlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/reviews/trust-badges")]
+[Tags("TrustBadges")]
 public class TrustBadgesController(IMediator mediator) : BaseController
 {
     [HttpPost]
@@ -63,7 +68,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         var badge = await mediator.Send(query, cancellationToken);
         if (badge == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(badge);
     }
@@ -159,7 +164,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -214,7 +219,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -269,7 +274,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

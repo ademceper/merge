@@ -4,9 +4,7 @@ using Merge.Domain.Enums;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// DataQualityCheck Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record DataQualityCheckCreatedEvent(
     Guid DataQualityCheckId,
     Guid RuleId,

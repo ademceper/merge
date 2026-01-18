@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Seller.Commands.CancelCommission;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CancelCommissionCommandValidator : AbstractValidator<CancelCommissionCommand>
 {
     public CancelCommissionCommandValidator()

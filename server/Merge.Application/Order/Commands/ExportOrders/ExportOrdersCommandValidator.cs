@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.ExportOrders;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class ExportOrdersCommandValidator : AbstractValidator<ExportOrdersCommand>
 {
     public ExportOrdersCommandValidator()

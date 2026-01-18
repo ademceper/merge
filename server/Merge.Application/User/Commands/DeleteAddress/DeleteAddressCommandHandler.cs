@@ -10,13 +10,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.DeleteAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteAddressCommandHandler> logger) : IRequestHandler<DeleteAddressCommand, bool>
 {
 
     public async Task<bool> Handle(DeleteAddressCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Deleting address with ID: {AddressId}", request.Id);
 
@@ -39,7 +37,6 @@ public class DeleteAddressCommandHandler(IDbContext context, IUnitOfWork unitOfW
                 address.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogInformation("Address deleted successfully with ID: {AddressId}", request.Id);
 

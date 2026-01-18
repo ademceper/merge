@@ -15,7 +15,6 @@ public class PagedResult<T>
     public bool HasNextPage => Page < TotalPages;
     public bool HasPreviousPage => Page > 1;
     
-    // ✅ BOLUM 4.1.3: HATEOAS - Pagination links (ZORUNLU)
     [JsonPropertyName("_links")]
     public Dictionary<string, object>? Links { get; set; }
 }

@@ -16,16 +16,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.CompletePayout;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CompletePayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, ILogger<CompletePayoutCommandHandler> logger) : IRequestHandler<CompletePayoutCommand, bool>
 {
 
     public async Task<bool> Handle(CompletePayoutCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Completing payout. PayoutId: {PayoutId}", request.PayoutId);
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var payout = await context.Set<CommissionPayout>()
             .Include(p => p.Seller)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
@@ -36,11 +33,8 @@ public class CompletePayoutCommandHandler(IDbContext context, IUnitOfWork unitOf
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         payout.Complete();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send confirmation email

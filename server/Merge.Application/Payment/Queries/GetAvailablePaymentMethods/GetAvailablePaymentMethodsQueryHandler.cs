@@ -21,8 +21,6 @@ public class GetAvailablePaymentMethodsQueryHandler(IDbContext context, IMapper 
     {
         logger.LogInformation("Retrieving available payment methods. OrderAmount: {OrderAmount}", request.OrderAmount);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (IsAmountValid)
         var methods = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .Where(pm => pm.IsActive &&
@@ -32,8 +30,6 @@ public class GetAvailablePaymentMethodsQueryHandler(IDbContext context, IMapper 
             .ThenBy(pm => pm.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 }

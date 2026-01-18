@@ -4,6 +4,8 @@ using Merge.Application.Services.Notification;
 using Microsoft.Extensions.Logging;
 using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
+using Merge.Application.Common;
+using static Merge.Application.Common.LogMasking;
 
 namespace Merge.Application.Services.Notification;
 
@@ -21,7 +23,7 @@ public class SmsService(IConfiguration configuration, ILogger<SmsService> logger
     {
         // Burada gerçek SMS servisi entegrasyonu yapılacak (Twilio, Netgsm, vb.)
         // Şimdilik sadece loglama yapıyoruz
-        logger.LogInformation("SMS gönderiliyor: To={PhoneNumber}, Message={Message}", phoneNumber, message);
+        logger.LogInformation("SMS gönderiliyor: To={MaskedPhone}, Message={Message}", MaskPhone(phoneNumber), message);
         
         // Gerçek implementasyon için:
         // - Twilio, Netgsm, veya diğer SMS provider'ları kullanılabilir

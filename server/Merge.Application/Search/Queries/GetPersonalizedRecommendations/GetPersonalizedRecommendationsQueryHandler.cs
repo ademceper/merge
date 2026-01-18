@@ -19,14 +19,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetPersonalizedRecommendations;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetPersonalizedRecommendationsQueryHandler> logger, IMediator mediator, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetPersonalizedRecommendationsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetPersonalizedRecommendationsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Personalized recommendations isteniyor. UserId: {UserId}, MaxResults: {MaxResults}",
             request.UserId, request.MaxResults);
@@ -35,7 +33,6 @@ public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMap
             ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var userOrders = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
             join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
@@ -44,7 +41,6 @@ public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMap
             select p.CategoryId
         ).Distinct().ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Single Include, AsSplitQuery not needed but keeping for consistency
         var wishlistCategories = await context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)
@@ -75,7 +71,6 @@ public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMap
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -91,7 +86,6 @@ public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMap
             ))
             .ToList();
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Personalized recommendations tamamlandı. UserId: {UserId}, Count: {Count}",
             request.UserId, recommendationDtos.Count);

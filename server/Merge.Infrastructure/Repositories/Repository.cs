@@ -8,41 +8,29 @@ using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
-// ✅ BOLUM 1.1: Repository Application katmanındaki IRepository interface'ini implement ediyor
 public class Repository<T>(ApplicationDbContext context) : IRepository<T> where T : BaseEntity
 {
     protected readonly ApplicationDbContext _context = context;
     protected readonly DbSet<T> _dbSet = context.Set<T>();
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ⚠️ NOT: AsNoTracking() YOK - Entity track edilmeli (update işlemleri için)
     // Read-only query'ler için Specification Pattern kullanılmalı (BOLUM 7.2)
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         return await _dbSet.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         return await _dbSet
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
     // ⚠️ DEPRECATED: Specification Pattern implement edildikten sonra kaldırılacak
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
     [Obsolete("Use Specification Pattern instead. This method will be removed in future versions.")]
     public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         return await _dbSet
             .AsNoTracking()
             .Where(predicate)
@@ -50,25 +38,19 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
     }
 
     // ⚠️ DEPRECATED: Specification Pattern implement edildikten sonra kaldırılacak
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
     [Obsolete("Use Specification Pattern instead. This method will be removed in future versions.")]
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         return await _dbSet
             .AsNoTracking()
             .FirstOrDefaultAsync(predicate, cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
     {
         entity.CreatedAt = DateTime.UtcNow;
         await _dbSet.AddAsync(entity, cancellationToken);
 
-        // ✅ CRITICAL FIX: Removed SaveChangesAsync call
         // This allows Unit of Work pattern to work correctly
         // Service layer must call SaveChanges explicitly via UnitOfWork
         // BEFORE: Each Add commits immediately (breaks transactions)
@@ -77,52 +59,39 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
         return entity;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
         entity.UpdatedAt = DateTime.UtcNow;
         _dbSet.Update(entity);
 
-        // ✅ CRITICAL FIX: Removed SaveChangesAsync call
         // Enables atomic multi-entity operations via Unit of Work
         return Task.CompletedTask;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE FIX: Soft delete implementation
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;
         _dbSet.Update(entity);
 
-        // ✅ CRITICAL FIX: Removed SaveChangesAsync call
         // Note: Changed from UpdateAsync(entity) to direct Update()
         // to avoid recursive SaveChanges issue
         return Task.CompletedTask;
     }
 
     // ⚠️ DEPRECATED: Specification Pattern implement edildikten sonra kaldırılacak
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
     [Obsolete("Use Specification Pattern instead. This method will be removed in future versions.")]
     public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         return await _dbSet
             .AsNoTracking()
             .AnyAsync(predicate, cancellationToken);
     }
 
     // ⚠️ DEPRECATED: Specification Pattern implement edildikten sonra kaldırılacak
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
     [Obsolete("Use Specification Pattern instead. This method will be removed in future versions.")]
     public virtual async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: Removed manual !IsDeleted check - Global Query Filter handles this automatically
         var query = _dbSet
             .AsNoTracking()
             .AsQueryable();
@@ -133,35 +102,26 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
         return await query.CountAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual async Task<T?> GetBySpecAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
         return await ApplySpecification(spec).FirstOrDefaultAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual async Task<IReadOnlyList<T>> ListAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
         return await ApplySpecification(spec).ToListAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public virtual async Task<int> CountAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
         return await ApplySpecification(spec, skipPaging: true).CountAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Apply specification to query - BOLUM 7.2: Specification Pattern
-    /// </summary>
+    
     private IQueryable<T> ApplySpecification(ISpecification<T> spec, bool skipPaging = false)
     {
         var query = _dbSet.AsQueryable();
 
-        // ✅ BOLUM 6.1: AsNoTracking for read-only queries (ZORUNLUDUR)
         if (spec.IsNoTracking)
         {
             query = query.AsNoTracking();
@@ -171,6 +131,12 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
         if (spec.Criteria != null)
         {
             query = query.Where(spec.Criteria);
+        }
+
+        var includeCount = (spec.Includes?.Count ?? 0) + (spec.IncludeStrings?.Count ?? 0);
+        if (includeCount >= 2)
+        {
+            query = query.AsSplitQuery();
         }
 
         // Apply includes

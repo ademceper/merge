@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetProductQuestions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public class GetProductQuestionsQueryHandler(
     IDbContext context,
     ILogger<GetProductQuestionsQueryHandler> logger,
@@ -37,8 +35,6 @@ public class GetProductQuestionsQueryHandler(
         logger.LogInformation("Fetching product questions. ProductId: {ProductId}, UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
             request.ProductId, request.UserId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize > paginationConfig.MaxPageSize
             ? paginationConfig.MaxPageSize
@@ -47,14 +43,12 @@ public class GetProductQuestionsQueryHandler(
         // Cache key includes UserId for user-specific data (HasUserVoted)
         var cacheKey = $"{CACHE_KEY_PRODUCT_QUESTIONS}{request.ProductId}_{request.UserId ?? Guid.Empty}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
                 logger.LogInformation("Cache miss for product questions. Fetching from database.");
 
-                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
                 var query = context.Set<ProductQuestion>()
                     .AsNoTracking()
                     .AsSplitQuery()
@@ -75,7 +69,6 @@ public class GetProductQuestionsQueryHandler(
 
                 var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
 
-                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
                 var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
                 var userVotes = request.UserId.HasValue
                     ? await context.Set<QuestionHelpfulness>()
@@ -84,7 +77,6 @@ public class GetProductQuestionsQueryHandler(
                         .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
                     : new Dictionary<Guid, QuestionHelpfulness>();
 
-                // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
                 var dtos = new List<ProductQuestionDto>(questions.Count);
                 foreach (var question in questions)
                 {

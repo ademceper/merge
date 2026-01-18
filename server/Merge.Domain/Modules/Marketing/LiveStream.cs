@@ -21,7 +21,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class LiveStream : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public SellerProfile? Seller { get; private set; }
     
@@ -52,7 +51,6 @@ public class LiveStream : BaseEntity, IAggregateRoot
             _description = value ?? string.Empty;
         } 
     }
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public LiveStreamStatus Status { get; private set; } = LiveStreamStatus.Scheduled;
     public DateTime? ScheduledStartTime { get; private set; }
     public DateTime? ActualStartTime { get; private set; }
@@ -148,7 +146,6 @@ public class LiveStream : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money (EF Core compatibility için decimal backing)
     private decimal _revenue = 0;
     public decimal Revenue 
     { 
@@ -160,7 +157,6 @@ public class LiveStream : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [NotMapped]
     public Money RevenueMoney => new Money(_revenue);
     
@@ -194,22 +190,17 @@ public class LiveStream : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
-    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
     private readonly List<LiveStreamProduct> _products = [];
     private readonly List<LiveStreamViewer> _viewers = [];
     private readonly List<LiveStreamOrder> _orders = [];
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
     public IReadOnlyCollection<LiveStreamProduct> Products => _products.AsReadOnly();
     public IReadOnlyCollection<LiveStreamViewer> Viewers => _viewers.AsReadOnly();
     public IReadOnlyCollection<LiveStreamOrder> Orders => _orders.AsReadOnly();
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı (Organization, Team entity'lerinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -221,7 +212,6 @@ public class LiveStream : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -230,10 +220,8 @@ public class LiveStream : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStream() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LiveStream Create(
         Guid sellerId,
         string title,
@@ -265,16 +253,13 @@ public class LiveStream : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         stream.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamCreatedEvent
         stream.AddDomainEvent(new LiveStreamCreatedEvent(stream.Id, stream.SellerId, stream.Title, stream.ScheduledStartTime));
 
         return stream;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update stream details
     public void UpdateDetails(
         string title,
         string description = "",
@@ -300,14 +285,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Tags = tags;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamUpdatedEvent
         AddDomainEvent(new LiveStreamUpdatedEvent(Id, SellerId, Title, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Start stream
     public void Start()
     {
         if (Status != LiveStreamStatus.Scheduled && Status != LiveStreamStatus.Paused)
@@ -317,14 +299,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         ActualStartTime = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamStartedEvent
         AddDomainEvent(new LiveStreamStartedEvent(Id, SellerId, ActualStartTime.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - End stream
     public void End()
     {
         if (Status != LiveStreamStatus.Live && Status != LiveStreamStatus.Paused)
@@ -335,14 +314,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamEndedEvent
         AddDomainEvent(new LiveStreamEndedEvent(Id, SellerId, EndTime.Value, TotalViewerCount, OrderCount, Revenue));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Pause stream
     public void Pause()
     {
         if (Status != LiveStreamStatus.Live)
@@ -351,14 +327,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Status = LiveStreamStatus.Paused;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamPausedEvent
         AddDomainEvent(new LiveStreamPausedEvent(Id, SellerId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Resume stream
     public void Resume()
     {
         if (Status != LiveStreamStatus.Paused)
@@ -367,14 +340,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Status = LiveStreamStatus.Live;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamResumedEvent
         AddDomainEvent(new LiveStreamResumedEvent(Id, SellerId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel stream
     public void Cancel()
     {
         if (Status == LiveStreamStatus.Live)
@@ -387,14 +357,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamCancelledEvent
         AddDomainEvent(new LiveStreamCancelledEvent(Id, SellerId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment viewer count
     public void IncrementViewerCount()
     {
         ViewerCount++;
@@ -405,11 +372,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Decrement viewer count
     public void DecrementViewerCount()
     {
         if (ViewerCount > 0)
@@ -418,11 +383,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add product to stream
     public void AddProduct(LiveStreamProduct product)
     {
         Guard.AgainstNull(product, nameof(product));
@@ -437,11 +400,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         _products.Add(product);
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Remove product from stream
     public void RemoveProduct(Guid productId)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -453,11 +414,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         product.MarkAsDeleted();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add viewer to stream
     public void AddViewer(LiveStreamViewer viewer)
     {
         Guard.AgainstNull(viewer, nameof(viewer));
@@ -471,11 +430,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         _viewers.Add(viewer);
         IncrementViewerCount();
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Remove viewer from stream
     public void RemoveViewer(Guid viewerId)
     {
         Guard.AgainstDefault(viewerId, nameof(viewerId));
@@ -487,11 +444,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         viewer.Leave();
         DecrementViewerCount();
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add order
     public void AddOrder(LiveStreamOrder order)
     {
         Guard.AgainstNull(order, nameof(order));
@@ -504,11 +459,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Revenue += order.OrderAmount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add order (legacy method for backward compatibility)
     public void AddOrder(decimal orderAmount)
     {
         Guard.AgainstNegativeOrZero(orderAmount, nameof(orderAmount));
@@ -517,11 +470,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Revenue += orderAmount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -533,14 +484,11 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamDeletedEvent
         AddDomainEvent(new LiveStreamDeletedEvent(Id, SellerId, Title, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted stream
     public void Restore()
     {
         if (!IsDeleted)
@@ -549,21 +497,17 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamRestoredEvent
         AddDomainEvent(new LiveStreamRestoredEvent(Id, SellerId, Title, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
     private static bool IsValidUrl(string url)
     {
         return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
                (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(Title))

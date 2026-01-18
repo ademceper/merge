@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// UserSubscription Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record UserSubscriptionCreatedEvent(
     Guid SubscriptionId,
     Guid UserId,

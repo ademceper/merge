@@ -16,12 +16,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.SearchProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<SearchProductsQueryHandler> logger, ICacheService cache, IOptions<SearchSettings> searchSettings) : IRequestHandler<SearchProductsQuery, SearchResultDto>
 {
-    private readonly SearchSettings searchConfig = searchSettings.Value;
-
     private const string CACHE_KEY_PRODUCTS_SEARCH = "products_search_";
 
     public async Task<SearchResultDto> Handle(SearchProductsQuery request, CancellationToken cancellationToken)
@@ -30,21 +26,18 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
             "Product search yapılıyor. SearchTerm: {SearchTerm}, CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
             request.SearchTerm, request.CategoryId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > searchConfig.MaxPageSize
-            ? searchConfig.MaxPageSize
+        var pageSize = request.PageSize > searchSettings.Value.MaxPageSize
+            ? searchSettings.Value.MaxPageSize
             : request.PageSize;
 
         // Cache key
         var cacheKey = $"{CACHE_KEY_PRODUCTS_SEARCH}{request.SearchTerm}_{request.CategoryId}_{request.Brand}_{request.MinPrice}_{request.MaxPrice}_{request.MinRating}_{request.InStockOnly}_{request.SortBy}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for search results
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
                 var query = context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Include(p => p.Category)
@@ -98,19 +91,15 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
                 // Toplam kayıt sayısı
                 var totalCount = await query.CountAsync(cancellationToken);
 
-                // ✅ PERFORMANCE: Apply pagination before materializing the query
                 var products = await query
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                 var productDtos = mapper.Map<IEnumerable<ProductDto>>(products).ToList();
 
-                // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
                 var rankedProducts = ApplySearchRanking(productDtos, request.SearchTerm ?? string.Empty, request.SortBy);
 
-                // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
                 var brands = await context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Where(p => p.IsActive && !string.IsNullOrEmpty(p.Brand))
@@ -119,7 +108,6 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
                     .OrderBy(b => b)
                     .ToListAsync(cancellationToken);
 
-                // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
                 var minPrice = await context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Where(p => p.IsActive)
@@ -130,7 +118,6 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
                     .Where(p => p.IsActive)
                     .MaxAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
 
-                // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
                 logger.LogInformation(
                     "Product search tamamlandı. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
                     totalCount, page, pageSize);
@@ -146,19 +133,18 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
                     MaxPrice: maxPrice
                 );
             },
-            TimeSpan.FromMinutes(searchConfig.SearchCacheExpirationMinutes),
+            TimeSpan.FromMinutes(searchSettings.Value.SearchCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;
     }
 
-    // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
     private List<ProductDto> ApplySearchRanking(List<ProductDto> products, string searchTerm, string? sortBy)
     {
-        // Eğer özel sıralama seçilmişse, ranking uygulama
-        if (!string.IsNullOrEmpty(sortBy) && sortBy.ToLower() != "relevance")
+        var sortByNorm = string.IsNullOrEmpty(sortBy) ? null : sortBy.ToLowerInvariant();
+        if (sortByNorm is not null && sortByNorm != "relevance")
         {
-            return sortBy.ToLower() switch
+            return sortByNorm switch
             {
                 "price_asc" => products.OrderBy(p => p.DiscountPrice ?? p.Price).ToList(),
                 "price_desc" => products.OrderByDescending(p => p.DiscountPrice ?? p.Price).ToList(),
@@ -197,37 +183,31 @@ public class SearchProductsQueryHandler(IDbContext context, IMapper mapper, ILog
             return score;
         }
 
-        var searchLower = searchTerm.ToLower();
-        var nameLower = product.Name.ToLower();
-        var descriptionLower = product.Description?.ToLower() ?? string.Empty;
-        var brandLower = product.Brand?.ToLower() ?? string.Empty;
-        var skuLower = product.SKU?.ToLower() ?? string.Empty;
-
-        if (nameLower.Contains(searchLower))
+        if (product.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 100;
-            if (nameLower.StartsWith(searchLower))
+            if (product.Name.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
             {
                 score += 50;
             }
         }
 
-        if (nameLower == searchLower)
+        if (string.Equals(product.Name, searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 200;
         }
 
-        if (brandLower.Contains(searchLower))
+        if ((product.Brand ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 30;
         }
 
-        if (skuLower.Contains(searchLower))
+        if (product.SKU.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 20;
         }
 
-        if (descriptionLower.Contains(searchLower))
+        if ((product.Description ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 10;
         }

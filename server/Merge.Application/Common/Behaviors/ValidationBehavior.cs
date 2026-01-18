@@ -1,9 +1,9 @@
 using FluentValidation;
 using MediatR;
+using Merge.Application.Exceptions;
 
 namespace Merge.Application.Common.Behaviors;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class ValidationBehavior<TRequest, TResponse>(
     IEnumerable<IValidator<TRequest>> validators) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -14,22 +14,23 @@ public class ValidationBehavior<TRequest, TResponse>(
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (validators.Any())
+        if (!validators.Any())
+            return await next();
+
+        var context = new ValidationContext<TRequest>(request);
+
+        var validationResults = await Task.WhenAll(
+            validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+
+        var failures = validationResults
+            .SelectMany(r => r.Errors)
+            .Where(f => f is not null)
+            .ToList();
+
+        if (failures.Count > 0)
         {
-            var context = new ValidationContext<TRequest>(request);
-
-            var validationResults = await Task.WhenAll(
-                validators.Select(v => v.ValidateAsync(context, cancellationToken)));
-
-            var failures = validationResults
-                .Where(r => r.Errors.Any())
-                .SelectMany(r => r.Errors)
-                .ToList();
-
-            if (failures.Any())
-            {
-                throw new ValidationException(failures);
-            }
+            throw Exceptions.ValidationException.FromFluentValidation(
+                new FluentValidation.Results.ValidationResult(failures));
         }
 
         return await next();

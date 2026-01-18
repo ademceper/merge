@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Commands.UpdateLandingPage;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class UpdateLandingPageCommandValidator : AbstractValidator<UpdateLandingPageCommand>
 {
     public UpdateLandingPageCommandValidator()

@@ -10,15 +10,9 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Return Request Approved Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReturnRequestApprovedEventHandler(ILogger<ReturnRequestApprovedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestApprovedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(ReturnRequestApprovedEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation(
@@ -28,7 +22,7 @@ public class ReturnRequestApprovedEventHandler(ILogger<ReturnRequestApprovedEven
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -37,7 +31,7 @@ public class ReturnRequestApprovedEventHandler(ILogger<ReturnRequestApprovedEven
                     $"İade talebiniz onaylandı. İade Talebi No: {notification.ReturnRequestId}, Onay Tarihi: {notification.ApprovedAt:yyyy-MM-dd HH:mm:ss}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -45,7 +39,6 @@ public class ReturnRequestApprovedEventHandler(ILogger<ReturnRequestApprovedEven
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReturnRequestApprovedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);

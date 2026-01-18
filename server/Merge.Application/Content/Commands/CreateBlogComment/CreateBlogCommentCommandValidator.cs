@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.CreateBlogComment;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateBlogCommentCommandValidator : AbstractValidator<CreateBlogCommentCommand>
 {
     public CreateBlogCommentCommandValidator()

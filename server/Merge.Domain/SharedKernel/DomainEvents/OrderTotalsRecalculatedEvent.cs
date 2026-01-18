@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Order Totals Recalculated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record OrderTotalsRecalculatedEvent(
     Guid OrderId,
     Guid UserId,

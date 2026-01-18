@@ -15,9 +15,14 @@ using Merge.Application.Content.Queries.GetBlogCategoryBySlug;
 
 namespace Merge.API.Controllers.Content.BlogCategories;
 
+/// <summary>
+/// Blog Categories API endpoints.
+/// Blog kategorilerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/blog/categories")]
+[Tags("BlogCategories")]
 public class BlogCategoriesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -40,7 +45,6 @@ public class BlogCategoriesController(
         [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllBlogCategoriesQuery(isActive);
         var categories = await mediator.Send(query, cancellationToken);
         return Ok(categories);
@@ -65,12 +69,11 @@ public class BlogCategoriesController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogCategoryByIdQuery(id);
         var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(category);
     }
@@ -94,12 +97,11 @@ public class BlogCategoriesController(
         string slug,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogCategoryBySlugQuery(slug);
         var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(category);
     }
@@ -129,7 +131,6 @@ public class BlogCategoriesController(
         [FromBody] CreateBlogCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var category = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
     }
@@ -163,12 +164,11 @@ public class BlogCategoriesController(
         [FromBody] UpdateBlogCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -203,7 +203,7 @@ public class BlogCategoriesController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -233,12 +233,11 @@ public class BlogCategoriesController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBlogCategoryCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

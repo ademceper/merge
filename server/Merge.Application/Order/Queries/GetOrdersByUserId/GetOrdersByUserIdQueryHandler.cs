@@ -16,7 +16,6 @@ public class GetOrdersByUserIdQueryHandler(
 
     public async Task<IEnumerable<OrderDto>> Handle(GetOrdersByUserIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var orders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.UserId == request.UserId)

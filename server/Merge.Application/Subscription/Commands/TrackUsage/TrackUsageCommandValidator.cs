@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Subscription.Commands.TrackUsage;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class TrackUsageCommandValidator : AbstractValidator<TrackUsageCommand>
 {
     public TrackUsageCommandValidator()

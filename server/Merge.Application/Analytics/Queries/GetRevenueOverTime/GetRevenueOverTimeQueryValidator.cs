@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetRevenueOverTime;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRevenueOverTimeQueryValidator : AbstractValidator<GetRevenueOverTimeQuery>
 {
     public GetRevenueOverTimeQueryValidator()

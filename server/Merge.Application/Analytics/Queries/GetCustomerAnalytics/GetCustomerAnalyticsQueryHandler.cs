@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetCustomerAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetCustomerAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetCustomerAnalyticsQueryHandler> logger,
@@ -31,22 +29,16 @@ public class GetCustomerAnalyticsQueryHandler(
         logger.LogInformation("Fetching customer analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
         var customerRole = await context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken);
         
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var customerUserIdsSubquery = customerRole != null
             ? from ur in context.UserRoles.AsNoTracking()
               where ur.RoleId == customerRole.Id
               select ur.UserId
             : context.UserRoles.AsNoTracking().Where(ur => false).Select(ur => ur.UserId);
         
-        // ✅ PERFORMANCE: Database'de filtreleme yap (memory'de değil)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted and !o.IsDeleted checks (Global Query Filter handles it)
         var totalCustomers = customerRole != null
             ? await context.Users
                 .AsNoTracking()
@@ -68,8 +60,6 @@ public class GetCustomerAnalyticsQueryHandler(
             .Distinct()
             .CountAsync(cancellationToken);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var topCustomers = await GetTopCustomersAsync(settings.Value.MaxQueryLimit, cancellationToken);
         var customerSegments = await GetCustomerSegmentsAsync(cancellationToken);
         
@@ -109,11 +99,7 @@ public class GetCustomerAnalyticsQueryHandler(
 
     private async Task<List<CustomerSegmentDto>> GetCustomerSegmentsAsync(CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de customer segmentation yap (memory'de değil)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var vipThreshold = settings.Value.VipCustomerThreshold ?? 10000m;
         var activeDaysThreshold = settings.Value.ActiveCustomerDaysThreshold ?? 90;
         var newCustomerDays = settings.Value.NewCustomerDaysThreshold ?? 30;
@@ -123,7 +109,6 @@ public class GetCustomerAnalyticsQueryHandler(
         var newCustomerDateThreshold = now.AddDays(-newCustomerDays);
 
         // VIP Customers - Toplam harcaması threshold'dan fazla olanlar
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var vipCustomersSubquery = from o in context.Set<OrderEntity>().AsNoTracking()
                                    group o by o.UserId into g
                                    where g.Sum(o => o.TotalAmount) >= vipThreshold
@@ -145,7 +130,6 @@ public class GetCustomerAnalyticsQueryHandler(
         var vipAvgOrderValue = vipOrderCount > 0 ? vipRevenue / vipOrderCount : 0m;
 
         // Active Customers - Son X gün içinde sipariş verenler
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var activeCustomersSubquery = from o in context.Set<OrderEntity>().AsNoTracking()
                                        where o.CreatedAt >= activeDateThreshold
                                        select o.UserId;
@@ -166,7 +150,6 @@ public class GetCustomerAnalyticsQueryHandler(
         var activeAvgOrderValue = activeOrderCount > 0 ? activeRevenue / activeOrderCount : 0m;
 
         // New Customers - Son X gün içinde kayıt olanlar
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var newCustomersSubquery = from u in context.Users.AsNoTracking()
                                     where u.CreatedAt >= newCustomerDateThreshold
                                     select u.Id;
@@ -186,7 +169,6 @@ public class GetCustomerAnalyticsQueryHandler(
             : 0;
         var newAvgOrderValue = newOrderCount > 0 ? newRevenue / newOrderCount : 0m;
 
-        // ✅ HIGH-NET-001: Collection expressions (C# 12) - new List<> yerine [] kullanımı
         return
         [
             new CustomerSegmentDto("VIP", vipCount, vipRevenue, vipAvgOrderValue),

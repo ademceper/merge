@@ -34,7 +34,6 @@ public class GetAuditStatsQueryHandler(
         var failedActions = await query.CountAsync(a => !a.IsSuccessful, cancellationToken);
         var criticalEvents = await query.CountAsync(a => a.Severity == AuditSeverity.Critical, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap
         var actionsByType = await query
             .GroupBy(a => a.Action)
             .Select(g => new { Action = g.Key, Count = g.Count() })

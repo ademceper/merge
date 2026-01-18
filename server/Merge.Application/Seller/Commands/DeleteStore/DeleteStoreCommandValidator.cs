@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.DeleteStore;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteStoreCommandValidator : AbstractValidator<DeleteStoreCommand>
 {
     public DeleteStoreCommandValidator()

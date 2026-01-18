@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.RemoveSavedItem;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RemoveSavedItemCommandValidator : AbstractValidator<RemoveSavedItemCommand>
 {
     public RemoveSavedItemCommandValidator()

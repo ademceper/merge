@@ -11,14 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseCategories;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetKnowledgeBaseCategoriesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetKnowledgeBaseCategoriesQuery, IEnumerable<KnowledgeBaseCategoryDto>>
 {
 
     public async Task<IEnumerable<KnowledgeBaseCategoryDto>> Handle(GetKnowledgeBaseCategoriesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<KnowledgeBaseCategory> query = context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -35,7 +32,6 @@ public class GetKnowledgeBaseCategoriesQueryHandler(IDbContext context, IMapper 
             .ThenBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<KnowledgeBaseCategoryDto>>(categories);
     }
 }

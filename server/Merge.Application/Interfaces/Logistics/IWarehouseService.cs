@@ -1,6 +1,5 @@
 using Merge.Application.DTOs.Logistics;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Logistics;
 
 public interface IWarehouseService

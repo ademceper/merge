@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.EstimateDeliveryTime;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class EstimateDeliveryTimeQueryValidator : AbstractValidator<EstimateDeliveryTimeQuery>
 {
     public EstimateDeliveryTimeQueryValidator()

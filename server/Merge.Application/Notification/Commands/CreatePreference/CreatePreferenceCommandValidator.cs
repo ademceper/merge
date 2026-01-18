@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.CreatePreference;
 
-/// <summary>
-/// Create Preference Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class CreatePreferenceCommandValidator : AbstractValidator<CreatePreferenceCommand>
 {
     public CreatePreferenceCommandValidator()

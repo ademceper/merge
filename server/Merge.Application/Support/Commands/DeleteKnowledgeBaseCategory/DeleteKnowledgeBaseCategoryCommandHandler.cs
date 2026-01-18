@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.DeleteKnowledgeBaseCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteKnowledgeBaseCategoryCommandHandler> logger) : IRequestHandler<DeleteKnowledgeBaseCategoryCommand, bool>
 {
 
     public async Task<bool> Handle(DeleteKnowledgeBaseCategoryCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Deleting knowledge base category {CategoryId}", request.CategoryId);
 
         var category = await context.Set<KnowledgeBaseCategory>()
@@ -29,10 +27,8 @@ public class DeleteKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
             throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
         category.MarkAsDeleted();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Knowledge base category {CategoryId} deleted successfully", request.CategoryId);

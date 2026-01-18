@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetUserGiftCards;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetUserGiftCardsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetUserGiftCardsQuery, PagedResult<GiftCardDto>>
 {
     public async Task<PagedResult<GiftCardDto>> Handle(GetUserGiftCardsQuery request, CancellationToken cancellationToken)

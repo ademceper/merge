@@ -1,7 +1,6 @@
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.ML;
 
 public interface IFraudDetectionService

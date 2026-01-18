@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.MarkAllAsRead;
 
-/// <summary>
-/// Mark All As Read Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class MarkAllAsReadCommandValidator : AbstractValidator<MarkAllAsReadCommand>
 {
     public MarkAllAsReadCommandValidator()

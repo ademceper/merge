@@ -19,22 +19,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetAgentDashboard;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAgentDashboardQueryHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<GetAgentDashboardQuery, SupportAgentDashboardDto>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<SupportAgentDashboardDto> Handle(GetAgentDashboardQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-supportConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Generating agent dashboard for agent {AgentId} from {StartDate} to {EndDate}",
             request.AgentId, startDate, endDate);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
         var agent = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.AgentId, cancellationToken);
@@ -45,8 +41,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             throw new NotFoundException("Ajan", request.AgentId);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<SupportTicket> allTicketsQuery = context.Set<SupportTicket>()
             .AsNoTracking()
             .Where(t => t.AssignedToId == request.AgentId);
@@ -62,7 +56,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             .AsNoTracking()
             .CountAsync(t => t.AssignedToId == null && t.Status != TicketStatus.Closed, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de average hesapla
         var resolvedTicketsQuery = allTicketsQuery.Where(t => t.ResolvedAt.HasValue);
         var averageResolutionTime = await resolvedTicketsQuery.AnyAsync(cancellationToken)
             ? await resolvedTicketsQuery
@@ -76,7 +69,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             : 0;
 
         var today = DateTime.UtcNow.Date;
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         var weekAgo = today.AddDays(-supportConfig.WeeklyReportDays);
         var monthAgo = today.AddDays(-supportConfig.DefaultStatsPeriodDays);
 
@@ -88,11 +80,9 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             ? (decimal)(resolvedTickets + closedTickets) / totalTickets * 100
             : 0;
 
-        // ✅ PERFORMANCE: Database'de count yap
         var activeTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress, cancellationToken);
         var overdueTickets = await allTicketsQuery.CountAsync(t =>
             (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress) &&
-            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
             t.CreatedAt < DateTime.UtcNow.AddDays(-supportConfig.TicketOverdueDays), cancellationToken);
         var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High, cancellationToken);
         var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent, cancellationToken);
@@ -106,7 +96,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
         // Trends
         var trends = await GetTicketTrendsAsync(request.AgentId, startDate, endDate, cancellationToken);
 
-        // ✅ PERFORMANCE: Recent tickets - database'de query
         var recentTickets = await allTicketsQuery
             .AsSplitQuery()
             .Include(t => t.User)
@@ -117,8 +106,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             .Take(supportConfig.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Urgent tickets - database'de query
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var urgentTicketsList = await allTicketsQuery
             .AsSplitQuery()
             .Include(t => t.User)
@@ -130,7 +117,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             .Take(supportConfig.DashboardUrgentTicketsCount)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: allTicketIds'i database'de oluştur, memory'de işlem YASAK
         var recentTicketIds = await allTicketsQuery
             .OrderByDescending(t => t.CreatedAt)
             .Take(supportConfig.DashboardRecentTicketsCount)
@@ -144,7 +130,6 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
         
-        // ✅ Memory'de minimal işlem: Concat ve Distinct küçük listeler için kabul edilebilir
         var allTicketIds = recentTicketIds.Concat(urgentTicketIds).Distinct().ToList();
         var messagesDict = await context.Set<TicketMessage>()
             .AsNoTracking()
@@ -169,12 +154,11 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             })
             .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
-        var recentTicketsDto = new List<SupportTicketDto>();
+        List<SupportTicketDto> recentTicketsDto = [];
         foreach (var ticket in recentTickets)
         {
             var dto = mapper.Map<SupportTicketDto>(ticket);
             
-            // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
@@ -195,16 +179,14 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
                 attachments = Array.Empty<TicketAttachmentDto>().AsReadOnly();
             }
             
-            // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
             recentTicketsDto.Add(dto with { Messages = messages, Attachments = attachments });
         }
 
-        var urgentTicketsDto = new List<SupportTicketDto>();
+        List<SupportTicketDto> urgentTicketsDto = [];
         foreach (var ticket in urgentTicketsList)
         {
             var dto = mapper.Map<SupportTicketDto>(ticket);
             
-            // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
@@ -225,14 +207,12 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
                 attachments = Array.Empty<TicketAttachmentDto>().AsReadOnly();
             }
             
-            // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
             urgentTicketsDto.Add(dto with { Messages = messages, Attachments = attachments });
         }
 
         logger.LogInformation("Agent dashboard generated for {AgentName}. Total tickets: {Total}, Active: {Active}, Resolution rate: {Rate}%",
             $"{agent.FirstName} {agent.LastName}", totalTickets, activeTickets, Math.Round(resolutionRate, 2));
 
-        // ✅ BOLUM 7.1.5: Records - Record'lar için constructor kullan (object initializer çalışmaz)
         return new SupportAgentDashboardDto(
             request.AgentId,
             $"{agent.FirstName} {agent.LastName}",

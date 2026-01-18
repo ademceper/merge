@@ -4,8 +4,6 @@ using Merge.Application.Common;
 
 namespace Merge.Application.Support.Queries.GetUserCustomerCommunications;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public record GetUserCustomerCommunicationsQuery(
     Guid UserId,
     string? CommunicationType = null,

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.B2B.Queries.GetVolumeDiscounts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetVolumeDiscountsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetVolumeDiscountsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

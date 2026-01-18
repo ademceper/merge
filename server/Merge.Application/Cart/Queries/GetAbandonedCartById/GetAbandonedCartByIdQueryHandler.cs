@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCartById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAbandonedCartByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -35,14 +33,11 @@ public class GetAbandonedCartByIdQueryHandler(
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == request.CartId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
             return null;
         }
 
-        // ✅ PERFORMANCE: Database'de Count ve FirstOrDefault yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var emailsSentCount = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.CartId == request.CartId)
@@ -57,7 +52,6 @@ public class GetAbandonedCartByIdQueryHandler(
             .Select(e => (DateTime?)e.SentAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de Sum ve Count yap (memory'de işlem YASAK)
         var itemCount = await context.Set<CartItem>()
             .AsNoTracking()
             .CountAsync(ci => ci.CartId == request.CartId, cancellationToken);
@@ -67,7 +61,6 @@ public class GetAbandonedCartByIdQueryHandler(
             .Where(ci => ci.CartId == request.CartId)
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = await context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
@@ -76,8 +69,6 @@ public class GetAbandonedCartByIdQueryHandler(
 
         var itemsDto = mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
-        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         var userEmail = cart.User?.Email ?? string.Empty;
         var userName = cart.User is not null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
         var lastModified = cart.UpdatedAt ?? cart.CreatedAt;

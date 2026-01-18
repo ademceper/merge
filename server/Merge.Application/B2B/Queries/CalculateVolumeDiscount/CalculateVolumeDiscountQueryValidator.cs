@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Queries.CalculateVolumeDiscount;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CalculateVolumeDiscountQueryValidator : AbstractValidator<CalculateVolumeDiscountQuery>
 {
     public CalculateVolumeDiscountQueryValidator()

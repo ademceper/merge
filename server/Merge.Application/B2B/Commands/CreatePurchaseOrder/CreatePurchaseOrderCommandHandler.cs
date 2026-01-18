@@ -23,8 +23,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreatePurchaseOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreatePurchaseOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -38,12 +36,10 @@ public class CreatePurchaseOrderCommandHandler(
         logger.LogInformation("Creating purchase order. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
             request.B2BUserId, request.Dto.OrganizationId);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PurchaseOrder + Items + Updates)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
             var b2bUser = await context.Set<B2BUser>()
                 .Include(b => b.Organization)
                 .FirstOrDefaultAsync(b => b.Id == request.B2BUserId && b.IsApproved, cancellationToken);
@@ -55,7 +51,6 @@ public class CreatePurchaseOrderCommandHandler(
 
             var poNumber = await GeneratePONumberAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var purchaseOrder = PurchaseOrder.Create(
                 request.Dto.OrganizationId,
                 request.B2BUserId,
@@ -72,7 +67,6 @@ public class CreatePurchaseOrderCommandHandler(
             await context.Set<PurchaseOrder>().AddAsync(purchaseOrder, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Batch load all products at once (N+1 query fix)
             var productIds = request.Dto.Items.Select(i => i.ProductId).Distinct().ToList();
             var products = await context.Set<ProductEntity>()
                 .AsNoTracking()
@@ -88,7 +82,6 @@ public class CreatePurchaseOrderCommandHandler(
                 }
             }
 
-            // ✅ PERFORMANCE: Batch load all wholesale prices at once (N+1 query fix)
             var now = DateTime.UtcNow;
             var wholesalePricesQuery = context.Set<WholesalePrice>()
                 .AsNoTracking()
@@ -109,7 +102,6 @@ public class CreatePurchaseOrderCommandHandler(
 
             var wholesalePrices = await wholesalePricesQuery.ToListAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Batch load all volume discounts at once (N+1 query fix)
             var volumeDiscountsQuery = context.Set<VolumeDiscount>()
                 .AsNoTracking()
                 .Where(vd => (productIds.Contains(vd.ProductId) || vd.CategoryId != null) &&
@@ -129,7 +121,6 @@ public class CreatePurchaseOrderCommandHandler(
 
             var volumeDiscounts = await volumeDiscountsQuery.ToListAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Dictionary lookup için optimize et (O(1) lookup)
             var wholesalePriceLookup = wholesalePrices
                 .GroupBy(wp => wp.ProductId)
                 .ToDictionary(
@@ -192,8 +183,6 @@ public class CreatePurchaseOrderCommandHandler(
                     unitPrice = unitPrice * (1 - discount.DiscountPercentage / 100);
                 }
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-                // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
                 var unitPriceMoney = new Money(unitPrice);
                 purchaseOrder.AddItem(
                     products[itemDto.ProductId],
@@ -202,9 +191,6 @@ public class CreatePurchaseOrderCommandHandler(
                     itemDto.Notes);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullan
-            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var subTotal = purchaseOrder.SubTotal;
             var taxAmount = new Money(subTotal * b2bSettings.Value.DefaultTaxRate);
             purchaseOrder.SetTax(taxAmount);
@@ -226,16 +212,13 @@ public class CreatePurchaseOrderCommandHandler(
             logger.LogInformation("Purchase order created successfully. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
                 purchaseOrder!.Id, purchaseOrder.PONumber);
 
-            // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return mapper.Map<PurchaseOrderDto>(purchaseOrder);
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "PurchaseOrder olusturma hatasi. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
                 request.B2BUserId, request.Dto.OrganizationId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
@@ -243,7 +226,6 @@ public class CreatePurchaseOrderCommandHandler(
 
     private async Task<string> GeneratePONumberAsync(CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
         var existingCount = await context.Set<PurchaseOrder>()
             .AsNoTracking()

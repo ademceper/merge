@@ -14,17 +14,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.CreateTransaction;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateTransactionCommandHandler> logger) : IRequestHandler<CreateTransactionCommand, SellerTransactionDto>
 {
 
     public async Task<SellerTransactionDto> Handle(CreateTransactionCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating transaction. SellerId: {SellerId}, Type: {TransactionType}, Amount: {Amount}",
             request.SellerId, request.TransactionType, request.Amount);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var seller = await context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
@@ -36,7 +33,6 @@ public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork uni
 
         var balanceBefore = seller.AvailableBalance;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var transaction = SellerTransaction.Create(
             sellerId: request.SellerId,
             transactionType: request.TransactionType,
@@ -58,14 +54,10 @@ public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork uni
 
         await context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         transaction.Complete();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         transaction = await context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
@@ -73,7 +65,6 @@ public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork uni
 
         logger.LogInformation("Transaction created. TransactionId: {TransactionId}", transaction!.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<SellerTransactionDto>(transaction);
     }
 }

@@ -3,9 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Update Email Campaign DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record UpdateEmailCampaignDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Kampanya adı en az 2, en fazla 200 karakter olmalıdır.")]

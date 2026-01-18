@@ -12,10 +12,15 @@ using Merge.Application.Analytics.Queries.GetFinancialMetrics;
 
 namespace Merge.API.Controllers.Analytics.FinancialReporting;
 
+/// <summary>
+/// Financial Reporting Analytics API endpoints.
+/// Finansal raporlama analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/financial-reports")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("FinancialReportingAnalytics")]
 public class FinancialReportingAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -36,8 +41,6 @@ public class FinancialReportingAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialReportQuery(startDate, endDate);
         var report = await mediator.Send(query, cancellationToken);
         return Ok(report);
@@ -59,8 +62,6 @@ public class FinancialReportingAnalyticsController(
         [FromQuery] string period = "daily",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialSummariesQuery(startDate, endDate, period);
         var summaries = await mediator.Send(query, cancellationToken);
         return Ok(summaries);
@@ -81,8 +82,6 @@ public class FinancialReportingAnalyticsController(
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialMetricsQuery(startDate, endDate);
         var metrics = await mediator.Send(query, cancellationToken);
         return Ok(metrics);

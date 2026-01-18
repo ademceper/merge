@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Queries.GetAllPickPacks;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetAllPickPacksQueryValidator : AbstractValidator<GetAllPickPacksQuery>
 {
     public GetAllPickPacksQueryValidator()

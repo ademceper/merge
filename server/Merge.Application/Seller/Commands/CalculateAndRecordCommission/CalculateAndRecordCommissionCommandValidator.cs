@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Seller.Commands.CalculateAndRecordCommission;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CalculateAndRecordCommissionCommandValidator : AbstractValidator<CalculateAndRecordCommissionCommand>
 {
     public CalculateAndRecordCommissionCommandValidator()

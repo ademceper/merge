@@ -2,7 +2,6 @@ using Merge.Domain.Enums;
 using Merge.Domain.Modules.Identity;
 namespace Merge.Application.DTOs.User;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record UserActivityLogDto(
     Guid Id,
     Guid? UserId,

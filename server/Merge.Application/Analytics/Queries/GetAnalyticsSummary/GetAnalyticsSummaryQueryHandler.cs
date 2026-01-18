@@ -19,8 +19,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetAnalyticsSummary;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAnalyticsSummaryQueryHandler(
     IDbContext context,
     ILogger<GetAnalyticsSummaryQueryHandler> logger,
@@ -31,11 +29,9 @@ public class GetAnalyticsSummaryQueryHandler(
     {
         logger.LogInformation("Fetching analytics summary. Days: {Days}", request.Days);
         
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
         var days = request.Days == 30 ? serviceSettings.Value.DefaultDateRangeDays : request.Days;
         var startDate = DateTime.UtcNow.Date.AddDays(-days);
 
-        // ✅ PERFORMANCE: Removed manual !IsDeleted checks (Global Query Filter handles it)
         var summary = new AnalyticsSummaryDto(
             Period: $"Last {days} days",
             NewUsers: await context.Users.AsNoTracking().CountAsync(u => u.CreatedAt >= startDate, cancellationToken),

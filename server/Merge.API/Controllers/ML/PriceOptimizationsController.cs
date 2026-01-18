@@ -11,10 +11,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.ML;
 
+/// <summary>
+/// Price Optimization API endpoints.
+/// Fiyat optimizasyonu işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/ml/price-optimization")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("PriceOptimization")]
 public class PriceOptimizationsController(IMediator mediator) : BaseController
 {
     [HttpPost("products/{productId}")]

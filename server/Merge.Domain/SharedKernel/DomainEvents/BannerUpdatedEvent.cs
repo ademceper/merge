@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Banner Updated Domain Event - BOLUM 1.5: Domain Events (ÖNERİLİR)
-/// </summary>
+
 public record BannerUpdatedEvent(
     Guid BannerId,
     string Title,

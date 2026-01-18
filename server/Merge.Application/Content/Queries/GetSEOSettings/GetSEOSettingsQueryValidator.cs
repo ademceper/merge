@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Queries.GetSEOSettings;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSEOSettingsQueryValidator : AbstractValidator<GetSEOSettingsQuery>
 {
     public GetSEOSettingsQueryValidator()

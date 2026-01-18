@@ -3,9 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Send Test Email DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record SendTestEmailDto
 {
     [Required(ErrorMessage = "Campaign ID is required")]

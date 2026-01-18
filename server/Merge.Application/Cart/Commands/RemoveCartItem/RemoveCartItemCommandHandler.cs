@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.RemoveCartItem;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RemoveCartItemCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +22,6 @@ public class RemoveCartItemCommandHandler(
     {
         logger.LogInformation("Removing item from cart. CartItemId: {CartItemId}", request.CartItemId);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Cart + CartItem + Updates)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
@@ -32,7 +29,6 @@ public class RemoveCartItemCommandHandler(
             var cartItem = await context.Set<CartItem>()
                 .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
             
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (cartItem is null)
             {
                 logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
@@ -40,13 +36,11 @@ public class RemoveCartItemCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             // Cart entity'sinin RemoveItem method'unu kullan
             var cart = await context.Set<CartEntity>()
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (cart is null)
             {
                 logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
@@ -54,12 +48,8 @@ public class RemoveCartItemCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-            // ✅ ARCHITECTURE: Domain event'ler entity içinde oluşturuluyor (Cart.RemoveItem() içinde CartItemRemovedEvent)
             cart.RemoveItem(request.CartItemId);
             
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -71,11 +61,9 @@ public class RemoveCartItemCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error removing item from cart. CartItemId: {CartItemId}",
                 request.CartItemId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

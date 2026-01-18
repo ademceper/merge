@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.CreatePageBuilder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreatePageBuilderCommandHandler(
     IRepository pageBuilderRepository,
     IDbContext context,
@@ -34,7 +32,6 @@ public class CreatePageBuilderCommandHandler(
         logger.LogInformation("Creating page builder. AuthorId: {AuthorId}, Name: {Name}, Title: {Title}",
             request.AuthorId, request.Name, request.Title);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -45,7 +42,6 @@ public class CreatePageBuilderCommandHandler(
                 slug = $"{slug}-{DateTime.UtcNow.Ticks}";
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var pageBuilder = PageBuilder.Create(
                 name: request.Name,
                 title: request.Title,
@@ -64,7 +60,6 @@ public class CreatePageBuilderCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<PageBuilder>()
                 .AsNoTracking()
                 .Include(pb => pb.Author)
@@ -76,7 +71,6 @@ public class CreatePageBuilderCommandHandler(
                 throw new NotFoundException("Page Builder", pageBuilder.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_PAGES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_PAGES, cancellationToken);
             await cache.RemoveAsync($"page_builder_{pageBuilder.Id}", cancellationToken);
@@ -95,7 +89,6 @@ public class CreatePageBuilderCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating page builder with Name: {Name}", request.Name);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

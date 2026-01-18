@@ -11,13 +11,11 @@ public class NetgsmProvider(IConfiguration configuration, ILogger<NetgsmProvider
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (message == null)
         {
             throw new ArgumentNullException(nameof(message));
         }
 
-        // ✅ ARCHITECTURE: Input validation
         if (string.IsNullOrWhiteSpace(message.To))
         {
             throw new ValidationException("Telefon numarası boş olamaz.");
@@ -45,8 +43,7 @@ public class NetgsmProvider(IConfiguration configuration, ILogger<NetgsmProvider
         }
 
         // Mock implementation - Gerçek implementasyonda Netgsm API kullanılacak
-        // var client = new HttpClient();
-        // var response = await client.GetAsync($"https://api.netgsm.com.tr/sms/send/get?usercode={username}&password={password}&gsmno={message.To}&message={message.Message}&msgheader={senderId}");
+        // var response = await _httpClient.GetAsync($"https://api.netgsm.com.tr/...");
         
         await Task.Delay(100);
         

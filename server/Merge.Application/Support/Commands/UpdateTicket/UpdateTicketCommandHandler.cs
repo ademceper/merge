@@ -15,13 +15,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.UpdateTicket;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateTicketCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateTicketCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateTicketCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating ticket {TicketId}. Subject: {Subject}, Status: {Status}, Priority: {Priority}",
             request.TicketId, request.Subject, request.Status, request.Priority);
 
@@ -36,7 +34,6 @@ public class UpdateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         var oldStatus = ticket.Status;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(request.Subject))
         {
             ticket.UpdateSubject(request.Subject);
@@ -61,7 +58,6 @@ public class UpdateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         {
             var newStatus = Enum.Parse<TicketStatus>(request.Status, true);
             
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (semantic methods)
             if (newStatus == TicketStatus.Resolved)
             {
                 ticket.Resolve();
@@ -83,7 +79,6 @@ public class UpdateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             ticket.AssignTo(request.AssignedToId.Value);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Ticket {TicketNumber} updated. Status changed from {OldStatus} to {NewStatus}",

@@ -23,7 +23,7 @@ public class GetLanguageByCodeQueryHandler(
 
         var language = await context.Set<Language>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.Code.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.Code), cancellationToken);
 
         return language != null ? mapper.Map<LanguageDto>(language) : null;
     }

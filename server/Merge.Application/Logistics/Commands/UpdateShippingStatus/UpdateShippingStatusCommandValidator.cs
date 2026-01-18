@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingStatus;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdateShippingStatusCommandValidator : AbstractValidator<UpdateShippingStatusCommand>
 {
     public UpdateShippingStatusCommandValidator()

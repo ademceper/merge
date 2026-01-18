@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetFinancialMetrics;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetFinancialMetricsQueryValidator : AbstractValidator<GetFinancialMetricsQuery>
 {
     public GetFinancialMetricsQueryValidator()

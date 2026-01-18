@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetTopCustomers;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetTopCustomersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetTopCustomersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

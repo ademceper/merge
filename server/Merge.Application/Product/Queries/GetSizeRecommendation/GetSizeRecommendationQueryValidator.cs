@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.GetSizeRecommendation;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSizeRecommendationQueryValidator : AbstractValidator<GetSizeRecommendationQuery>
 {
     public GetSizeRecommendationQueryValidator()

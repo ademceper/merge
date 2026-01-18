@@ -18,14 +18,12 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class VolumeDiscount : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Guid? CategoryId { get; private set; } // Category-wide discount
     public Guid? OrganizationId { get; private set; } // Organization-specific discount
     public int MinQuantity { get; private set; }
     public int? MaxQuantity { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _discountPercentage;
     private decimal? _fixedDiscountAmount;
     
@@ -35,7 +33,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         get => _discountPercentage; 
         private set 
         {
-            // ✅ BOLUM 1.6: Invariant validation - Percentage 0-100 arası
             Guard.AgainstOutOfRange(value, 0m, 100m, nameof(DiscountPercentage));
             _discountPercentage = value;
         }
@@ -54,7 +51,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Percentage DiscountPercentageVO => new Percentage(_discountPercentage);
     
@@ -65,7 +61,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -74,10 +69,8 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
     public Category? Category { get; private set; }
     public Organization? Organization { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private VolumeDiscount() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static VolumeDiscount Create(
         Guid productId,
         Product? product,
@@ -96,7 +89,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         Guard.AgainstNegativeOrZero(minQuantity, nameof(minQuantity));
         Guard.AgainstOutOfRange(discountPercentage, 0m, 100m, nameof(discountPercentage));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (maxQuantity.HasValue && maxQuantity.Value < minQuantity)
             throw new DomainException("Maksimum miktar minimum miktardan küçük olamaz");
 
@@ -125,7 +117,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Created
         volumeDiscount.AddDomainEvent(new VolumeDiscountCreatedEvent(
             volumeDiscount.Id,
             productId,
@@ -139,12 +130,10 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         return volumeDiscount;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update discount
     public void UpdateDiscount(decimal discountPercentage, decimal? fixedDiscountAmount = null)
     {
         Guard.AgainstOutOfRange(discountPercentage, 0m, 100m, nameof(discountPercentage));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (discountPercentage > 0 && fixedDiscountAmount.HasValue && fixedDiscountAmount.Value > 0)
             throw new DomainException("Hem yüzde hem de sabit tutar indirimi aynı anda kullanılamaz");
 
@@ -152,16 +141,13 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         FixedDiscountAmount = fixedDiscountAmount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
         AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, discountPercentage, fixedDiscountAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity range
     public void UpdateQuantityRange(int minQuantity, int? maxQuantity)
     {
         Guard.AgainstNegativeOrZero(minQuantity, nameof(minQuantity));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (maxQuantity.HasValue && maxQuantity.Value < minQuantity)
             throw new DomainException("Maksimum miktar minimum miktardan küçük olamaz");
 
@@ -169,17 +155,14 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         MaxQuantity = maxQuantity;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
         AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, DiscountPercentage, FixedDiscountAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
     public void Activate()
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Activated
         AddDomainEvent(new VolumeDiscountActivatedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 
@@ -188,14 +171,11 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Deactivated
         AddDomainEvent(new VolumeDiscountDeactivatedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update dates
     public void UpdateDates(DateTime? startDate, DateTime? endDate)
     {
-        // ✅ BOLUM 1.6: Invariant validation
         if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
             throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
 
@@ -203,11 +183,9 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         EndDate = endDate;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
         AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, DiscountPercentage, FixedDiscountAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -216,7 +194,6 @@ public class VolumeDiscount : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Volume Discount Deleted
         AddDomainEvent(new VolumeDiscountDeletedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 }

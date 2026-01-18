@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Subscription.Commands.UpdateSubscriptionPlan;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateSubscriptionPlanCommand(
     Guid Id,
     string? Name = null,

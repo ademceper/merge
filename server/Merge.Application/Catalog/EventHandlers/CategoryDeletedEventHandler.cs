@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Category Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class CategoryDeletedEventHandler(
     ILogger<CategoryDeletedEventHandler> logger) : INotificationHandler<CategoryDeletedEvent>
 {
 
     public async Task Handle(CategoryDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Category deleted event received. CategoryId: {CategoryId}, Name: {Name}",
             notification.CategoryId, notification.Name);
@@ -33,7 +29,6 @@ public class CategoryDeletedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling CategoryDeletedEvent. CategoryId: {CategoryId}, Name: {Name}",
                 notification.CategoryId, notification.Name);

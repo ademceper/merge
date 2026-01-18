@@ -107,7 +107,7 @@ public class RefreshTokenCommandHandler(
 
     private async Task<string> GenerateJwtToken(UserEntity user)
     {
-        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new InvalidOperationException("JWT Key bulunamadı"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new ConfigurationException("JWT Key bulunamadı"));
 
         var roles = await userManager.GetRolesAsync(user);
         var claims = new List<Claim>(6 + roles.Count)

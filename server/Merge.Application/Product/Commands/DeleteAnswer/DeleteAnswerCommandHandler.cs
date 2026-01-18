@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.DeleteAnswer;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteAnswerCommandHandler> logger, ICacheService cache) : IRequestHandler<DeleteAnswerCommand, bool>
 {
 
@@ -35,7 +34,6 @@ public class DeleteAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWo
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Kullanıcı sadece kendi cevaplarını silebilmeli
             if (answer.UserId != request.UserId)
             {
                 logger.LogWarning("Unauthorized attempt to delete answer {AnswerId} by user {UserId}. Answer belongs to {AnswerUserId}",
@@ -46,13 +44,11 @@ public class DeleteAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             // Store question ID for cache invalidation
             var questionId = answer.QuestionId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             answer.MarkAsDeleted();
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{questionId}", cancellationToken);
 
             // Get product ID for QA stats cache invalidation

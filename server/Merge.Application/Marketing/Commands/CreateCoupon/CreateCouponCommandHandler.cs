@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.CreateCoupon;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class CreateCouponCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -27,10 +25,9 @@ public class CreateCouponCommandHandler(
     {
         logger.LogInformation("Creating coupon. Code: {Code}", request.Code);
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if code already exists
         var existingCoupon = await context.Set<Coupon>()
             .AsNoTracking()
-            .AnyAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
+            .AnyAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
         if (existingCoupon)
         {
@@ -38,7 +35,6 @@ public class CreateCouponCommandHandler(
             throw new BusinessException($"Bu kupon kodu zaten kullanılıyor: '{request.Code}'");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         Money? discountAmount = request.DiscountAmount.HasValue && request.DiscountAmount.Value > 0
             ? new Money(request.DiscountAmount.Value)
             : null;
@@ -79,11 +75,9 @@ public class CreateCouponCommandHandler(
 
         await context.Set<Coupon>().AddAsync(coupon, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking ile tek query'de getir
         var createdCoupon = await context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
@@ -96,7 +90,6 @@ public class CreateCouponCommandHandler(
 
         logger.LogInformation("Coupon created successfully. CouponId: {CouponId}, Code: {Code}", coupon.Id, request.Code);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<CouponDto>(createdCoupon);
     }
 }

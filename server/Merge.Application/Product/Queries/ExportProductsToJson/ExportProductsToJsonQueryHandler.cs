@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.ExportProductsToJson;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ExportProductsToJsonQueryHandler(IDbContext context, ILogger<ExportProductsToJsonQueryHandler> logger) : IRequestHandler<ExportProductsToJsonQuery, byte[]>
 {
 

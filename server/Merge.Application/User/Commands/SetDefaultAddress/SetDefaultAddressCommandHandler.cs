@@ -10,13 +10,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.SetDefaultAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SetDefaultAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SetDefaultAddressCommandHandler> logger) : IRequestHandler<SetDefaultAddressCommand, bool>
 {
 
     public async Task<bool> Handle(SetDefaultAddressCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Setting address {AddressId} as default for user {UserId}", request.Id, request.UserId);
 
@@ -44,7 +42,6 @@ public class SetDefaultAddressCommandHandler(IDbContext context, IUnitOfWork uni
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", 
             request.Id, existingDefaults.Count);

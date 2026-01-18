@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetCartEmailHistory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetCartEmailHistoryQuery(
     Guid CartId,
     int Page = 1,

@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderCampaignsByProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPreOrderCampaignsByProductQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -27,17 +25,14 @@ public class GetPreOrderCampaignsByProductQueryHandler(
 
     public async Task<PagedResult<PreOrderCampaignDto>> Handle(GetPreOrderCampaignsByProductQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var query = context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
             .Where(c => c.ProductId == request.ProductId);
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
 
         var campaigns = await query
@@ -46,10 +41,8 @@ public class GetPreOrderCampaignsByProductQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = mapper.Map<List<PreOrderCampaignDto>>(campaigns);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<PreOrderCampaignDto>
         {
             Items = items,

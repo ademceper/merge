@@ -1,8 +1,6 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// Service layer ayarları - Magic number'ları config'e taşıma (BOLUM 12.0)
-/// </summary>
+
 public class ServiceSettings
 {
     public const string SectionName = "ServiceSettings";

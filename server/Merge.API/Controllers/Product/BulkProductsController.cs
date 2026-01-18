@@ -13,13 +13,29 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Bulk Products API endpoints.
+/// Toplu ürün işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/bulk")]
 [Authorize(Roles = "Admin")]
+[Tags("BulkProducts")]
 public class BulkProductsController(IMediator mediator) : BaseController
 {
-            [HttpPost("import/csv")]
+    /// <summary>
+    /// CSV dosyasından ürün içe aktarır
+    /// </summary>
+    /// <param name="file">CSV dosyası</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İçe aktarma sonucu</returns>
+    /// <response code="200">İçe aktarma başarılı</response>
+    /// <response code="400">Geçersiz dosya veya format</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    [HttpPost("import/csv")]
     [RateLimit(5, 3600)]
     [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -32,54 +48,31 @@ public class BulkProductsController(IMediator mediator) : BaseController
     {
         if (file == null || file.Length == 0)
         {
-            return BadRequest();
+            return Problem("File is required and cannot be empty", "Validation Error", StatusCodes.Status400BadRequest);
         }
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest();
+            return Problem("File must be a CSV file", "Validation Error", StatusCodes.Status400BadRequest);
         }
 
         using var stream = file.OpenReadStream();
         var command = new ImportProductsFromCsvCommand(stream);
         var result = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = new Dictionary<string, LinkDto>
-        {
-            ["self"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/import/csv",
-                Method = "POST"
-            },
-            ["exportCsv"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/csv",
-                Method = "POST"
-            },
-            ["exportJson"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/json",
-                Method = "POST"
-            },
-            ["exportExcel"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/excel",
-                Method = "POST"
-            },
-            ["downloadCsvTemplate"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/template/csv",
-                Method = "GET"
-            },
-            ["downloadJsonTemplate"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/template/json",
-                Method = "GET"
-            }
-        };
         
-        return Ok(new { data = result, _links = links });
+        return Ok(result);
     }
 
+    /// <summary>
+    /// JSON dosyasından ürün içe aktarır
+    /// </summary>
+    /// <param name="file">JSON dosyası</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İçe aktarma sonucu</returns>
+    /// <response code="200">İçe aktarma başarılı</response>
+    /// <response code="400">Geçersiz dosya veya format</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("import/json")]
     [RateLimit(5, 3600)]
     [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
@@ -93,54 +86,31 @@ public class BulkProductsController(IMediator mediator) : BaseController
     {
         if (file == null || file.Length == 0)
         {
-            return BadRequest();
+            return Problem("File is required and cannot be empty", "Validation Error", StatusCodes.Status400BadRequest);
         }
         if (!file.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest();
+            return Problem("File must be a JSON file", "Validation Error", StatusCodes.Status400BadRequest);
         }
 
         using var stream = file.OpenReadStream();
         var command = new ImportProductsFromJsonCommand(stream);
         var result = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = new Dictionary<string, LinkDto>
-        {
-            ["self"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/import/json",
-                Method = "POST"
-            },
-            ["exportCsv"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/csv",
-                Method = "POST"
-            },
-            ["exportJson"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/json",
-                Method = "POST"
-            },
-            ["exportExcel"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/export/excel",
-                Method = "POST"
-            },
-            ["downloadCsvTemplate"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/template/csv",
-                Method = "GET"
-            },
-            ["downloadJsonTemplate"] = new LinkDto
-            {
-                Href = $"/api/v{version}/products/bulk/template/json",
-                Method = "GET"
-            }
-        };
         
-        return Ok(new { data = result, _links = links });
+        return Ok(result);
     }
 
+    /// <summary>
+    /// Ürünleri CSV formatında dışa aktarır
+    /// </summary>
+    /// <param name="exportDto">Dışa aktarma parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>CSV dosyası</returns>
+    /// <response code="200">Dışa aktarma başarılı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("export/csv")]
     [RateLimit(10, 60)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
@@ -154,11 +124,21 @@ public class BulkProductsController(IMediator mediator) : BaseController
     {
         var query = new ExportProductsToCsvQuery(exportDto);
         var csvData = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         
         return File(csvData, "text/csv", $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
+    /// <summary>
+    /// Ürünleri JSON formatında dışa aktarır
+    /// </summary>
+    /// <param name="exportDto">Dışa aktarma parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>JSON dosyası</returns>
+    /// <response code="200">Dışa aktarma başarılı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("export/json")]
     [RateLimit(10, 60)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
@@ -172,11 +152,21 @@ public class BulkProductsController(IMediator mediator) : BaseController
     {
         var query = new ExportProductsToJsonQuery(exportDto);
         var jsonData = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         
         return File(jsonData, "application/json", $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json");
     }
 
+    /// <summary>
+    /// Ürünleri Excel formatında dışa aktarır
+    /// </summary>
+    /// <param name="exportDto">Dışa aktarma parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Excel dosyası</returns>
+    /// <response code="200">Dışa aktarma başarılı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("export/excel")]
     [RateLimit(10, 60)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
@@ -190,12 +180,19 @@ public class BulkProductsController(IMediator mediator) : BaseController
     {
         var query = new ExportProductsToExcelQuery(exportDto);
         var excelData = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                    $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx");
     }
 
+    /// <summary>
+    /// CSV içe aktarma şablonunu indirir
+    /// </summary>
+    /// <returns>CSV şablon dosyası</returns>
+    /// <response code="200">Şablon başarıyla indirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("template/csv")]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
@@ -208,11 +205,18 @@ public class BulkProductsController(IMediator mediator) : BaseController
                       "\"Sample Product\",\"Product description\",\"SKU001\",99.99,79.99,100,\"Brand Name\",\"Electronics\",\"https://example.com/image.jpg\"";
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(template);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         
         return File(bytes, "text/csv", "product_import_template.csv");
     }
 
+    /// <summary>
+    /// JSON içe aktarma şablonunu indirir
+    /// </summary>
+    /// <returns>JSON şablon dosyası</returns>
+    /// <response code="200">Şablon başarıyla indirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("template/json")]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
@@ -236,7 +240,6 @@ public class BulkProductsController(IMediator mediator) : BaseController
   }
 ]";
         var bytes = System.Text.Encoding.UTF8.GetBytes(template);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         
         return File(bytes, "application/json", "product_import_template.json");
     }

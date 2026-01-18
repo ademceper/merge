@@ -12,15 +12,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.LogActivity;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<LogActivityCommandHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<LogActivityCommand>
 {
-    private readonly UserSettings config = userSettings.Value;
-
-
     public async Task Handle(LogActivityCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", request.ActivityType, request.UserId);
 
@@ -45,7 +40,6 @@ public class LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             if (!Enum.TryParse<DeviceType>(deviceInfo.DeviceType, true, out deviceType))
                 deviceType = DeviceType.Other;
         }
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var activity = UserActivityLog.Create(
             activityType: activityType,
             entityType: entityType,
@@ -65,7 +59,6 @@ public class LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         await context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
     }

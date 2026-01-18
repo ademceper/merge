@@ -13,18 +13,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Commands.UpdateFraudDetectionRule;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateFraudDetectionRuleCommandHandler> logger) : IRequestHandler<UpdateFraudDetectionRuleCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateFraudDetectionRuleCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating fraud detection rule. RuleId: {RuleId}, Name: {Name}",
             request.Id, request.Name);
 
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
@@ -34,11 +30,9 @@ public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         if (!string.IsNullOrEmpty(request.Name))
             rule.UpdateName(request.Name);
         
-        // ✅ BOLUM 1.2: Enum kullanımı (string RuleType YASAK)
         if (!string.IsNullOrEmpty(request.RuleType) && Enum.TryParse<FraudRuleType>(request.RuleType, true, out var ruleType))
             rule.UpdateRuleType(ruleType);
         
@@ -63,7 +57,6 @@ public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
             rule.Deactivate();
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Fraud detection rule updated. RuleId: {RuleId}", request.Id);

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.DeactivateWarehouse;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class DeactivateWarehouseCommandValidator : AbstractValidator<DeactivateWarehouseCommand>
 {
     public DeactivateWarehouseCommandValidator()

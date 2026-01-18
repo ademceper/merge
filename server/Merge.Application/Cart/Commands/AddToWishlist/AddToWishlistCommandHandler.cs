@@ -9,8 +9,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.AddToWishlist;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class AddToWishlistCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,13 +20,10 @@ public class AddToWishlistCommandHandler(
         logger.LogInformation("Adding product {ProductId} to wishlist for user {UserId}",
             request.ProductId, request.UserId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only check
-        // ✅ PERFORMANCE: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         var existing = await context.Set<Wishlist>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.UserId == request.UserId && w.ProductId == request.ProductId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (existing is not null)
         {
             logger.LogWarning(
@@ -37,12 +32,10 @@ public class AddToWishlistCommandHandler(
             return false; // Zaten favorilerde
         }
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only product query
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (product is null || !product.IsActive)
         {
             logger.LogWarning(
@@ -51,7 +44,6 @@ public class AddToWishlistCommandHandler(
             throw new NotFoundException("Ürün", request.ProductId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         var wishlist = Wishlist.Create(request.UserId, request.ProductId);
 
         await context.Set<Wishlist>().AddAsync(wishlist, cancellationToken);

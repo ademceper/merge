@@ -7,9 +7,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Search;
 
+/// <summary>
+/// Search API endpoints.
+/// Ürün arama işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/search")]
+[Tags("Search")]
 public class SearchController(IMediator mediator) : BaseController
 {
     /// <summary>

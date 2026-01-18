@@ -2,8 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Marketing.Commands.AddPoints;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class AddPointsCommandValidator : AbstractValidator<AddPointsCommand>
 {
     public AddPointsCommandValidator()

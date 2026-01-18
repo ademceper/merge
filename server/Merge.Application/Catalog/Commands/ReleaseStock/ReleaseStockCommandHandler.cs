@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.ReleaseStock;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ReleaseStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -37,11 +35,9 @@ public class ReleaseStockCommandHandler(
             throw new ValidationException("Serbest bırakılacak miktar 0'dan büyük olmalıdır.");
         }
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu serbest bırakabilmeli
             var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
@@ -58,7 +54,6 @@ public class ReleaseStockCommandHandler(
                 throw new BusinessException("Bu ürün için stok serbest bırakma yetkiniz yok.");
             }
 
-            // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
             var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
@@ -68,13 +63,11 @@ public class ReleaseStockCommandHandler(
                 throw new NotFoundException("Envanter", Guid.Empty);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (validation entity içinde)
             var quantityBefore = inventory.Quantity;
             inventory.ReleaseAndReduce(request.Quantity);
 
             await inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var stockMovement = StockMovement.Create(
                 inventory.Id,
                 request.ProductId,
@@ -92,15 +85,12 @@ public class ReleaseStockCommandHandler(
 
             await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             logger.LogInformation("Successfully released stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
                 request.ProductId, request.Quantity, request.OrderId);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
 
@@ -114,7 +104,6 @@ public class ReleaseStockCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error releasing stock. ProductId: {ProductId}", request.ProductId);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

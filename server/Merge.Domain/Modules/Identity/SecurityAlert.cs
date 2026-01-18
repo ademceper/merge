@@ -21,16 +21,12 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class SecurityAlert : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // Null for system-wide alerts
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string AlertType YASAK)
     public AlertType AlertType { get; private set; }
-    // ✅ BOLUM 1.2: Enum kullanımı (string Severity YASAK)
     public AlertSeverity Severity { get; private set; } = AlertSeverity.Medium;
     public string Title { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public AlertStatus Status { get; private set; } = AlertStatus.New;
     public Guid? AcknowledgedByUserId { get; private set; }
     public DateTime? AcknowledgedAt { get; private set; }
@@ -39,7 +35,6 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
     public string? ResolutionNotes { get; private set; }
     public string? Metadata { get; private set; } // JSON for additional data
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -48,10 +43,8 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
     public User? AcknowledgedBy { get; private set; }
     public User? ResolvedBy { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SecurityAlert() { }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -60,7 +53,6 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -69,7 +61,6 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SecurityAlert Create(
         AlertType alertType,
         string title,
@@ -101,13 +92,11 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events
         alert.AddDomainEvent(new SecurityAlertCreatedEvent(alert.Id, alertType, alert.Severity));
 
         return alert;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Acknowledge alert
     public void Acknowledge(Guid acknowledgedByUserId)
     {
         Guard.AgainstDefault(acknowledgedByUserId, nameof(acknowledgedByUserId));
@@ -120,11 +109,9 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         Status = AlertStatus.Acknowledged;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SecurityAlertAcknowledgedEvent(Id, acknowledgedByUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Resolve alert
     public void Resolve(Guid resolvedByUserId, string? resolutionNotes = null)
     {
         Guard.AgainstDefault(resolvedByUserId, nameof(resolvedByUserId));
@@ -143,11 +130,9 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         Status = AlertStatus.Resolved;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SecurityAlertResolvedEvent(Id, resolvedByUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update severity
     public void UpdateSeverity(AlertSeverity severity)
     {
         if (Severity == severity) return;
@@ -155,7 +140,6 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         Severity = severity;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SecurityAlertSeverityUpdatedEvent(Id, severity));
     }
 }

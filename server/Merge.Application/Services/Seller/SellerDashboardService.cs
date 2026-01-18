@@ -29,8 +29,6 @@ using ISellerProfileRepository = Merge.Application.Interfaces.IRepository<Merge.
 using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-// ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
 public class SellerDashboardService(ISellerProfileRepository sellerProfileRepository, IProductRepository productRepository, IOrderRepository orderRepository, IDbContext context, IMapper mapper, ILogger<SellerDashboardService> logger, IOptions<SellerSettings> sellerSettings, IOptions<PaginationSettings> paginationSettings) : ISellerDashboardService
@@ -38,10 +36,8 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerDashboardStatsDto> GetDashboardStatsAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
@@ -53,7 +49,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
 
         var today = DateTime.UtcNow.Date;
         
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var stats = new SellerDashboardStatsDto
         {
             TotalProducts = await context.Set<ProductEntity>()
@@ -105,17 +100,11 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         return stats;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<OrderDto>> GetSellerOrdersAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         IQueryable<OrderEntity> query = context.Set<OrderEntity>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -143,16 +132,11 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ProductDto>> GetSellerProductsAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -177,14 +161,11 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerPerformanceDto> GetPerformanceMetricsAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var totalSales = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
             join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
@@ -204,8 +185,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
 
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales by date
         var salesByDate = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -223,7 +202,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             }
         ).OrderBy(s => s.Date).ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top products
         var topProducts = await context.Set<OrderItem>()
             .AsNoTracking()
@@ -243,12 +221,10 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .Take(sellerConfig.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var uniqueCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
@@ -271,15 +247,12 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerPerformanceMetricsDto> GetDetailedPerformanceMetricsAsync(Guid sellerId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
         var periodDays = (endDate - startDate).Days;
         var previousStartDate = startDate.AddDays(-periodDays);
         var previousEndDate = startDate;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales metrics
         var totalSales = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -322,7 +295,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
         var previousAOV = previousOrdersCount > 0 ? previousSales / previousOrdersCount : 0;
 
-        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         // Customer metrics
         var currentCustomerIds = await context.Set<OrderEntity>()
             .AsNoTracking()
@@ -342,17 +314,14 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de count yap (memory'de işlem YASAK)
         var totalCustomers = currentCustomerIds.Count;
         
-        // ✅ PERFORMANCE: Database'de EXCEPT/INTERSECT yap (memory'de işlem YASAK)
         // Note: EF Core'da EXCEPT/INTERSECT direkt desteklenmiyor, bu yüzden küçük listeler için memory'de yapılması gerekebilir
         // Ama mümkün olduğunca database'de yapıyoruz
         var newCustomers = currentCustomerIds.Except(previousCustomerIds).Count();
         var returningCustomers = currentCustomerIds.Intersect(previousCustomerIds).Count();
         var customerRetentionRate = previousCustomerIds.Count > 0 ? (decimal)returningCustomers / previousCustomerIds.Count * 100 : 0;
 
-        // ✅ PERFORMANCE: Database'de count yap (memory'de işlem YASAK)
         // Product metrics
         var totalProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
@@ -370,7 +339,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .AsNoTracking()
             .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity == 0, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de count ve average yap (memory'de işlem YASAK)
         var totalReviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -385,7 +353,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .Where(r => r.IsApproved && r.Product.SellerId == sellerId)
             .AverageAsync(r => (double?)r.Rating, cancellationToken) ?? 0;
 
-        // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
         // Fulfillment metrics - Note: Bu karmaşık hesaplamalar için bazı order'ları yüklemek gerekebilir
         // Ama mümkün olduğunca database'de yapıyoruz
         var averageFulfillmentTime = await context.Set<OrderEntity>()
@@ -397,7 +364,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
                   o.Shipping != null && o.Shipping.Status == ShippingStatus.Shipped && o.DeliveredDate.HasValue)
             .AverageAsync(o => (double?)(o.DeliveredDate!.Value - (o.ShippedDate ?? o.CreatedAt)).TotalHours, cancellationToken) ?? 0;
 
-        // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
         // Shipping time metrics
         var averageShippingTime = await context.Set<OrderEntity>()
             .AsNoTracking()
@@ -408,8 +374,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
                   o.Shipping != null && o.Shipping.Status == ShippingStatus.Shipped && o.ShippedDate.HasValue)
             .AverageAsync(o => (double?)(o.ShippedDate!.Value - o.CreatedAt).TotalHours, cancellationToken) ?? 0;
 
-        // ✅ PERFORMANCE: Database'de count ve sum yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Return & Refund metrics
         var totalReturns = await (
             from r in context.Set<ReturnRequest>().AsNoTracking()
@@ -436,7 +400,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
 
         var refundRate = totalSales > 0 ? (totalRefunds / totalSales) * 100 : 0;
 
-        // ✅ PERFORMANCE: AsNoTracking eklendi
         // Conversion metrics (simplified - would need view tracking)
         var productViews = await context.Set<UserActivityLog>()
             .AsNoTracking()
@@ -457,8 +420,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         var conversionRate = productViews > 0 ? (decimal)totalOrders / productViews * 100 : 0;
         var cartAbandonmentRate = addToCarts > 0 ? ((decimal)(addToCarts - totalOrders) / addToCarts) * 100 : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Category performance
         var categoryPerformance = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -480,9 +441,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             }
         ).OrderByDescending(c => c.Revenue).ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
-        // ✅ PERFORMANCE FIX: Redundant Distinct().Count() hesaplaması düzeltildi - let ile tek hesaplama
         // Sales trends
         var salesTrends = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -503,7 +461,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             }
         ).OrderBy(t => t.Date).ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Order trends
         var orderTrends = await context.Set<OrderEntity>()
             .AsNoTracking()
@@ -521,7 +478,6 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .OrderBy(t => t.Date)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top/Worst products
         var topProducts = await context.Set<OrderItem>()
             .AsNoTracking()
@@ -602,14 +558,11 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<CategoryPerformanceDto>> GetCategoryPerformanceAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         return await (
             from o in context.Set<OrderEntity>().AsNoTracking()
             join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId

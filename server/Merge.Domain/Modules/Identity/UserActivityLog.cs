@@ -21,19 +21,15 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class UserActivityLog : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // Nullable for anonymous users
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string ActivityType YASAK)
     public ActivityType ActivityType { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string EntityType YASAK)
     public EntityType EntityType { get; private set; }
     public Guid? EntityId { get; private set; } // ID of the entity being acted upon
     public string Description { get; private set; } = string.Empty;
     public string IpAddress { get; private set; } = string.Empty;
     public string UserAgent { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.2: Enum kullanımı (string DeviceType YASAK)
     public DeviceType DeviceType { get; private set; } = DeviceType.Other;
     public string Browser { get; private set; } = string.Empty;
     public string OS { get; private set; } = string.Empty;
@@ -43,17 +39,14 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
     public bool WasSuccessful { get; private set; } = true;
     public string? ErrorMessage { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User? User { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private UserActivityLog() { }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -62,7 +55,6 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -71,7 +63,6 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static UserActivityLog Create(
         ActivityType activityType,
         EntityType entityType,
@@ -145,13 +136,11 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         log.AddDomainEvent(new UserActivityLogCreatedEvent(log.Id, userId, activityType, entityType, entityId));
 
         return log;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as failed
     public void MarkAsFailed(string errorMessage)
     {
         Guard.AgainstNullOrEmpty(errorMessage, nameof(errorMessage));
@@ -160,11 +149,9 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
         ErrorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new UserActivityLogFailedEvent(Id, UserId, errorMessage));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update duration
     public void UpdateDuration(int durationMs)
     {
         if (durationMs < 0)
@@ -172,7 +159,6 @@ public class UserActivityLog : BaseEntity, IAggregateRoot
         DurationMs = durationMs;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new UserActivityLogDurationUpdatedEvent(Id, UserId, durationMs));
     }
 }

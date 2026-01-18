@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Subscription.Commands.ProcessPayment;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class ProcessPaymentCommandValidator : AbstractValidator<ProcessPaymentCommand>
 {
     public ProcessPaymentCommandValidator()

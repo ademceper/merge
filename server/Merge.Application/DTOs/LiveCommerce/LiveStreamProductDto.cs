@@ -1,6 +1,5 @@
 namespace Merge.Application.DTOs.LiveCommerce;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record LiveStreamProductDto(
     Guid Id,
     Guid ProductId,

@@ -14,10 +14,15 @@ using Merge.Application.Seller.Queries.GetCategoryPerformance;
 
 namespace Merge.API.Controllers.Seller;
 
-[ApiController]
+/// <summary>
+/// Seller Dashboard API endpoints.
+/// Satıcı dashboard istatistiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/seller/dashboard")]
 [Authorize(Roles = "Seller,Admin")]
+[Tags("SellerDashboard")]
 public class DashboardController(IMediator mediator) : BaseController
 {
 
@@ -33,12 +38,7 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetDashboardStatsQuery(sellerId);
         var stats = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStats", new { version }, version);
-        links["orders"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/orders", Method = "GET" };
-        links["products"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/products", Method = "GET" };
-        links["performance"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance", Method = "GET" };
-        return Ok(new { stats, _links = links });
+        return Ok(stats);
     }
 
     [HttpGet("orders")]
@@ -55,9 +55,7 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerOrdersQuery(sellerId, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrders", page, pageSize, result.TotalPages, new { version }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpGet("products")]
@@ -74,9 +72,7 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerProductsQuery(sellerId, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetProducts", page, pageSize, result.TotalPages, new { version }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpGet("performance")]
@@ -93,11 +89,7 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetPerformanceMetricsQuery(sellerId, startDate, endDate);
         var performance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetPerformance", new { version, startDate, endDate }, version);
-        links["detailed"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance/detailed?startDate={startDate}&endDate={endDate}", Method = "GET" };
-        links["categories"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance/categories?startDate={startDate}&endDate={endDate}", Method = "GET" };
-        return Ok(new { performance, _links = links });
+        return Ok(performance);
     }
 
     [HttpGet("performance/detailed")]
@@ -115,10 +107,7 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetDetailedPerformanceMetricsQuery(sellerId, startDate, endDate);
         var performance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetDetailedPerformance", new { version, startDate, endDate }, version);
-        links["performance"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance?startDate={startDate}&endDate={endDate}", Method = "GET" };
-        return Ok(new { performance, _links = links });
+        return Ok(performance);
     }
 
     [HttpGet("performance/categories")]
@@ -135,8 +124,6 @@ public class DashboardController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetCategoryPerformanceQuery(sellerId, startDate, endDate);
         var performance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetCategoryPerformance", new { version, startDate, endDate }, version);
-        return Ok(new { performance, _links = links });
+        return Ok(performance);
     }
 }

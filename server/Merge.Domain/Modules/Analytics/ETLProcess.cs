@@ -25,11 +25,9 @@ public class ETLProcess(
     string? schedule,
     string? configuration) : BaseAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = name;
     public string Description { get; private set; } = description;
     public string ProcessType { get; private set; } = processType; // Extract, Transform, Load
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public TransactionStatus Status { get; private set; } = status;
     public string? SourceSystem { get; private set; } = sourceSystem;
     public string? TargetSystem { get; private set; } = targetSystem;
@@ -42,14 +40,11 @@ public class ETLProcess(
     public TimeSpan? ExecutionTime { get; private set; }
     public string? Configuration { get; private set; } = configuration; // JSON configuration
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Parameterless constructor for EF Core
     private ETLProcess() : this(string.Empty, string.Empty, string.Empty, TransactionStatus.Pending, null, null, null, null) { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ETLProcess Create(
         string name,
         string description,
@@ -76,7 +71,6 @@ public class ETLProcess(
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ETLProcessCreatedEvent yayınla
         process.AddDomainEvent(new ETLProcessCreatedEvent(
             process.Id,
             name,
@@ -87,7 +81,6 @@ public class ETLProcess(
         return process;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Start process
     public void Start()
     {
         if (Status != TransactionStatus.Pending)
@@ -96,17 +89,14 @@ public class ETLProcess(
         Status = TransactionStatus.Running;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ETLProcessStartedEvent yayınla
         AddDomainEvent(new ETLProcessStartedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Complete process
     public void Complete(int recordsProcessed, TimeSpan executionTime)
     {
         if (Status != TransactionStatus.Running)
             throw new InvalidOperationException($"ETL process {Status} durumunda, tamamlanamaz");
 
-        // ✅ BOLUM 1.6: Invariant Validation - RecordsProcessed >= 0
         if (recordsProcessed < 0)
             throw new DomainException("İşlenen kayıt sayısı negatif olamaz");
 
@@ -117,20 +107,17 @@ public class ETLProcess(
         ErrorMessage = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ETLProcessCompletedEvent yayınla
         AddDomainEvent(new ETLProcessCompletedEvent(
             Id,
             recordsProcessed,
             executionTime));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Fail process
     public void Fail(int recordsProcessed, int recordsFailed, string errorMessage, TimeSpan? executionTime = null)
     {
         if (Status == TransactionStatus.Completed)
             throw new InvalidOperationException("Tamamlanmış ETL process başarısız olarak işaretlenemez");
 
-        // ✅ BOLUM 1.6: Invariant Validation - RecordsProcessed >= 0, RecordsFailed >= 0
         if (recordsProcessed < 0)
             throw new DomainException("İşlenen kayıt sayısı negatif olamaz");
         if (recordsFailed < 0)
@@ -145,7 +132,6 @@ public class ETLProcess(
         ExecutionTime = executionTime;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ETLProcessFailedEvent yayınla
         AddDomainEvent(new ETLProcessFailedEvent(
             Id,
             recordsProcessed,
@@ -153,7 +139,6 @@ public class ETLProcess(
             errorMessage));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Schedule next run
     public void ScheduleNextRun(DateTime nextRunAt)
     {
         if (nextRunAt <= DateTime.UtcNow)
@@ -163,14 +148,12 @@ public class ETLProcess(
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update configuration
     public void UpdateConfiguration(string configuration)
     {
         Configuration = configuration;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if process is due
     public bool IsDue()
     {
         return Status == TransactionStatus.Pending && 
@@ -178,13 +161,11 @@ public class ETLProcess(
                NextRunAt.Value <= DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ETLProcessDeletedEvent yayınla
         AddDomainEvent(new ETLProcessDeletedEvent(Id));
     }
 }

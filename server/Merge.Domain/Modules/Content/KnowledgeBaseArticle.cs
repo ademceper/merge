@@ -18,9 +18,7 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Title { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
     public Slug Slug { get; private set; } = null!;
     public string Content { get; private set; } = string.Empty;
     public string? Excerpt { get; private set; }
@@ -39,18 +37,14 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
     public KnowledgeBaseCategory? Category { get; private set; }
     public User? Author { get; private set; }
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<KnowledgeBaseView> _views = new();
     public IReadOnlyCollection<KnowledgeBaseView> Views => _views.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private KnowledgeBaseArticle() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static KnowledgeBaseArticle Create(
         string title,
         string slug,
@@ -66,10 +60,8 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
         Guard.AgainstNullOrEmpty(content, nameof(content));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxArticleTitleLength=200, MaxArticleContentLength=50000, MaxArticleExcerptLength=500
         Guard.AgainstLength(title, 200, nameof(title));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var slugValueObject = Slug.FromString(slug);
         Guard.AgainstLength(content, 50000, nameof(content));
         if (excerpt != null)
@@ -101,7 +93,6 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
             article.PublishedAt = DateTime.UtcNow;
         }
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleCreatedEvent
         article.AddDomainEvent(new KnowledgeBaseArticleCreatedEvent(
             article.Id,
             article.Title,
@@ -112,7 +103,6 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         return article;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Publish article
     public void Publish()
     {
         if (Status == ContentStatus.Published)
@@ -122,11 +112,9 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         PublishedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticlePublishedEvent
         AddDomainEvent(new KnowledgeBaseArticlePublishedEvent(Id, Title, Slug.Value, PublishedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unpublish article
     public void Unpublish()
     {
         if (Status == ContentStatus.Draft)
@@ -136,54 +124,43 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUnpublishedEvent
         AddDomainEvent(new KnowledgeBaseArticleUnpublishedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update title and slug
     public void UpdateTitle(string title, string slug)
     {
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
         Guard.AgainstLength(title, 200, nameof(title));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var slugValueObject = Slug.FromString(slug);
 
         Title = title;
         Slug = slugValueObject;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, title, slugValueObject.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update title only (slug auto-generated from title)
     public void UpdateTitle(string title)
     {
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstLength(title, 200, nameof(title));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Title = title;
         Slug = Slug.FromString(title);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update slug (manual slug update)
     public void UpdateSlug(string slug)
     {
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(slug);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update content
     public void UpdateContent(string content, string? excerpt = null)
     {
         Guard.AgainstNullOrEmpty(content, nameof(content));
@@ -195,14 +172,11 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         Excerpt = excerpt;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update excerpt
     public void UpdateExcerpt(string? excerpt)
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxArticleExcerptLength=500
         if (excerpt != null)
             Guard.AgainstLength(excerpt, 500, nameof(excerpt));
@@ -210,31 +184,25 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         Excerpt = excerpt;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update category
     public void UpdateCategory(Guid? categoryId)
     {
         CategoryId = categoryId;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update author
     public void UpdateAuthor(Guid? authorId)
     {
         AuthorId = authorId;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set as featured
     public void SetAsFeatured()
     {
         if (IsFeatured)
@@ -243,11 +211,9 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         IsFeatured = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unset as featured
     public void UnsetAsFeatured()
     {
         if (!IsFeatured)
@@ -256,27 +222,22 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         IsFeatured = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment view count
     public void IncrementViewCount()
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleViewedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleViewedEvent(Id, Title, ViewCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record view (creates KnowledgeBaseView and increments count)
     public KnowledgeBaseView RecordView(Guid? userId = null, string? ipAddress = null, string? userAgent = null)
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleViewedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleViewedEvent(Id, Title, ViewCount));
 
         var view = KnowledgeBaseView.Create(
@@ -289,27 +250,22 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         return view;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as helpful
     public void MarkAsHelpful()
     {
         HelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleMarkedAsHelpfulEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleMarkedAsHelpfulEvent(Id, Title, HelpfulCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as not helpful
     public void MarkAsNotHelpful()
     {
         NotHelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleMarkedAsNotHelpfulEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleMarkedAsNotHelpfulEvent(Id, Title, NotHelpfulCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Decrement helpful count
     public void DecrementHelpfulCount()
     {
         if (HelpfulCount > 0)
@@ -317,12 +273,10 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
             HelpfulCount--;
             UpdatedAt = DateTime.UtcNow;
             
-            // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleMarkedAsHelpfulEvent yayınla (ÖNERİLİR)
             AddDomainEvent(new KnowledgeBaseArticleMarkedAsHelpfulEvent(Id, Title, HelpfulCount));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Decrement not helpful count
     public void DecrementNotHelpfulCount()
     {
         if (NotHelpfulCount > 0)
@@ -330,33 +284,27 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
             NotHelpfulCount--;
             UpdatedAt = DateTime.UtcNow;
             
-            // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleMarkedAsNotHelpfulEvent yayınla (ÖNERİLİR)
             AddDomainEvent(new KnowledgeBaseArticleMarkedAsNotHelpfulEvent(Id, Title, NotHelpfulCount));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update display order
     public void UpdateDisplayOrder(int displayOrder)
     {
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
         DisplayOrder = displayOrder;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update tags
     public void UpdateTags(string? tags)
     {
         Tags = tags;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update status (for non-published statuses)
     public void UpdateStatus(ContentStatus status)
     {
         if (Status == status) return;
@@ -374,11 +322,9 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleUpdatedEvent(Id, Title, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -387,11 +333,9 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleDeletedEvent
         AddDomainEvent(new KnowledgeBaseArticleDeletedEvent(Id, Title, CategoryId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted article
     public void Restore()
     {
         if (!IsDeleted)
@@ -400,7 +344,6 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleRestoredEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseArticleRestoredEvent(Id, Title, Slug.Value));
     }
 }

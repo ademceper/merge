@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.ExportProductsToCsv;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ExportProductsToCsvQueryHandler(IDbContext context, ILogger<ExportProductsToCsvQueryHandler> logger) : IRequestHandler<ExportProductsToCsvQuery, byte[]>
 {
 
@@ -30,7 +29,6 @@ public class ExportProductsToCsvQueryHandler(IDbContext context, ILogger<ExportP
         var csv = new StringBuilder();
         csv.AppendLine("Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl,IsActive");
 
-        // ✅ PERFORMANCE FIX: IndexOf() O(n) yerine for loop ile O(1) index erişimi
         for (var i = 0; i < products.Count; i++)
         {
             if (cancellationToken.IsCancellationRequested)

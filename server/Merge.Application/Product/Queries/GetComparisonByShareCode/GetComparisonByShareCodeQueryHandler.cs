@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetComparisonByShareCode;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetComparisonByShareCodeQueryHandler(
     IDbContext context,
     ILogger<GetComparisonByShareCodeQueryHandler> logger,
@@ -34,8 +33,6 @@ public class GetComparisonByShareCodeQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_COMPARISON_BY_SHARE_CODE}{request.ShareCode}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
-        // ✅ FIX: CS8634 - Nullable type için GetOrCreateNullableAsync kullan
         var cachedResult = await cache.GetOrCreateNullableAsync(
             cacheKey,
             async () =>
@@ -64,7 +61,6 @@ public class GetComparisonByShareCodeQueryHandler(
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
@@ -91,8 +87,7 @@ public class GetComparisonByShareCodeQueryHandler(
             .ToListAsync(cancellationToken);
         reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
-        var products = new List<ComparisonProductDto>();
+        List<ComparisonProductDto> products = [];
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
@@ -103,7 +98,7 @@ public class GetComparisonByShareCodeQueryHandler(
                 Rating = hasReviewStats ? (decimal?)stats.Rating : null,
                 ReviewCount = hasReviewStats ? stats.Count : 0,
                 Specifications = new Dictionary<string, string>().AsReadOnly(),
-                Features = new List<string>().AsReadOnly()
+                Features = Array.Empty<string>()
             };
             products.Add(compProduct);
         }

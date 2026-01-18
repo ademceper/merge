@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.UpdateTrustBadge;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateTrustBadgeCommandValidator : AbstractValidator<UpdateTrustBadgeCommand>
 {
     public UpdateTrustBadgeCommandValidator()

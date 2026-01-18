@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.GenerateReport;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GenerateReportCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -34,11 +32,9 @@ public class GenerateReportCommandHandler(
         logger.LogInformation("Generating report. UserId: {UserId}, ReportType: {ReportType}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.UserId, request.Type, request.StartDate, request.EndDate);
         
-        // ✅ ARCHITECTURE: Transaction support for atomic report generation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var report = Report.Create(
                 request.Name,
                 request.Description,
@@ -52,7 +48,6 @@ public class GenerateReportCommandHandler(
             await context.Set<Report>().AddAsync(report, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             report.MarkAsProcessing();
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -66,13 +61,11 @@ public class GenerateReportCommandHandler(
                 _ => null
             };
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             report.Complete(JsonSerializer.Serialize(reportData, JsonOptions));
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include for DTO mapping
             report = await context.Set<Report>()
                 .AsNoTracking()
                 .Include(r => r.GeneratedByUser)
@@ -80,12 +73,10 @@ public class GenerateReportCommandHandler(
 
             logger.LogInformation("Report generated successfully. ReportId: {ReportId}, UserId: {UserId}", report!.Id, request.UserId);
 
-            // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return mapper.Map<ReportDto>(report);
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Rapor olusturma hatasi. UserId: {UserId}, ReportType: {ReportType}",
                 request.UserId, request.Type);

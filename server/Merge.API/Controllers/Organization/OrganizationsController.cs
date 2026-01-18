@@ -7,10 +7,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Organization;
 
+/// <summary>
+/// Organizations API endpoints.
+/// Organizasyon işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/organizations")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("Organizations")]
 public class OrganizationsController(IOrganizationService organizationService) : BaseController
 {
     [HttpGet]
@@ -41,7 +46,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var organization = await organizationService.GetOrganizationByIdAsync(id, cancellationToken);
         if (organization == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(organization);
     }
@@ -81,7 +86,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateOrganizationAsync(id, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -126,7 +131,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateOrganizationAsync(id, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -143,7 +148,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.DeleteOrganizationAsync(id, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -160,7 +165,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.VerifyOrganizationAsync(id, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -177,7 +182,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.SuspendOrganizationAsync(id, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -228,7 +233,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var team = await organizationService.GetTeamByIdAsync(id, cancellationToken);
         if (team == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(team);
     }
@@ -251,7 +256,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateTeamAsync(id, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -278,7 +283,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateTeamAsync(id, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -295,7 +300,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.DeleteTeamAsync(id, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -350,7 +355,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.RemoveTeamMemberAsync(teamId, userId, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -374,7 +379,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateTeamMemberAsync(teamId, userId, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -402,7 +407,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         var success = await organizationService.UpdateTeamMemberAsync(teamId, userId, dto, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

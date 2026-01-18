@@ -16,15 +16,9 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Order Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class OrderCreatedEventHandler(ILogger<OrderCreatedEventHandler> logger, IDbContext context, INotificationService? notificationService) : INotificationHandler<OrderCreatedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(OrderCreatedEvent notification, CancellationToken cancellationToken)
     {
         // Order entity'sinden gerçek TotalAmount'u al
@@ -41,7 +35,7 @@ public class OrderCreatedEventHandler(ILogger<OrderCreatedEventHandler> logger, 
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -50,7 +44,7 @@ public class OrderCreatedEventHandler(ILogger<OrderCreatedEventHandler> logger, 
                     $"Siparişiniz başarıyla oluşturuldu. Sipariş No: {notification.OrderId}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -58,7 +52,6 @@ public class OrderCreatedEventHandler(ILogger<OrderCreatedEventHandler> logger, 
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling OrderCreatedEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);

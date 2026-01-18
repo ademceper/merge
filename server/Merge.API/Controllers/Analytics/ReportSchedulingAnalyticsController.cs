@@ -13,10 +13,15 @@ using Merge.Application.Analytics.Commands.DeleteReportSchedule;
 
 namespace Merge.API.Controllers.Analytics.ReportScheduling;
 
+/// <summary>
+/// Report Scheduling Analytics API endpoints.
+/// Rapor planlama analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/report-schedules")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("ReportSchedulingAnalytics")]
 public class ReportSchedulingAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -36,13 +41,11 @@ public class ReportSchedulingAnalyticsController(
         [FromBody] CreateReportScheduleDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new CreateReportScheduleCommand(
             userId,
             dto.Name,
@@ -80,12 +83,9 @@ public class ReportSchedulingAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportSchedulesQuery(userId, page, pageSize);
         var schedules = await mediator.Send(query, cancellationToken);
         return Ok(schedules);
@@ -111,18 +111,15 @@ public class ReportSchedulingAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
-        // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new ToggleReportScheduleCommand(id, isActive, userId);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        return Ok(new { message = $"Report schedule {(isActive ? "activated" : "deactivated")} successfully" });
+        return NoContent();
     }
 
     /// <summary>
@@ -144,15 +141,12 @@ public class ReportSchedulingAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
-        // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new DeleteReportScheduleCommand(id, userId);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok();

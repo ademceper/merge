@@ -21,19 +21,16 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class Shipping : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public string ShippingProvider { get; private set; } = string.Empty;
     public string TrackingNumber { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public ShippingStatus Status { get; private set; } = ShippingStatus.Preparing;
     
     public DateTime? ShippedDate { get; private set; }
     public DateTime? EstimatedDeliveryDate { get; private set; }
     public DateTime? DeliveredDate { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money
     private decimal _shippingCost;
     
     public decimal ShippingCost 
@@ -48,7 +45,6 @@ public class Shipping : BaseEntity, IAggregateRoot
     
     public string? ShippingLabelUrl { get; private set; }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -60,7 +56,6 @@ public class Shipping : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -72,21 +67,17 @@ public class Shipping : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.3: Value Object property
     [NotMapped]
     public Money ShippingCostMoney => new Money(_shippingCost);
 
     // Navigation properties
     public Order Order { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Shipping() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Shipping Create(
         Guid orderId,
         string shippingProvider,
@@ -108,13 +99,11 @@ public class Shipping : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingCreatedEvent
         shipping.AddDomainEvent(new ShippingCreatedEvent(shipping.Id, orderId, shippingProvider, shippingCost.Amount));
 
         return shipping;
     }
 
-    // ✅ BOLUM 1.1: State Machine Pattern - Transition to new status
     private static readonly Dictionary<ShippingStatus, ShippingStatus[]> AllowedTransitions = new()
     {
         { ShippingStatus.Preparing, new[] { ShippingStatus.Shipped } },
@@ -144,11 +133,9 @@ public class Shipping : BaseEntity, IAggregateRoot
         else if (newStatus == ShippingStatus.Delivered)
             DeliveredDate = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingStatusChangedEvent
         AddDomainEvent(new ShippingStatusChangedEvent(Id, OrderId, oldStatus, newStatus));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Convenience methods for common transitions
     public void Ship(string trackingNumber)
     {
         Guard.AgainstNullOrEmpty(trackingNumber, nameof(trackingNumber));
@@ -202,18 +189,15 @@ public class Shipping : BaseEntity, IAggregateRoot
         TransitionTo(ShippingStatus.Failed);
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update tracking number
     public void UpdateTrackingNumber(string trackingNumber)
     {
         Guard.AgainstNullOrEmpty(trackingNumber, nameof(trackingNumber));
         TrackingNumber = trackingNumber;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingTrackingUpdatedEvent
         AddDomainEvent(new ShippingTrackingUpdatedEvent(Id, OrderId, trackingNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update estimated delivery date
     public void UpdateEstimatedDeliveryDate(DateTime estimatedDeliveryDate)
     {
         if (estimatedDeliveryDate <= DateTime.UtcNow)
@@ -222,22 +206,18 @@ public class Shipping : BaseEntity, IAggregateRoot
         EstimatedDeliveryDate = estimatedDeliveryDate;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
         AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "EstimatedDeliveryDate"));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set shipping label URL
     public void SetShippingLabelUrl(string url)
     {
         Guard.AgainstNullOrEmpty(url, nameof(url));
         ShippingLabelUrl = url;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
         AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "ShippingLabelUrl"));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update shipping cost
     public void UpdateShippingCost(Money newCost)
     {
         Guard.AgainstNull(newCost, nameof(newCost));
@@ -249,7 +229,6 @@ public class Shipping : BaseEntity, IAggregateRoot
         _shippingCost = newCost.Amount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
         AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "ShippingCost"));
     }
 }

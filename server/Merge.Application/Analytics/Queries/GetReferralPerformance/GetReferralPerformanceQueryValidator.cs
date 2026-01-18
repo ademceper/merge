@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetReferralPerformance;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetReferralPerformanceQueryValidator : AbstractValidator<GetReferralPerformanceQuery>
 {
     public GetReferralPerformanceQueryValidator()

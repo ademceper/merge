@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class TicketMessage : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid TicketId { get; private set; }
     public Guid UserId { get; private set; }
     public string Message { get; private set; } = string.Empty;
@@ -24,18 +23,14 @@ public class TicketMessage : BaseEntity
     public SupportTicket Ticket { get; private set; } = null!;
     public User User { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<TicketAttachment> _attachments = new();
     public IReadOnlyCollection<TicketAttachment> Attachments => _attachments.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TicketMessage() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TicketMessage Create(
         Guid ticketId,
         string ticketNumber,
@@ -48,7 +43,6 @@ public class TicketMessage : BaseEntity
         Guard.AgainstNullOrEmpty(ticketNumber, nameof(ticketNumber));
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(message, nameof(message));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxTicketMessageLength=10000
         Guard.AgainstLength(message, 10000, nameof(message));
 
@@ -63,7 +57,6 @@ public class TicketMessage : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - TicketMessageAddedEvent
         ticketMessage.AddDomainEvent(new TicketMessageAddedEvent(
             ticketMessage.Id,
             ticketId,
@@ -74,11 +67,9 @@ public class TicketMessage : BaseEntity
         return ticketMessage;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update message
     public void UpdateMessage(string message)
     {
         Guard.AgainstNullOrEmpty(message, nameof(message));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxTicketMessageLength=10000
         Guard.AgainstLength(message, 10000, nameof(message));
 

@@ -13,12 +13,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetAllEmailCampaigns;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetAllEmailCampaignsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllEmailCampaignsQuery, PagedResult<EmailCampaignDto>>
 {
     public async Task<PagedResult<EmailCampaignDto>> Handle(GetAllEmailCampaignsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         IQueryable<EmailCampaign> query = context.Set<EmailCampaign>()
             .AsNoTracking();
 
@@ -38,7 +36,6 @@ public class GetAllEmailCampaignsQueryHandler(IDbContext context, IMapper mapper
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<EmailCampaignDto>
         {
             Items = mapper.Map<List<EmailCampaignDto>>(campaigns),

@@ -26,7 +26,7 @@ public class CreateCategoryTranslationCommandHandler(
             request.CategoryId, request.LanguageCode);
 
         var language = await context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode), cancellationToken);
 
         if (language == null)
         {
@@ -36,7 +36,7 @@ public class CreateCategoryTranslationCommandHandler(
 
         var exists = await context.Set<CategoryTranslation>()
             .AnyAsync(ct => ct.CategoryId == request.CategoryId &&
-                           ct.LanguageCode.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+                           EF.Functions.ILike(ct.LanguageCode, request.LanguageCode), cancellationToken);
 
         if (exists)
         {

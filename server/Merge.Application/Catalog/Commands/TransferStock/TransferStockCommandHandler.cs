@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.TransferStock;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class TransferStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -37,12 +35,10 @@ public class TransferStockCommandHandler(
             throw new ValidationException("Transfer miktarı 0'dan büyük olmalıdır.");
         }
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (2 Inventory + 2 StockMovement)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini transfer edebilmeli
             var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
@@ -85,7 +81,6 @@ public class TransferStockCommandHandler(
 
             if (destInventory == null)
             {
-                // ✅ BOLUM 1.1: Factory Method kullanımı
                 destInventory = Inventory.Create(
                     request.ProductId,
                     request.ToWarehouseId,
@@ -97,7 +92,6 @@ public class TransferStockCommandHandler(
                 destInventory = await inventoryRepository.AddAsync(destInventory, cancellationToken);
             }
 
-            // ✅ BOLUM 1.1: Domain Method kullanımı
             var sourceQuantityBefore = sourceInventory.Quantity;
             sourceInventory.AdjustQuantity(-request.Quantity);
 
@@ -107,7 +101,6 @@ public class TransferStockCommandHandler(
             await inventoryRepository.UpdateAsync(sourceInventory, cancellationToken);
             await inventoryRepository.UpdateAsync(destInventory, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var sourceMovement = StockMovement.Create(
                 sourceInventory.Id,
                 request.ProductId,
@@ -141,15 +134,12 @@ public class TransferStockCommandHandler(
             await context.Set<StockMovement>().AddAsync(sourceMovement, cancellationToken);
             await context.Set<StockMovement>().AddAsync(destMovement, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             logger.LogInformation("Successfully transferred stock. ProductId: {ProductId}, Quantity: {Quantity}, From: {FromWarehouse}, To: {ToWarehouse}",
                 request.ProductId, request.Quantity, request.FromWarehouseId, request.ToWarehouseId);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Both source and destination inventory caches
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.FromWarehouseId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.ToWarehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
@@ -164,9 +154,7 @@ public class TransferStockCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error transferring stock for ProductId: {ProductId}", request.ProductId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

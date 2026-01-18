@@ -1,7 +1,6 @@
 using Merge.Application.DTOs.Payment;
 using Merge.Domain.Modules.Payment;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Payment;
 
 public interface IPaymentMethodService

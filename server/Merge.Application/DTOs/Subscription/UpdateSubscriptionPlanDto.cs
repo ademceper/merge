@@ -12,7 +12,6 @@ public class UpdateSubscriptionPlanDto
     [StringLength(1000)]
     public string? Description { get; set; }
 
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public SubscriptionPlanType? PlanType { get; set; }
 
     [Range(0, double.MaxValue, ErrorMessage = "Fiyat 0 veya daha büyük olmalıdır.")]
@@ -32,7 +31,6 @@ public class UpdateSubscriptionPlanDto
     [Range(0, int.MaxValue)]
     public int? DisplayOrder { get; set; }
 
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public BillingCycle? BillingCycle { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Maksimum kullanıcı sayısı en az 1 olmalıdır.")]

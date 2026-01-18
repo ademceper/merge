@@ -14,11 +14,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Saved Cart API endpoints.
+/// Kaydedilmiş sepet işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/saved")]
 [Authorize]
+[Tags("SavedCart")]
 public class SavedCartController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -46,8 +50,6 @@ public class SavedCartController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -81,8 +83,6 @@ public class SavedCartController(
         [FromBody] SaveItemDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
         var command = new SaveItemCommand(userId, dto.ProductId, dto.Quantity, dto.Notes);
         var item = await mediator.Send(command, cancellationToken);
@@ -111,16 +111,14 @@ public class SavedCartController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU) - Handler içinde userId kontrolü var
         var command = new RemoveSavedItemCommand(userId, id);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -151,10 +149,8 @@ public class SavedCartController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU) - Handler içinde userId kontrolü var
         var command = new MoveToCartCommand(userId, id);
         var result = await mediator.Send(command, cancellationToken);
         
@@ -180,7 +176,6 @@ public class SavedCartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ClearSavedItems(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new ClearSavedItemsCommand(userId);
         await mediator.Send(command, cancellationToken);

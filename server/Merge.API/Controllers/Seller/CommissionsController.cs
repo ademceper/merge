@@ -30,9 +30,14 @@ using Merge.Application.Seller.Queries.GetAvailablePayoutAmount;
 
 namespace Merge.API.Controllers.Seller;
 
-[ApiController]
+/// <summary>
+/// Seller Commissions API endpoints.
+/// Satıcı komisyon işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/seller/commissions")]
+[Tags("SellerCommissions")]
 public class CommissionsController(IMediator mediator) : BaseController
 {
 
@@ -57,17 +62,13 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (commission == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (commission.SellerId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetCommission", new { version, id }, version);
-        links["approve"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/{id}/approve", Method = "POST" };
-        links["cancel"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/{id}/cancel", Method = "POST" };
-        return Ok(new { commission, _links = links });
+        return Ok(commission);
     }
 
     [HttpGet("seller/{sellerId}")]
@@ -91,9 +92,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetSellerCommissionsQuery(sellerId, status);
         var commissions = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerCommissions", new { version, sellerId, status }, version);
-        return Ok(new { commissions, _links = links });
+        return Ok(commissions);
     }
 
     [HttpGet("my-commissions")]
@@ -113,9 +112,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetSellerCommissionsQuery(userId, status);
         var commissions = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetMyCommissions", new { version, status }, version);
-        return Ok(new { commissions, _links = links });
+        return Ok(commissions);
     }
 
     [HttpGet]
@@ -133,9 +130,7 @@ public class CommissionsController(IMediator mediator) : BaseController
     {
         var query = new GetAllCommissionsQuery(status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetAllCommissions", page, pageSize, result.TotalPages, new { version, status }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpPost("{id}/approve")]
@@ -155,7 +150,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -177,7 +172,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -203,10 +198,7 @@ public class CommissionsController(IMediator mediator) : BaseController
             dto.Priority);
         var tier = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetAllTiers", new { version }, version);
-        links["update"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/tiers/{tier.Id}", Method = "PUT" };
-        links["delete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/tiers/{tier.Id}", Method = "DELETE" };
-        return CreatedAtAction(nameof(GetAllTiers), new { version }, new { tier, _links = links });
+        return CreatedAtAction(nameof(GetAllTiers), new { version }, tier);
     }
 
     [HttpGet("tiers")]
@@ -218,9 +210,7 @@ public class CommissionsController(IMediator mediator) : BaseController
     {
         var query = new GetAllCommissionTiersQuery();
         var tiers = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetAllTiers", new { version }, version);
-        return Ok(new { tiers, _links = links });
+        return Ok(tiers);
     }
 
     [HttpPut("tiers/{id}")]
@@ -249,7 +239,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -276,7 +266,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -298,7 +288,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -326,12 +316,9 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (settings == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
-        links["update"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/settings/{sellerId}", Method = "PUT" };
-        return Ok(new { settings, _links = links });
+        return Ok(settings);
     }
 
     [HttpPut("settings/{sellerId}")]
@@ -361,9 +348,7 @@ public class CommissionsController(IMediator mediator) : BaseController
             dto.PaymentMethod,
             dto.PaymentDetails);
         var settings = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
-        return Ok(new { settings, _links = links });
+        return Ok(settings);
     }
 
     /// <summary>
@@ -401,9 +386,7 @@ public class CommissionsController(IMediator mediator) : BaseController
             patchDto.PaymentMethod,
             patchDto.PaymentDetails);
         var settings = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
-        return Ok(new { settings, _links = links });
+        return Ok(settings);
     }
 
     [HttpPost("payouts")]
@@ -425,11 +408,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         var command = new RequestPayoutCommand(userId, dto.CommissionIds);
         var payout = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetPayout", new { version, id = payout.Id }, version);
-        links["process"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/process", Method = "POST" };
-        links["complete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/complete", Method = "POST" };
-        links["fail"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/fail", Method = "POST" };
-        return CreatedAtAction(nameof(GetPayout), new { version, id = payout.Id }, new { payout, _links = links });
+        return CreatedAtAction(nameof(GetPayout), new { version, id = payout.Id }, payout);
     }
 
     [HttpGet("payouts/{id}")]
@@ -453,21 +432,13 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (payout == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (payout.SellerId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetPayout", new { version, id }, version);
-        if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-        {
-            links["process"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/process", Method = "POST" };
-            links["complete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/complete", Method = "POST" };
-            links["fail"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/fail", Method = "POST" };
-        }
-        return Ok(new { payout, _links = links });
+        return Ok(payout);
     }
 
     [HttpGet("payouts/seller/{sellerId}")]
@@ -489,9 +460,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetSellerPayoutsQuery(sellerId);
         var payouts = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerPayouts", new { version, sellerId }, version);
-        return Ok(new { payouts, _links = links });
+        return Ok(payouts);
     }
 
     [HttpGet("my-payouts")]
@@ -510,9 +479,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetSellerPayoutsQuery(userId);
         var payouts = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetMyPayouts", new { version }, version);
-        return Ok(new { payouts, _links = links });
+        return Ok(payouts);
     }
 
     [HttpGet("payouts")]
@@ -530,9 +497,7 @@ public class CommissionsController(IMediator mediator) : BaseController
     {
         var query = new GetAllPayoutsQuery(status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetAllPayouts", page, pageSize, result.TotalPages, new { version, status }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpPost("payouts/{id}/process")]
@@ -554,7 +519,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -576,7 +541,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -600,7 +565,7 @@ public class CommissionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }
@@ -624,15 +589,22 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetCommissionStatsQuery(sellerId);
         var stats = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetCommissionStats", new { version, sellerId }, version);
-        return Ok(new { stats, _links = links });
+        return Ok(stats);
     }
 
+    /// <summary>
+    /// Kullanılabilir ödeme tutarını getirir
+    /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Kullanılabilir ödeme tutarı</returns>
+    /// <response code="200">Tutar başarıyla getirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("available-payout")]
     [Authorize(Roles = "Seller")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -645,9 +617,6 @@ public class CommissionsController(IMediator mediator) : BaseController
         }
         var query = new GetAvailablePayoutAmountQuery(userId);
         var amount = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetAvailablePayoutAmount", new { version }, version);
-        links["requestPayout"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts", Method = "POST" };
-        return Ok(new { availableAmount = amount, _links = links });
+        return Ok(amount);
     }
 }

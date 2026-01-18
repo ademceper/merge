@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetLowStockAlerts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetLowStockAlertsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -36,13 +34,11 @@ public class GetLowStockAlertsQueryHandler(
         logger.LogInformation("Retrieving low stock alerts by UserId: {UserId}. WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}",
             request.PerformedBy, request.WarehouseId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_LOW_STOCK_ALERTS}{request.PerformedBy}_{request.WarehouseId ?? Guid.Empty}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for low stock alerts
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
@@ -50,7 +46,6 @@ public class GetLowStockAlertsQueryHandler(
                 logger.LogInformation("Cache miss for low stock alerts. UserId: {UserId}, WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}",
                     request.PerformedBy, request.WarehouseId, page, pageSize);
 
-                // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin düşük stok uyarılarını görebilmeli
                 var query = context.Set<Inventory>()
                     .AsNoTracking()
             .AsSplitQuery()
@@ -81,7 +76,6 @@ public class GetLowStockAlertsQueryHandler(
 
                 logger.LogInformation("Retrieved {Count} low stock alerts (page {Page})", lowStockItems.Count, page);
 
-                // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
                 return new PagedResult<LowStockAlertDto>
                 {
                     Items = mapper.Map<List<LowStockAlertDto>>(lowStockItems),

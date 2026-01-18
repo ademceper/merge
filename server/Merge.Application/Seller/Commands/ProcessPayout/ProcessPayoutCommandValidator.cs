@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Seller.Commands.ProcessPayout;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ProcessPayoutCommandValidator : AbstractValidator<ProcessPayoutCommand>
 {
     public ProcessPayoutCommandValidator()

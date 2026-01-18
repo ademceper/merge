@@ -9,8 +9,6 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Interfaces;
 
-// ✅ BOLUM 1.1: Interface'ler Application katmanında olmalı (Clean Architecture)
-// ✅ BOLUM 1.2: DbContext dogrudan kullanimi yerine interface kullanilmali
 // ⚠️ NOT: User, Role ve UserRole entity'leri BaseEntity'den türemediği için özel property'ler eklendi
 public interface IDbContext
 {

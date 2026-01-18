@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ConvertPreOrderToOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -36,7 +34,6 @@ public class ConvertPreOrderToOrderCommandHandler(
                 .Include(po => po.User)
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (preOrder is null) return false;
 
             if (preOrder.Status == PreOrderStatus.Converted)
@@ -47,14 +44,12 @@ public class ConvertPreOrderToOrderCommandHandler(
             var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (address is null)
             {
                 address = await context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (address is null)
             {
                 throw new BusinessException("Sipariş oluşturmak için adres bilgisi gereklidir.");
@@ -65,7 +60,6 @@ public class ConvertPreOrderToOrderCommandHandler(
             var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
 
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (product is null)
             {
                 throw new NotFoundException("Ürün", preOrder.ProductId);

@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.UpdateB2BUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateB2BUserCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -26,7 +24,6 @@ public class UpdateB2BUserCommandHandler(
     {
         logger.LogInformation("Updating B2B user. B2BUserId: {B2BUserId}", request.Id);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var b2bUser = await context.Set<B2BUser>()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
@@ -36,12 +33,10 @@ public class UpdateB2BUserCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         b2bUser.UpdateProfile(request.Dto.EmployeeId, request.Dto.Department, request.Dto.JobTitle);
         
         if (!string.IsNullOrEmpty(request.Dto.Status))
         {
-            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<EntityStatus>(request.Dto.Status, true, out var statusEnum))
             {
                 b2bUser.UpdateStatus(statusEnum);
@@ -55,7 +50,6 @@ public class UpdateB2BUserCommandHandler(
         
         if (request.Dto.Settings != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             b2bUser.UpdateSettings(JsonSerializer.Serialize(request.Dto.Settings, JsonOptions));
         }
 

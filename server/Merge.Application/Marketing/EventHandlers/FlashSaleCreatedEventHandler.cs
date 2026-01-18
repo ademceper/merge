@@ -6,15 +6,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Marketing.EventHandlers;
 
-/// <summary>
-/// FlashSale Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-/// </summary>
+
 public class FlashSaleCreatedEventHandler(ILogger<FlashSaleCreatedEventHandler> logger) : INotificationHandler<FlashSaleCreatedEvent>
 {
     public async Task Handle(FlashSaleCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Flash sale created event received. FlashSaleId: {FlashSaleId}, Title: {Title}, StartDate: {StartDate}, EndDate: {EndDate}",
             notification.FlashSaleId, notification.Title, notification.StartDate, notification.EndDate);

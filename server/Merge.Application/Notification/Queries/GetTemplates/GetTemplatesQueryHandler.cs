@@ -14,10 +14,7 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Queries.GetTemplates;
 
-/// <summary>
-/// Get Templates Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// BOLUM 3.4: Pagination (ZORUNLU)
-/// </summary>
+
 public class GetTemplatesQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetTemplatesQuery, PagedResult<NotificationTemplateDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -25,13 +22,11 @@ public class GetTemplatesQueryHandler(IDbContext context, IMapper mapper, IOptio
 
     public async Task<PagedResult<NotificationTemplateDto>> Handle(GetTemplatesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<NotificationTemplate> query = context.Set<NotificationTemplate>()
             .AsNoTracking();
 
@@ -48,7 +43,6 @@ public class GetTemplatesQueryHandler(IDbContext context, IMapper mapper, IOptio
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var templateDtos = mapper.Map<List<NotificationTemplateDto>>(templates);
 
         return new PagedResult<NotificationTemplateDto>

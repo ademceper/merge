@@ -3,10 +3,7 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.DTOs.Cart;
 
-/// <summary>
-/// Create Pre Order DTO - BOLUM 7.1.5: Records (ZORUNLU)
-/// BOLUM 4.1: Validation Attributes (ZORUNLU)
-/// </summary>
+
 public record CreatePreOrderDto(
     [Required(ErrorMessage = "Ürün ID zorunludur")]
     Guid ProductId,

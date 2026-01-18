@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Two Factor Authentication Failed Attempt Recorded Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record TwoFactorFailedAttemptRecordedEvent(
     Guid TwoFactorAuthId,
     Guid UserId,

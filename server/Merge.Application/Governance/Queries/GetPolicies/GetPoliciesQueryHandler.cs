@@ -31,7 +31,6 @@ public class GetPoliciesQueryHandler(
         logger.LogInformation("Retrieving policies. PolicyType: {PolicyType}, Language: {Language}, ActiveOnly: {ActiveOnly}, Page: {Page}, PageSize: {PageSize}",
             request.PolicyType, request.Language, request.ActiveOnly, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
@@ -39,7 +38,6 @@ public class GetPoliciesQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_POLICIES}{request.PolicyType ?? "all"}_{request.Language ?? "all"}_{request.ActiveOnly}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
@@ -47,7 +45,6 @@ public class GetPoliciesQueryHandler(
                 logger.LogInformation("Cache miss for policies. PolicyType: {PolicyType}, Language: {Language}, ActiveOnly: {ActiveOnly}, Page: {Page}, PageSize: {PageSize}",
                     request.PolicyType, request.Language, request.ActiveOnly, page, pageSize);
 
-                // ✅ PERFORMANCE: AsNoTracking for read-only queries
                 IQueryable<Policy> query = context.Set<Policy>()
                     .AsNoTracking()
                     .Include(p => p.CreatedBy);
@@ -76,7 +73,6 @@ public class GetPoliciesQueryHandler(
 
                 var policies = await paginatedPoliciesQuery.ToListAsync(cancellationToken);
 
-                // ✅ PERFORMANCE: Batch loading - tüm policy'ler için acceptanceCount'ları tek query'de al (subquery ile)
                 var policyIdsSubquery = from p in paginatedPoliciesQuery select p.Id;
                 var acceptanceCounts = await context.Set<PolicyAcceptance>()
                     .AsNoTracking()
@@ -85,13 +81,10 @@ public class GetPoliciesQueryHandler(
                     .Select(g => new { PolicyId = g.Key, Count = g.Count() })
                     .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-                // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
                 var result = new List<PolicyDto>(policies.Count);
                 foreach (var policy in policies)
                 {
                     var dto = mapper.Map<PolicyDto>(policy);
-                    // ✅ BOLUM 7.1.5: Records - with expression kullanımı
                     dto = dto with { AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0) };
                     result.Add(dto);
                 }
@@ -109,7 +102,7 @@ public class GetPoliciesQueryHandler(
 
         return cachedResult ?? new PagedResult<PolicyDto>
         {
-            Items = new List<PolicyDto>(),
+            Items = [],
             TotalCount = 0,
             Page = page,
             PageSize = pageSize

@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.PauseEmailCampaign;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class PauseEmailCampaignCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -20,10 +19,8 @@ public class PauseEmailCampaignCommandHandler(
 {
     public async Task<bool> Handle(PauseEmailCampaignCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Pausing email campaign. CampaignId: {CampaignId}", request.Id);
 
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
@@ -33,13 +30,10 @@ public class PauseEmailCampaignCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         campaign.Pause();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Email campaign paused successfully. CampaignId: {CampaignId}", request.Id);
 
         return true;

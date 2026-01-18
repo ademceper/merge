@@ -4,14 +4,11 @@ using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// PreOrderCampaign EF Core Configuration - BOLUM 8.0: EF Core Configuration (ZORUNLU)
-/// </summary>
+
 public class PreOrderCampaignConfiguration : IEntityTypeConfiguration<PreOrderCampaign>
 {
     public void Configure(EntityTypeBuilder<PreOrderCampaign> builder)
     {
-        // ✅ BOLUM 8.1: Property Configuration
         builder.Property(e => e.Name)
             .IsRequired()
             .HasMaxLength(200);
@@ -26,7 +23,6 @@ public class PreOrderCampaignConfiguration : IEntityTypeConfiguration<PreOrderCa
         builder.Property(e => e.SpecialPrice)
             .HasPrecision(18, 2);
 
-        // ✅ BOLUM 8.2: Index Configuration
         builder.HasIndex(e => e.ProductId);
         builder.HasIndex(e => e.IsActive);
         builder.HasIndex(e => e.StartDate);
@@ -34,13 +30,11 @@ public class PreOrderCampaignConfiguration : IEntityTypeConfiguration<PreOrderCa
         builder.HasIndex(e => new { e.ProductId, e.IsActive });
         builder.HasIndex(e => new { e.IsActive, e.StartDate, e.EndDate });
 
-        // ✅ BOLUM 8.3: Relationship Configuration
         builder.HasOne(e => e.Product)
             .WithMany()
             .HasForeignKey(e => e.ProductId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_PreOrderCampaign_MaxQuantity_NonNegative", "\"MaxQuantity\" >= 0");

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.CreatePickPack;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreatePickPackCommandValidator : AbstractValidator<CreatePickPackCommand>
 {
     public CreatePickPackCommandValidator()

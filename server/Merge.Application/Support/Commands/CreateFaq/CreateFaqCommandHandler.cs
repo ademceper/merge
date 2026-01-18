@@ -13,17 +13,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.CreateFaq;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateFaqCommandHandler> logger) : IRequestHandler<CreateFaqCommand, FaqDto>
 {
 
     public async Task<FaqDto> Handle(CreateFaqCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating FAQ. Category: {Category}, IsPublished: {IsPublished}",
             request.Category, request.IsPublished);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var faq = FAQ.Create(
             request.Question,
             request.Answer,
@@ -33,12 +30,10 @@ public class CreateFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork,
 
         await context.Set<FAQ>().AddAsync(faq, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("FAQ {FaqId} created successfully. Category: {Category}", faq.Id, request.Category);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<FaqDto>(faq);
     }
 }

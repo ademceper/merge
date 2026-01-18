@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CompletePicking;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CompletePickingCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +21,6 @@ public class CompletePickingCommandHandler(
     {
         logger.LogInformation("Completing picking. PickPackId: {PickPackId}", request.PickPackId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
@@ -34,8 +30,6 @@ public class CompletePickingCommandHandler(
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
-        // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Tek sorguda GroupBy ile total ve picked item sayılarını al (2 ayrı CountAsync yerine)
         var itemCounts = await context.Set<PickPackItem>()
             .AsNoTracking()
             .Where(i => i.PickPackId == request.PickPackId)
@@ -54,11 +48,8 @@ public class CompletePickingCommandHandler(
             throw new BusinessException("Tüm kalemler seçilmemiş.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         pickPack.CompletePicking();
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Picking completed successfully. PickPackId: {PickPackId}", request.PickPackId);

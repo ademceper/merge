@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.AwardProductBadge;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class AwardProductBadgeCommandValidator : AbstractValidator<AwardProductBadgeCommand>
 {
     public AwardProductBadgeCommandValidator()

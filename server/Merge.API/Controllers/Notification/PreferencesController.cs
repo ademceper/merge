@@ -19,10 +19,15 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Notification;
 
-[ApiController]
+/// <summary>
+/// Notification Preference API endpoints.
+/// Kullanıcı bildirim tercihlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
-[Route("api/v1/notifications/preferences")]
+[ApiController]
+[Route("api/v{version:apiVersion}/notifications/preferences")]
 [Authorize]
+[Tags("NotificationPreferences")]
 public class NotificationPreferencesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -83,7 +88,7 @@ public class NotificationPreferencesController(
         var preference = await mediator.Send(query, cancellationToken);
         if (preference == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(preference);
     }
@@ -197,14 +202,24 @@ public class NotificationPreferencesController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
 
+    /// <summary>
+    /// Bildirim tercihinin aktif olup olmadığını kontrol eder
+    /// </summary>
+    /// <param name="notificationType">Bildirim tipi</param>
+    /// <param name="channel">Kanal</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Aktif olup olmadığı</returns>
+    /// <response code="200">Kontrol başarılı</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("check/{notificationType}/{channel}")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<bool>> CheckNotificationEnabled(
@@ -221,7 +236,7 @@ public class NotificationPreferencesController(
         var userId = GetUserId();
         var query = new IsNotificationEnabledQuery(userId, notificationTypeEnum, channelEnum);
         var isEnabled = await mediator.Send(query, cancellationToken);
-        return Ok(new { isEnabled });
+        return Ok(isEnabled);
     }
 
     [HttpGet("channels/{notificationType}")]

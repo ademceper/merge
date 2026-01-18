@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class CustomerCommunication : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string CommunicationType { get; private set; } = string.Empty;
     public string Channel { get; private set; } = string.Empty;
@@ -40,14 +39,11 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public User? SentBy { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CustomerCommunication() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CustomerCommunication Create(
         Guid userId,
         string communicationType,
@@ -67,7 +63,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(channel, nameof(channel));
         Guard.AgainstNullOrEmpty(subject, nameof(subject));
         Guard.AgainstNullOrEmpty(content, nameof(content));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxCommunicationSubjectLength=200, MaxCommunicationContentLength=10000
         Guard.AgainstLength(subject, 200, nameof(subject));
         Guard.AgainstLength(content, 10000, nameof(content));
@@ -95,7 +90,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - CustomerCommunicationCreatedEvent
         communication.AddDomainEvent(new CustomerCommunicationCreatedEvent(
             communication.Id,
             userId,
@@ -106,7 +100,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         return communication;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update status
     public void UpdateStatus(CommunicationStatus newStatus, DateTime? deliveredAt = null, DateTime? readAt = null)
     {
         var oldStatus = Status;
@@ -119,14 +112,12 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         if (readAt.HasValue)
             ReadAt = readAt.Value;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomerCommunicationStatusChangedEvent
         AddDomainEvent(new CustomerCommunicationStatusChangedEvent(
             Id,
             oldStatus.ToString(),
             newStatus.ToString()));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as delivered
     public void MarkAsDelivered()
     {
         if (Status == CommunicationStatus.Delivered)
@@ -135,7 +126,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         UpdateStatus(CommunicationStatus.Delivered, DateTime.UtcNow);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as read
     public void MarkAsRead()
     {
         if (Status == CommunicationStatus.Read)
@@ -144,7 +134,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         UpdateStatus(CommunicationStatus.Read, DeliveredAt, DateTime.UtcNow);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as failed
     public void MarkAsFailed(string errorMessage)
     {
         Guard.AgainstNullOrEmpty(errorMessage, nameof(errorMessage));
@@ -153,7 +142,6 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         UpdateStatus(CommunicationStatus.Failed);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -162,11 +150,9 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomerCommunicationDeletedEvent
         AddDomainEvent(new CustomerCommunicationDeletedEvent(Id, UserId, CommunicationType, Channel));
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         base.AddDomainEvent(domainEvent);

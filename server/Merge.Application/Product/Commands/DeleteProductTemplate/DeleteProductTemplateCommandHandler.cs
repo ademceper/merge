@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.DeleteProductTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteProductTemplateCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteProductTemplateCommandHandler> logger, ICacheService cache, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<DeleteProductTemplateCommand, bool>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -42,19 +41,16 @@ public class DeleteProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             // Store category ID for cache invalidation
             var categoryId = template.CategoryId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             template.MarkAsDeleted();
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_TEMPLATES, cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATES_BY_CATEGORY}{categoryId}_", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_TEMPLATES_ACTIVE, cancellationToken);
             // Invalidate popular templates cache (all possible limits)
-            // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
             for (int limit = paginationConfig.DefaultPageSize; limit <= paginationConfig.MaxPageSize; limit += paginationConfig.DefaultPageSize)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_POPULAR_TEMPLATES}{limit}", cancellationToken);

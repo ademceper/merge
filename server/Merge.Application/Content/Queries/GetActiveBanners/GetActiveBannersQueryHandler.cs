@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetActiveBanners;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetActiveBannersQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -33,13 +31,11 @@ public class GetActiveBannersQueryHandler(
         logger.LogInformation("Retrieving active banners. Position: {Position}, Page: {Page}, PageSize: {PageSize}",
             request.Position, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_ACTIVE_BANNERS_PAGED}_{request.Position ?? "all"}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for active banners
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>

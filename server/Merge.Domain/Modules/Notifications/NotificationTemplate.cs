@@ -38,7 +38,6 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
     public NotificationType Type { get; private set; }
     
     private string _titleTemplate = string.Empty;
@@ -109,14 +108,11 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private NotificationTemplate() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static NotificationTemplate Create(
         string name,
         NotificationType type,
@@ -166,13 +162,11 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateCreatedEvent
         template.AddDomainEvent(new NotificationTemplateCreatedEvent(template.Id, name, type));
 
         return template;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update template
     public void Update(
         string? name = null,
         string? description = null,
@@ -233,11 +227,9 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateUpdatedEvent
         AddDomainEvent(new NotificationTemplateUpdatedEvent(Id, _name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate template
     public void Activate()
     {
         if (IsActive)
@@ -246,11 +238,9 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateActivatedEvent
         AddDomainEvent(new NotificationTemplateActivatedEvent(Id, _name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate template
     public void Deactivate()
     {
         if (!IsActive)
@@ -259,11 +249,9 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateDeactivatedEvent
         AddDomainEvent(new NotificationTemplateDeactivatedEvent(Id, _name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete template (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -272,7 +260,6 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateDeletedEvent
         AddDomainEvent(new NotificationTemplateDeletedEvent(Id, _name));
     }
 }

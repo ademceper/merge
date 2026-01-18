@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using AutoMapper;
 namespace Merge.Application.Product.Commands.CreateSizeGuide;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateSizeGuideCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -34,7 +33,6 @@ public class CreateSizeGuideCommandHandler(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var sizeGuide = SizeGuide.Create(
                 request.Name,
                 request.Description,
@@ -46,10 +44,8 @@ public class CreateSizeGuideCommandHandler(
             await context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             foreach (var entryDto in request.Entries)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                 var entry = SizeGuideEntry.Create(
                     sizeGuide.Id,
                     entryDto.SizeLabel,
@@ -69,7 +65,6 @@ public class CreateSizeGuideCommandHandler(
                 sizeGuide.AddEntry(entry);
             }
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -81,7 +76,6 @@ public class CreateSizeGuideCommandHandler(
 
             logger.LogInformation("Size guide created successfully. SizeGuideId: {SizeGuideId}", sizeGuide!.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
 

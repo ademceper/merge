@@ -16,9 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetStockMovementsByInventoryId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetStockMovementsByInventoryIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -31,11 +28,6 @@ public class GetStockMovementsByInventoryIdQueryHandler(
     {
         logger.LogInformation("Getting stock movements by inventory. InventoryId: {InventoryId}", request.InventoryId);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var movements = await context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
@@ -49,7 +41,6 @@ public class GetStockMovementsByInventoryIdQueryHandler(
             .Take(_shippingSettings.QueryLimits.MaxStockMovementsPerInventory)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
         return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 }

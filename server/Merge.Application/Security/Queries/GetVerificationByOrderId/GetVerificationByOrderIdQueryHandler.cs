@@ -12,13 +12,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Queries.GetVerificationByOrderId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetVerificationByOrderIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetVerificationByOrderIdQueryHandler> logger) : IRequestHandler<GetVerificationByOrderIdQuery, OrderVerificationDto?>
 {
 
     public async Task<OrderVerificationDto?> Handle(GetVerificationByOrderIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Order verification sorgulanıyor. OrderId: {OrderId}", request.OrderId);
 
         var verification = await context.Set<OrderVerification>()

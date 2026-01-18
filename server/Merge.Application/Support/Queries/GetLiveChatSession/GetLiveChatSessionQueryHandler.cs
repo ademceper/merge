@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetLiveChatSession;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetLiveChatSessionQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetLiveChatSessionQuery, LiveChatSessionDto?>
 {
     private readonly SupportSettings supportConfig = settings.Value;
@@ -32,7 +31,6 @@ public class GetLiveChatSessionQueryHandler(IDbContext context, IMapper mapper, 
 
         var dto = mapper.Map<LiveChatSessionDto>(session);
 
-        // ✅ PERFORMANCE: Batch load recent messages if not already loaded
         if (session.Messages == null || session.Messages.Count == 0)
         {
             var recentMessages = await context.Set<LiveChatMessage>()

@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Security.Commands.LogSecurityEvent;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class LogSecurityEventCommandValidator : AbstractValidator<LogSecurityEventCommand>
 {
     public LogSecurityEventCommandValidator()

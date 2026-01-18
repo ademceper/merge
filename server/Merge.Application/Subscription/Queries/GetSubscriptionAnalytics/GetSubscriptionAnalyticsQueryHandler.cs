@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetSubscriptionAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<GetSubscriptionAnalyticsQueryHandler> logger) : IRequestHandler<GetSubscriptionAnalyticsQuery, SubscriptionAnalyticsDto>
 {
 
@@ -22,7 +21,6 @@ public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<Ge
         var start = request.StartDate ?? DateTime.UtcNow.AddMonths(-12);
         var end = request.EndDate ?? DateTime.UtcNow;
 
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         var query = context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.SubscriptionPlan)
@@ -48,7 +46,6 @@ public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<Ge
                 .AverageAsync(us => (decimal?)us.CurrentPrice, cancellationToken) ?? 0
             : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap
         var subscriptionsByPlan = await query
             .GroupBy(us => us.SubscriptionPlan != null ? us.SubscriptionPlan.Name : "Unknown")
             .Select(g => new { PlanName = g.Key, Count = g.Count() })
@@ -81,8 +78,7 @@ public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<Ge
 
     private async Task<IEnumerable<SubscriptionTrendDto>> GetTrendsInternal(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        var trends = new List<SubscriptionTrendDto>();
+        List<SubscriptionTrendDto> trends = [];
         var currentDate = startDate;
 
         while (currentDate <= endDate)
@@ -90,7 +86,6 @@ public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<Ge
             var monthStart = new DateTime(currentDate.Year, currentDate.Month, 1);
             var monthEnd = monthStart.AddMonths(1).AddDays(-1);
 
-            // ✅ PERFORMANCE: Database'de count/sum yap
             var monthSubscriptionsCount = await context.Set<UserSubscription>()
                 .AsNoTracking()
                 .CountAsync(us => us.CreatedAt >= monthStart && us.CreatedAt <= monthEnd, cancellationToken);

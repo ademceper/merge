@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.CreateReferralCode;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class CreateReferralCodeCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -28,7 +26,6 @@ public class CreateReferralCodeCommandHandler(
     {
         logger.LogInformation("Creating referral code. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if code already exists
         var exists = await context.Set<ReferralCode>()
             .AsNoTracking()
             .AnyAsync(c => c.UserId == request.UserId, cancellationToken);
@@ -39,7 +36,6 @@ public class CreateReferralCodeCommandHandler(
             throw new BusinessException("Referans kodu zaten mevcut.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
@@ -56,11 +52,9 @@ public class CreateReferralCodeCommandHandler(
 
         await context.Set<ReferralCode>().AddAsync(newCode, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking ile tek query'de getir
         var createdCode = await context.Set<ReferralCode>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == newCode.Id, cancellationToken);
@@ -73,15 +67,12 @@ public class CreateReferralCodeCommandHandler(
 
         logger.LogInformation("ReferralCode created successfully. UserId: {UserId}, Code: {Code}", request.UserId, referralCode);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReferralCodeDto>(createdCode);
     }
 
     private string GenerateCode(string email)
     {
         var prefix = email.Split('@')[0].ToUpper().Substring(0, Math.Min(4, email.Length));
-        // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var random = Random.Shared.Next(marketingSettings.Value.ReferralCodeMinRandom, marketingSettings.Value.ReferralCodeMaxRandom);
         return $"{prefix}{random}";
     }

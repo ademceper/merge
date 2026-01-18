@@ -10,9 +10,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
-[ApiController]
+/// <summary>
+/// Authentication API endpoints.
+/// Kullanıcı kimlik doğrulama işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/auth")]
+[Tags("Auth")]
 public class AuthController(IMediator mediator) : BaseController
 {
 

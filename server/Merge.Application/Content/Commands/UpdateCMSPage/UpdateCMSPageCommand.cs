@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Content;
 
 namespace Merge.Application.Content.Commands.UpdateCMSPage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateCMSPageCommand(
     Guid Id,
     Guid? PerformedBy = null, // IDOR protection için

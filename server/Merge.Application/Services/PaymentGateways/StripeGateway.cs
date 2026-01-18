@@ -99,7 +99,6 @@ public class StripeGateway(IConfiguration configuration, ILogger<StripeGateway> 
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        // ✅ SECURITY FIX: Webhook signature doğrulama implement edildi
         // Gerçek implementasyonda Stripe webhook secret kullanılmalı
         var webhookSecret = configuration["PaymentGateways:Stripe:WebhookSecret"];
 

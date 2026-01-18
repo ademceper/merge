@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// CommissionPayout Failed Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record CommissionPayoutFailedEvent(
     Guid PayoutId,
     Guid SellerId,

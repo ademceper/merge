@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.AskQuestion;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AskQuestionCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -45,14 +44,12 @@ public class AskQuestionCommandHandler(
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var question = ProductQuestion.Create(
                 request.ProductId,
                 request.UserId,
                 request.Question);
 
             await context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -66,13 +63,11 @@ public class AskQuestionCommandHandler(
 
             logger.LogInformation("Product question asked successfully. QuestionId: {QuestionId}", question!.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (user_questions_*, product_questions_*) pattern-based invalidation gerektirir.
             // Şimdilik cache expiration'a güveniyoruz (5 dakika TTL)
             await cache.RemoveAsync($"{CACHE_KEY_UNANSWERED_QUESTIONS}{request.ProductId}_", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_QA_STATS}{request.ProductId}", cancellationToken);
 
-            // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
             var questionDto = mapper.Map<ProductQuestionDto>(question);
             questionDto = questionDto with { HasUserVoted = false };
             return questionDto;

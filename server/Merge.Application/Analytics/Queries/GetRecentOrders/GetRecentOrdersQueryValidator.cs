@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetRecentOrders;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRecentOrdersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetRecentOrdersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

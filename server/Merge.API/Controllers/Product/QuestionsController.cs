@@ -25,9 +25,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Product Questions API endpoints.
+/// Ürün soru-cevap işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/questions")]
+[Tags("ProductQuestions")]
 public class ProductQuestionsController(IMediator mediator) : BaseController
 {
             [HttpPost]
@@ -49,9 +54,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         }
         var command = new AskQuestionCommand(userId, dto.ProductId, dto.Question);
         var question = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductQuestionLinks(Url, question.Id, dto.ProductId, version);
-        return CreatedAtAction(nameof(GetQuestion), new { id = question.Id }, new { question, _links = links });
+        return CreatedAtAction(nameof(GetQuestion), new { id = question.Id }, question);
     }
 
     [HttpGet("{id}")]
@@ -67,11 +70,9 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
 
         if (question == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductQuestionLinks(Url, question.Id, question.ProductId, version);
-        return Ok(new { question, _links = links });
+        return Ok(question);
     }
 
     [HttpGet("product/{productId}")]
@@ -87,16 +88,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var userId = GetUserIdOrNull();
         var query = new GetProductQuestionsQuery(productId, userId, page, pageSize);
         var questions = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url,
-            "GetProductQuestions",
-            page,
-            pageSize,
-            questions.TotalPages,
-            new { productId },
-            version);
-        return Ok(new { questions, _links = paginationLinks });
+        return Ok(questions);
     }
 
     [HttpGet("my-questions")]
@@ -116,16 +108,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         }
         var query = new GetUserQuestionsQuery(userId, page, pageSize);
         var questions = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url,
-            "GetMyQuestions",
-            page,
-            pageSize,
-            questions.TotalPages,
-            null,
-            version);
-        return Ok(new { questions, _links = paginationLinks });
+        return Ok(questions);
     }
 
     [HttpPost("{id}/approve")]
@@ -143,7 +126,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -167,7 +150,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -205,9 +188,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var userId = GetUserIdOrNull();
         var query = new GetQuestionAnswersQuery(id, userId);
         var answers = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductAnswerLinks(Url, id, version);
-        return Ok(new { answers, _links = links });
+        return Ok(answers);
     }
 
     [HttpPost("answers/{id}/approve")]
@@ -225,7 +206,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -249,7 +230,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -332,9 +313,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
     {
         var query = new GetQAStatsQuery(productId);
         var stats = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetQAStats", new { productId }, version);
-        return Ok(new { stats, _links = links });
+        return Ok(stats);
     }
 
     [HttpGet("unanswered")]
@@ -350,8 +329,6 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         if (limit < 1) limit = 20;
         var query = new GetUnansweredQuestionsQuery(productId, limit);
         var questions = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetUnansweredQuestions", new { productId, limit }, version);
-        return Ok(new { questions, _links = links });
+        return Ok(questions);
     }
 }

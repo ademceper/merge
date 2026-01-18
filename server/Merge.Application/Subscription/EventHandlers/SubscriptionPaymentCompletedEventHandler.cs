@@ -1,26 +1,14 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Notification;
-using Merge.Application.DTOs.Notification;
-using Merge.Domain.Modules.Notifications;
-using Merge.Domain.Modules.Ordering;
-using Merge.Domain.Modules.Payment;
 using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// SubscriptionPayment Completed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
 public class SubscriptionPaymentCompletedEventHandler(ILogger<SubscriptionPaymentCompletedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SubscriptionPaymentCompletedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(SubscriptionPaymentCompletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Subscription payment completed event received. PaymentId: {PaymentId}, SubscriptionId: {SubscriptionId}, Amount: {Amount}, TransactionId: {TransactionId}",
             notification.PaymentId, notification.UserSubscriptionId, notification.Amount, notification.TransactionId);
@@ -37,7 +25,6 @@ public class SubscriptionPaymentCompletedEventHandler(ILogger<SubscriptionPaymen
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling SubscriptionPaymentCompletedEvent. PaymentId: {PaymentId}, SubscriptionId: {SubscriptionId}",
                 notification.PaymentId, notification.UserSubscriptionId);

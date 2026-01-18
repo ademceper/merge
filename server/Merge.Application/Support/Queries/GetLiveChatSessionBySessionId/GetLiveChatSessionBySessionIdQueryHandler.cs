@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetLiveChatSessionBySessionId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetLiveChatSessionBySessionIdQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetLiveChatSessionBySessionIdQuery, LiveChatSessionDto?>
 {
     private readonly SupportSettings supportConfig = settings.Value;

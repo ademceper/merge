@@ -3,7 +3,6 @@ using Merge.Application.DTOs.B2B;
 
 namespace Merge.Application.B2B.Commands.CreateB2BUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateB2BUserCommand(
     Guid UserId,
     Guid OrganizationId,

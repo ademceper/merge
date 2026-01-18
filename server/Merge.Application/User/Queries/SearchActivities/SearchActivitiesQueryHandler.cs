@@ -14,21 +14,16 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.SearchActivities;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SearchActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<SearchActivitiesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<SearchActivitiesQuery, IEnumerable<UserActivityLogDto>>
 {
-    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
-
-
     public async Task<IEnumerable<UserActivityLogDto>> Handle(SearchActivitiesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", 
             request.Filter.PageNumber, request.Filter.PageSize);
         var pageSize = request.Filter.PageSize;
-        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
-        if (pageSize < 1) pageSize = paginationConfig.DefaultPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
+        if (pageSize < 1) pageSize = paginationSettings.Value.DefaultPageSize;
 
         var pageNumber = request.Filter.PageNumber;
         if (pageNumber < 1) pageNumber = 1;

@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Subscription.Commands.CreateSubscriptionPlan;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class CreateSubscriptionPlanCommandValidator : AbstractValidator<CreateSubscriptionPlanCommand>
 {
     public CreateSubscriptionPlanCommandValidator()

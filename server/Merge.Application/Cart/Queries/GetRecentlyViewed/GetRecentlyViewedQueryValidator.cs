@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetRecentlyViewed;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRecentlyViewedQueryValidator : AbstractValidator<GetRecentlyViewedQuery>
 {
     public GetRecentlyViewedQueryValidator()

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Commands.DeleteReportSchedule;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteReportScheduleCommandValidator : AbstractValidator<DeleteReportScheduleCommand>
 {
     public DeleteReportScheduleCommandValidator()

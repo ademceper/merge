@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetActiveFlashSales;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetActiveFlashSalesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetActiveFlashSalesQuery, PagedResult<FlashSaleDto>>
 {
     public async Task<PagedResult<FlashSaleDto>> Handle(GetActiveFlashSalesQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var query = context.Set<FlashSale>()
             .AsNoTracking()
             .AsSplitQuery()

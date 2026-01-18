@@ -23,7 +23,7 @@ public class SetUserLanguagePreferenceCommandHandler(
             request.UserId, request.LanguageCode);
 
         var language = await context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.LanguageCode.ToLower() && l.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode) && l.IsActive, cancellationToken);
 
         if (language == null)
         {

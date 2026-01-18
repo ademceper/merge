@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.DTOs.International;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record ConvertPriceDto(
     [Required(ErrorMessage = "Amount is required")]
     [Range(0.01, 999999999.99, ErrorMessage = "Amount must be a positive value")]

@@ -9,8 +9,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.ChangeUserRole;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ChangeUserRoleCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -21,7 +19,6 @@ public class ChangeUserRoleCommandHandler(
     {
         logger.LogInformation("Changing user role. UserId: {UserId}, NewRole: {Role}", request.UserId, request.Role);
         
-        // ✅ FIX: Use FirstOrDefaultAsync instead of FindAsync to respect Global Query Filter
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
         if (user == null)
@@ -31,14 +28,12 @@ public class ChangeUserRoleCommandHandler(
         }
 
         // Remove existing roles
-        // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
         var existingRoles = await context.UserRoles
             .Where(ur => ur.UserId == request.UserId)
             .ToListAsync(cancellationToken);
         context.UserRoles.RemoveRange(existingRoles);
 
         // Add new role
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries (we don't modify this entity)
         var roleEntity = await context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);

@@ -17,15 +17,12 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class TaxRule : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Country { get; private set; } = string.Empty;
     public string? State { get; private set; } // For countries with state-level tax
     public string? City { get; private set; } // For cities with local tax
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string TaxType YASAK)
     public TaxType TaxType { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - TaxRate 0-100 arası
     private decimal _taxRate;
     public decimal TaxRate 
     { 
@@ -44,14 +41,11 @@ public class TaxRule : BaseEntity, IAggregateRoot
     public bool IsInclusive { get; private set; } = false; // Tax included in price or added on top
     public string? Notes { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TaxRule() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TaxRule Create(
         string country,
         TaxType taxType,
@@ -68,7 +62,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(country, nameof(country));
         Guard.AgainstOutOfRange(taxRate, 0m, 100m, nameof(taxRate));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (effectiveFrom.HasValue && effectiveTo.HasValue && effectiveTo.Value < effectiveFrom.Value)
             throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
 
@@ -89,7 +82,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - TaxRuleCreatedEvent
         taxRule.AddDomainEvent(new TaxRuleCreatedEvent(
             taxRule.Id,
             country,
@@ -101,7 +93,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
         return taxRule;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update tax rule
     public void Update(
         string? country = null,
         TaxType? taxType = null,
@@ -151,17 +142,14 @@ public class TaxRule : BaseEntity, IAggregateRoot
         if (notes != null)
             Notes = notes;
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (EffectiveFrom.HasValue && EffectiveTo.HasValue && EffectiveTo.Value < EffectiveFrom.Value)
             throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TaxRuleUpdatedEvent
         AddDomainEvent(new TaxRuleUpdatedEvent(Id, Country, TaxType, _taxRate));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate tax rule
     public void Activate()
     {
         if (IsActive)
@@ -170,11 +158,9 @@ public class TaxRule : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TaxRuleActivatedEvent
         AddDomainEvent(new TaxRuleActivatedEvent(Id, Country, TaxType));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate tax rule
     public void Deactivate()
     {
         if (!IsActive)
@@ -183,11 +169,9 @@ public class TaxRule : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TaxRuleDeactivatedEvent
         AddDomainEvent(new TaxRuleDeactivatedEvent(Id, Country, TaxType));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if tax rule is effective
     public bool IsEffective(DateTime? date = null)
     {
         var checkDate = date ?? DateTime.UtcNow;
@@ -204,7 +188,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
         return true;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Calculate tax amount
     public decimal CalculateTax(decimal baseAmount)
     {
         Guard.AgainstNegativeOrZero(baseAmount, nameof(baseAmount));
@@ -215,7 +198,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
         return Math.Round(baseAmount * (_taxRate / 100), 2);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -225,7 +207,6 @@ public class TaxRule : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TaxRuleDeletedEvent
         AddDomainEvent(new TaxRuleDeletedEvent(Id, Country, TaxType));
     }
 }

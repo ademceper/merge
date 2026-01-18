@@ -26,8 +26,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMediator mediator, IMapper mapper, ILogger<CreateOrderFromCartCommandHandler> logger, IOptions<OrderSettings> orderSettings) : IRequestHandler<CreateOrderFromCartCommand, OrderDto>
 {
     private readonly OrderSettings orderConfig = orderSettings.Value;
@@ -37,7 +35,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
         logger.LogInformation("Creating order from cart. UserId: {UserId}, AddressId: {AddressId}",
             request.UserId, request.AddressId);
 
-        // ✅ CRITICAL: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
@@ -53,7 +50,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 throw new BusinessException("Sepet boş.");
             }
 
-            // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             var address = await context.Set<AddressEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
@@ -63,17 +59,14 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 throw new NotFoundException("Adres", request.AddressId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var order = OrderEntity.Create(request.UserId, request.AddressId, address);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (AddItem)
             foreach (var cartItem in cart.CartItems)
             {
                 order.AddItem(cartItem.Product, cartItem.Quantity);
                 cartItem.Product.ReduceStock(cartItem.Quantity);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             var shippingCost = new Money(CalculateShippingCost(order.SubTotal));
             order.SetShippingCost(shippingCost);
 
@@ -86,7 +79,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 await ApplyCouponAsync(order, cart, request.UserId, request.CouponCode, cancellationToken);
             }
 
-            // ✅ BOLUM 1.5: Domain Event - OrderCreatedEvent'te TotalAmount güncelle
             // Order.Create'te event oluşturulurken TotalAmount 0 idi, şimdi gerçek değerle güncelle
             // Event'ler immutable olduğu için yeni event oluşturup eskisini kaldır
             var existingEvent = order.DomainEvents.OfType<OrderCreatedEvent>().FirstOrDefault();
@@ -97,8 +89,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
             }
 
             await context.Set<OrderEntity>().AddAsync(order, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Kupon kullanımını kaydet
@@ -108,10 +98,8 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
             }
 
             // Sepeti temizle
-            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
             await mediator.Send(new ClearCartCommand(request.UserId), cancellationToken);
 
-            // ✅ CRITICAL: Commit all changes atomically
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             order = await context.Set<OrderEntity>()
@@ -122,7 +110,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 .Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == order.Id, cancellationToken);
 
-            // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
             if (order == null)
             {
                 logger.LogError("Order not found after creation. OrderId: {OrderId}", order?.Id);
@@ -149,8 +136,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
     {
         try
         {
-            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-            // ✅ FIX: ValidateCouponCommand List<Guid> bekliyor, ToList() gerekli
             var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
             
             var validateCommand = new ValidateCouponCommand(
@@ -163,7 +148,6 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
 
             if (couponDiscount > 0)
             {
-                // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
                 var getCouponQuery = new GetCouponByCodeQuery(couponCode);
                 var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
                 
@@ -189,13 +173,11 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
 
     private async Task RecordCouponUsageAsync(OrderEntity order, Guid userId, string couponCode, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var getCouponQuery = new GetCouponByCodeQuery(couponCode);
         var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
         
         if (couponDto != null && order.CouponDiscount.HasValue)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var couponUsage = CouponUsage.Create(
                 couponDto.Id,
                 userId,

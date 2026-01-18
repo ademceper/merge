@@ -22,7 +22,6 @@ public class CreateB2BUserDto
     [Range(0, double.MaxValue, ErrorMessage = "Kredi limiti 0 veya daha büyük olmalıdır.")]
     public decimal? CreditLimit { get; set; }
     
-    // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
     // Typed DTO kullanılıyor
     public B2BUserSettingsDto? Settings { get; set; }
 }

@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.RemoveSizeGuideFromProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RemoveSizeGuideFromProductCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RemoveSizeGuideFromProductCommandHandler> logger, ICacheService cache) : IRequestHandler<RemoveSizeGuideFromProductCommand, bool>
 {
 
@@ -32,13 +31,11 @@ public class RemoveSizeGuideFromProductCommandHandler(IDbContext context, IUnitO
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             productSizeGuide.MarkAsDeleted();
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_PRODUCT_SIZE_GUIDE}{request.ProductId}", cancellationToken);
             // Note: Size recommendation cache includes measurements, so we can't invalidate all.
             // Cache expiration (30 min) will handle stale recommendations.

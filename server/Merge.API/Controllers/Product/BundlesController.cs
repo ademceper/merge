@@ -16,9 +16,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Product Bundles API endpoints.
+/// Ürün paketlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/bundles")]
+[Tags("ProductBundles")]
 public class BundlesController(IMediator mediator) : BaseController
 {
             [HttpGet]
@@ -29,9 +34,7 @@ public class BundlesController(IMediator mediator) : BaseController
     {
         var query = new GetAllProductBundlesQuery(ActiveOnly: true);
         var bundles = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = bundles.Select(b => HateoasHelper.CreateProductBundleLinks(Url, b.Id, version)).ToList();
-        return Ok(new { bundles, _links = links });
+        return Ok(bundles);
     }
 
     [HttpGet("all")]
@@ -45,9 +48,7 @@ public class BundlesController(IMediator mediator) : BaseController
     {
         var query = new GetAllProductBundlesQuery(ActiveOnly: false);
         var bundles = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = bundles.Select(b => HateoasHelper.CreateProductBundleLinks(Url, b.Id, version)).ToList();
-        return Ok(new { bundles, _links = links });
+        return Ok(bundles);
     }
 
     [HttpGet("{id}")]
@@ -61,11 +62,9 @@ public class BundlesController(IMediator mediator) : BaseController
         var bundle = await mediator.Send(query, cancellationToken);
         if (bundle == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
-        return Ok(new { bundle, _links = links });
+        return Ok(bundle);
     }
 
     [HttpPost]
@@ -83,9 +82,7 @@ public class BundlesController(IMediator mediator) : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
         var bundle = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
-        return CreatedAtAction(nameof(GetById), new { id = bundle.Id }, new { bundle, _links = links });
+        return CreatedAtAction(nameof(GetById), new { id = bundle.Id }, bundle);
     }
 
     [HttpPut("{id}")]
@@ -106,9 +103,7 @@ public class BundlesController(IMediator mediator) : BaseController
         if (validationResult != null) return validationResult;
         var updatedCommand = command with { Id = id };
         var bundle = await mediator.Send(updatedCommand, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
-        return Ok(new { bundle, _links = links });
+        return Ok(bundle);
     }
 
     /// <summary>
@@ -133,9 +128,7 @@ public class BundlesController(IMediator mediator) : BaseController
         if (validationResult != null) return validationResult;
         var command = new PatchProductBundleCommand(id, patchDto);
         var bundle = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
-        return Ok(new { bundle, _links = links });
+        return Ok(bundle);
     }
 
     [HttpDelete("{id}")]
@@ -152,7 +145,7 @@ public class BundlesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -176,7 +169,7 @@ public class BundlesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -198,7 +191,7 @@ public class BundlesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

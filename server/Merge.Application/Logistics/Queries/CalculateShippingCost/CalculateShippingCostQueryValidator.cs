@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.CalculateShippingCost;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CalculateShippingCostQueryValidator : AbstractValidator<CalculateShippingCostQuery>
 {
     public CalculateShippingCostQueryValidator()

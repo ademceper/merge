@@ -14,10 +14,15 @@ using Merge.Application.Analytics.Queries.GetTopReviewers;
 
 namespace Merge.API.Controllers.Analytics.Review;
 
+/// <summary>
+/// Review Analytics API endpoints.
+/// Yorum analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/reviews")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("ReviewAnalytics")]
 public class ReviewAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -38,8 +43,6 @@ public class ReviewAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReviewAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
@@ -60,8 +63,6 @@ public class ReviewAnalyticsController(
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetRatingDistributionQuery(startDate, endDate);
         var distribution = await mediator.Send(query, cancellationToken);
         return Ok(distribution);
@@ -82,8 +83,6 @@ public class ReviewAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReviewTrendsQuery(startDate, endDate);
         var trends = await mediator.Send(query, cancellationToken);
         return Ok(trends);
@@ -103,12 +102,9 @@ public class ReviewAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopReviewedProductsQuery(limit);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
@@ -128,12 +124,9 @@ public class ReviewAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopReviewersQuery(limit);
         var reviewers = await mediator.Send(query, cancellationToken);
         return Ok(reviewers);

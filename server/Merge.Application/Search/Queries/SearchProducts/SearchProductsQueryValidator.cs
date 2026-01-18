@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.SearchProducts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SearchProductsQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<SearchProductsQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

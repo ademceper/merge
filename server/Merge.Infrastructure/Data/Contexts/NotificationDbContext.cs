@@ -21,7 +21,6 @@ public class NotificationDbContext(DbContextOptions<NotificationDbContext> optio
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("NotificationDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -35,7 +34,6 @@ public class NotificationDbContext(DbContextOptions<NotificationDbContext> optio
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NotificationDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Notifications");
 
-        // ✅ BOLUM 1.1: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

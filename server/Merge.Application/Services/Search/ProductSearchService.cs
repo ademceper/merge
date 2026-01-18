@@ -20,16 +20,12 @@ namespace Merge.Application.Services.Search;
 public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<ProductSearchService> logger) : IProductSearchService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Product search yapılıyor. SearchTerm: {SearchTerm}, CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
             request.SearchTerm, request.CategoryId, request.Page, request.PageSize);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -84,30 +80,22 @@ public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<Pr
         var page = request.Page ?? 1;
         var pageSize = request.PageSize ?? 20;
         
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
         
         // Toplam kayıt sayısı
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var totalCount = await query.CountAsync(cancellationToken);
         
-        // ✅ PERFORMANCE: Apply pagination before materializing the query
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: ProductDto için AutoMapper mapping'i kullanılmalı, ancak CategoryName için ForMember gerekli
         var products = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var productDtos = mapper.Map<IEnumerable<ProductDto>>(products).ToList();
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
         var rankedProducts = ApplySearchRanking(productDtos, request.SearchTerm ?? string.Empty, request.SortBy);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var brands = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && !string.IsNullOrEmpty(p.Brand))
@@ -116,8 +104,6 @@ public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<Pr
             .OrderBy(b => b)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var minPrice = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive)
@@ -128,7 +114,6 @@ public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<Pr
             .Where(p => p.IsActive)
             .MaxAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Product search tamamlandı. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             totalCount, page, pageSize);
@@ -145,13 +130,12 @@ public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<Pr
         );
     }
 
-    // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
     private List<ProductDto> ApplySearchRanking(List<ProductDto> products, string searchTerm, string? sortBy)
     {
-        // Eğer özel sıralama seçilmişse, ranking uygulama
-        if (!string.IsNullOrEmpty(sortBy) && sortBy.ToLower() != "relevance")
+        var sortByNorm = string.IsNullOrEmpty(sortBy) ? null : sortBy.ToLowerInvariant();
+        if (sortByNorm is not null && sortByNorm != "relevance")
         {
-            return sortBy.ToLower() switch
+            return sortByNorm switch
             {
                 "price_asc" => products.OrderBy(p => p.DiscountPrice ?? p.Price).ToList(),
                 "price_desc" => products.OrderByDescending(p => p.DiscountPrice ?? p.Price).ToList(),
@@ -193,42 +177,36 @@ public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<Pr
             return score;
         }
 
-        var searchLower = searchTerm.ToLower();
-        var nameLower = product.Name.ToLower();
-        var descriptionLower = product.Description?.ToLower() ?? string.Empty;
-        var brandLower = product.Brand?.ToLower() ?? string.Empty;
-        var skuLower = product.SKU?.ToLower() ?? string.Empty;
-
         // İsim eşleşmesi (en yüksek ağırlık)
-        if (nameLower.Contains(searchLower))
+        if (product.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 100;
-            if (nameLower.StartsWith(searchLower))
+            if (product.Name.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
             {
                 score += 50; // Başlangıçta eşleşme bonusu
             }
         }
 
         // Tam eşleşme bonusu
-        if (nameLower == searchLower)
+        if (string.Equals(product.Name, searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 200;
         }
 
         // Marka eşleşmesi
-        if (brandLower.Contains(searchLower))
+        if ((product.Brand ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 30;
         }
 
         // SKU eşleşmesi
-        if (skuLower.Contains(searchLower))
+        if (product.SKU.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 20;
         }
 
         // Açıklama eşleşmesi (düşük ağırlık)
-        if (descriptionLower.Contains(searchLower))
+        if ((product.Description ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         {
             score += 10;
         }

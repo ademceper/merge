@@ -10,15 +10,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Queries.GetEnabledChannels;
 
-/// <summary>
-/// Get Enabled Channels Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class GetEnabledChannelsQueryHandler(IDbContext context) : IRequestHandler<GetEnabledChannelsQuery, IEnumerable<string>>
 {
 
     public async Task<IEnumerable<string>> Handle(GetEnabledChannelsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == request.UserId && 

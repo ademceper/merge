@@ -3,5 +3,4 @@ using Merge.Application.DTOs.Subscription;
 
 namespace Merge.Application.Subscription.Queries.GetSubscriptionPlanById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetSubscriptionPlanByIdQuery(Guid Id) : IRequest<SubscriptionPlanDto?>;

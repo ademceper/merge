@@ -17,14 +17,11 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class SubscriptionPlan : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public SubscriptionPlanType PlanType { get; private set; } = SubscriptionPlanType.Monthly;
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _price;
     public decimal Price 
     { 
@@ -42,11 +39,9 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public int DisplayOrder { get; private set; } = 0;
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public BillingCycle BillingCycle { get; private set; } = BillingCycle.Monthly;
     public int MaxUsers { get; private set; } = 1; // Maximum users allowed
     
-    // ✅ BOLUM 1.3: Value Objects - SetupFee backing field
     private decimal? _setupFee;
     public decimal? SetupFee 
     { 
@@ -61,24 +56,20 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
     
     public string Currency { get; private set; } = "TRY";
 
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money PriceMoney => new Money(_price, Currency);
     
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money? SetupFeeMoney => _setupFee.HasValue ? new Money(_setupFee.Value, Currency) : null;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
-    public ICollection<UserSubscription> UserSubscriptions { get; private set; } = new List<UserSubscription>();
+    public ICollection<UserSubscription> UserSubscriptions { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SubscriptionPlan() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SubscriptionPlan Create(
         string name,
         string description,
@@ -126,13 +117,11 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         plan.AddDomainEvent(new SubscriptionPlanCreatedEvent(plan.Id, name, planType, price, currency));
 
         return plan;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update plan
     public void Update(
         string? name = null,
         string? description = null,
@@ -215,11 +204,9 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new SubscriptionPlanUpdatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate plan
     public void Activate()
     {
         if (IsActive)
@@ -228,11 +215,9 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new SubscriptionPlanActivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate plan
     public void Deactivate()
     {
         if (!IsActive)
@@ -241,18 +226,15 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new SubscriptionPlanDeactivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if plan can be deleted
     public bool CanBeDeleted()
     {
         // Plan can be deleted if no active subscriptions exist
         return !UserSubscriptions.Any(us => us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete plan
     public void Delete()
     {
         if (!CanBeDeleted())
@@ -261,7 +243,6 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new SubscriptionPlanDeletedEvent(Id, Name));
     }
 }

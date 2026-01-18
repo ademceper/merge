@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.DeleteWarehouse;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class DeleteWarehouseCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +21,6 @@ public class DeleteWarehouseCommandHandler(
     {
         logger.LogInformation("Deleting warehouse. WarehouseId: {WarehouseId}", request.Id);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var warehouse = await context.Set<Warehouse>()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
@@ -34,7 +30,6 @@ public class DeleteWarehouseCommandHandler(
             throw new NotFoundException("Depo", request.Id);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if warehouse has inventory
         var hasInventory = await context.Set<Inventory>()
             .AsNoTracking()
             .AnyAsync(i => i.WarehouseId == request.Id, cancellationToken);
@@ -45,11 +40,8 @@ public class DeleteWarehouseCommandHandler(
             throw new BusinessException("Envanteri olan bir depo silinemez. Önce envanteri transfer edin veya kaldırın.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         warehouse.MarkAsDeleted();
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Warehouse deleted successfully. WarehouseId: {WarehouseId}", request.Id);

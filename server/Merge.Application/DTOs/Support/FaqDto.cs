@@ -16,7 +16,6 @@ public record FaqDto(
     int SortOrder,
     int ViewCount,
     bool IsPublished,
-    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
     [property: JsonPropertyName("_links")]
     Dictionary<string, object>? Links = null
 );

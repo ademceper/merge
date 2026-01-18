@@ -20,7 +20,6 @@ public class AddressService(
     ILogger<AddressService> logger) : IAddressService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<AddressDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving address with ID: {AddressId}", id);
@@ -38,7 +37,6 @@ public class AddressService(
         return mapper.Map<AddressDto>(address);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<AddressDto>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
@@ -55,7 +53,6 @@ public class AddressService(
         return mapper.Map<IEnumerable<AddressDto>>(addresses);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<AddressDto> CreateAsync(CreateAddressDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
@@ -78,7 +75,6 @@ public class AddressService(
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (dto.IsDefault)
         {
-            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
@@ -94,7 +90,6 @@ public class AddressService(
             }
         }
 
-        // ✅ BOLUM 11.0: Rich Domain Model - Factory method kullan
         var address = AddressEntity.Create(
             userId: dto.UserId,
             title: dto.Title ?? string.Empty,
@@ -117,7 +112,6 @@ public class AddressService(
         return mapper.Map<AddressDto>(address);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<AddressDto> UpdateAsync(Guid id, UpdateAddressDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
@@ -147,7 +141,6 @@ public class AddressService(
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (dto.IsDefault && !address.IsDefault)
         {
-            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
                 .ToListAsync(cancellationToken);
@@ -163,8 +156,6 @@ public class AddressService(
             }
         }
 
-        // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
-        // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
         address.UpdateAddress(
             title: dto.Title ?? string.Empty,
             firstName: dto.FirstName,
@@ -194,7 +185,6 @@ public class AddressService(
         return mapper.Map<AddressDto>(address);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Deleting address with ID: {AddressId}", id);
@@ -214,7 +204,6 @@ public class AddressService(
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> SetDefaultAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
@@ -229,7 +218,6 @@ public class AddressService(
         }
 
         // Diğer adreslerin default'unu kaldır
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var existingDefaults = await context.Set<AddressEntity>()
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
             .ToListAsync(cancellationToken);

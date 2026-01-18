@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Update Banner DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record UpdateBannerDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Başlık en az 2, en fazla 200 karakter olmalıdır.")]

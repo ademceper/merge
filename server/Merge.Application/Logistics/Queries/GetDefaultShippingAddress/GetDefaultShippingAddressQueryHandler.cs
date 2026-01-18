@@ -12,9 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetDefaultShippingAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetDefaultShippingAddressQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -25,12 +22,10 @@ public class GetDefaultShippingAddressQueryHandler(
     {
         logger.LogInformation("Getting default shipping address. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var address = await context.Set<ShippingAddress>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == request.UserId && a.IsDefault && a.IsActive, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 }

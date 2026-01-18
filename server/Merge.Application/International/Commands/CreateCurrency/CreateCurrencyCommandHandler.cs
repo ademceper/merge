@@ -24,7 +24,7 @@ public class CreateCurrencyCommandHandler(
         logger.LogInformation("Creating currency. Code: {Code}, Name: {Name}", request.Code, request.Name);
 
         var exists = await context.Set<Currency>()
-            .AnyAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
+            .AnyAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
         if (exists)
         {

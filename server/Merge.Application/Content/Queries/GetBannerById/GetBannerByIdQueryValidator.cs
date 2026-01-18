@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Content.Queries.GetBannerById;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetBannerByIdQueryValidator : AbstractValidator<GetBannerByIdQuery>
 {
     public GetBannerByIdQueryValidator()

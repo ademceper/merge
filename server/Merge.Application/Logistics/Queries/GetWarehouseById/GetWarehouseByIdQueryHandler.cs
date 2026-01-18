@@ -12,9 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetWarehouseById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetWarehouseByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -25,12 +22,10 @@ public class GetWarehouseByIdQueryHandler(
     {
         logger.LogInformation("Getting warehouse. WarehouseId: {WarehouseId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return warehouse != null ? mapper.Map<WarehouseDto>(warehouse) : null;
     }
 }

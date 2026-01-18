@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.GetProductComparisonById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetProductComparisonByIdQuery(
     Guid Id
 ) : IRequest<ProductComparisonDto?>;

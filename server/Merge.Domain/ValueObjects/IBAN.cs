@@ -2,9 +2,7 @@ using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.ValueObjects;
 
-/// <summary>
-/// IBAN Value Object - BOLUM 1.3: Value Objects (ZORUNLU)
-/// </summary>
+
 public record IBAN
 {
     public string Value { get; }

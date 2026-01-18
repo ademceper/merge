@@ -13,18 +13,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetReviewHelpfulnessStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetReviewHelpfulnessStatsQueryHandler(IDbContext context, ILogger<GetReviewHelpfulnessStatsQueryHandler> logger) : IRequestHandler<GetReviewHelpfulnessStatsQuery, ReviewHelpfulnessStatsDto>
 {
 
     public async Task<ReviewHelpfulnessStatsDto> Handle(GetReviewHelpfulnessStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Fetching review helpfulness stats. ReviewId: {ReviewId}, UserId: {UserId}",
             request.ReviewId, request.UserId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
@@ -38,7 +35,6 @@ public class GetReviewHelpfulnessStatsQueryHandler(IDbContext context, ILogger<G
         bool? userVote = null;
         if (request.UserId.HasValue)
         {
-            // ✅ PERFORMANCE: AsNoTracking for read-only query
             var vote = await context.Set<ReviewHelpfulness>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId.Value, cancellationToken);

@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.TakeAction;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class TakeActionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<TakeActionCommandHandler> logger) : IRequestHandler<TakeActionCommand, bool>
 {
 
@@ -21,9 +20,7 @@ public class TakeActionCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
         if (securityEvent == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         securityEvent.TakeAction(request.ActionTakenByUserId, request.Action, request.Notes);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Security event action alındı. EventId: {EventId}, Action: {Action}, ActionTakenByUserId: {ActionTakenByUserId}",

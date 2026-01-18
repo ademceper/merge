@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetBestSellers;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetBestSellersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBestSellersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

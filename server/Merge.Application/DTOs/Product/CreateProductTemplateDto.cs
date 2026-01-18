@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.DTOs.Product;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
 public record CreateProductTemplateDto(
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Şablon adı en az 2, en fazla 200 karakter olmalıdır.")]

@@ -12,16 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Commands.UpdateUserSubscription;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateUserSubscriptionCommandHandler> logger) : IRequestHandler<UpdateUserSubscriptionCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateUserSubscriptionCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating user subscription. SubscriptionId: {SubscriptionId}", request.Id);
 
-        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
         var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.Id, cancellationToken);
 
@@ -30,7 +27,6 @@ public class UpdateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
             throw new NotFoundException("Abonelik", request.Id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (request.AutoRenew.HasValue)
         {
             subscription.UpdateAutoRenew(request.AutoRenew.Value);
@@ -41,10 +37,8 @@ public class UpdateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
             subscription.UpdatePaymentMethod(request.PaymentMethodId);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("User subscription updated successfully. SubscriptionId: {SubscriptionId}", subscription.Id);
 
         return true;

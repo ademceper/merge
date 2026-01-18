@@ -16,10 +16,7 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Queries.GetUserNotifications;
 
-/// <summary>
-/// Get User Notifications Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// BOLUM 3.4: Pagination (ZORUNLU)
-/// </summary>
+
 public class GetUserNotificationsQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetUserNotificationsQuery, PagedResult<NotificationDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -27,13 +24,11 @@ public class GetUserNotificationsQueryHandler(IDbContext context, IMapper mapper
 
     public async Task<PagedResult<NotificationDto>> Handle(GetUserNotificationsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
         IQueryable<NotificationEntity> query = context.Set<NotificationEntity>()
             .AsNoTracking()
             .Where(n => n.UserId == request.UserId);
@@ -51,7 +46,6 @@ public class GetUserNotificationsQueryHandler(IDbContext context, IMapper mapper
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var notificationDtos = mapper.Map<List<NotificationDto>>(notifications);
 
         return new PagedResult<NotificationDto>

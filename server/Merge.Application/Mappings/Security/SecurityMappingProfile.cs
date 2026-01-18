@@ -13,7 +13,6 @@ public class SecurityMappingProfile : Profile
     public SecurityMappingProfile()
     {
         // Security mappings
-        // ✅ BOLUM 1.2: Enum kullanımı (string EventType/Severity/Status YASAK) - Enum'ları string'e çevir
         CreateMap<OrderVerification, OrderVerificationDto>()
         .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => 
         src.Order != null ? src.Order.OrderNumber : string.Empty))
@@ -29,7 +28,6 @@ public class SecurityMappingProfile : Profile
         .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
         .AfterMap((src, dest) =>
         {
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.CheckResult = !string.IsNullOrEmpty(src.CheckResult)
         ? JsonSerializer.Deserialize<FraudDetectionMetadataDto>(src.CheckResult)
         : null;
@@ -44,7 +42,6 @@ public class SecurityMappingProfile : Profile
         .ForMember(dest => dest.Severity, opt => opt.MapFrom(src => src.Severity.ToString()))
         .AfterMap((src, dest) =>
         {
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Details = !string.IsNullOrEmpty(src.Details)
         ? JsonSerializer.Deserialize<SecurityEventMetadataDto>(src.Details)
         : null;
@@ -61,7 +58,6 @@ public class SecurityMappingProfile : Profile
         .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
         .AfterMap((src, dest) =>
         {
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Metadata = !string.IsNullOrEmpty(src.Metadata)
         ? JsonSerializer.Deserialize<SecurityEventMetadataDto>(src.Metadata)
         : null;

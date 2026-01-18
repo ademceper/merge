@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.ExportOrders;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ExportOrdersCommandHandler(IDbContext context, IMapper mapper, ILogger<ExportOrdersCommandHandler> logger) : IRequestHandler<ExportOrdersCommand, byte[]>
 {
 
@@ -36,7 +35,6 @@ public class ExportOrdersCommandHandler(IDbContext context, IMapper mapper, ILog
 
     private async Task<List<OrderDto>> GetOrdersForExportAsync(ExportOrdersCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = context.Set<OrderEntity>()
             .AsNoTracking()
             .AsSplitQuery()

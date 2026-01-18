@@ -14,21 +14,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetTicketStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTicketStatsQueryHandler(IDbContext context, IOptions<SupportSettings> settings) : IRequestHandler<GetTicketStatsQuery, TicketStatsDto>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<TicketStatsDto> Handle(GetTicketStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         var now = DateTime.UtcNow;
         var today = now.Date;
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         var weekAgo = now.AddDays(-supportConfig.WeeklyReportDays);
         var monthAgo = now.AddDays(-supportConfig.DefaultStatsPeriodDays);
 
@@ -41,7 +37,6 @@ public class GetTicketStatsQueryHandler(IDbContext context, IOptions<SupportSett
         var ticketsThisWeek = await query.CountAsync(t => t.CreatedAt >= weekAgo, cancellationToken);
         var ticketsThisMonth = await query.CountAsync(t => t.CreatedAt >= monthAgo, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de average hesapla
         var resolvedTicketsQuery = query.Where(t => t.ResolvedAt.HasValue);
         var avgResolutionTime = await resolvedTicketsQuery.AnyAsync(cancellationToken)
             ? await resolvedTicketsQuery
@@ -54,7 +49,6 @@ public class GetTicketStatsQueryHandler(IDbContext context, IOptions<SupportSett
                 .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours, cancellationToken)
             : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap
         var ticketsByCategory = await query
             .GroupBy(t => t.Category.ToString())
             .Select(g => new { Category = g.Key, Count = g.Count() })

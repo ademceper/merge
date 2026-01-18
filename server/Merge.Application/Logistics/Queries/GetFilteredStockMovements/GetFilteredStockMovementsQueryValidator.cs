@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Queries.GetFilteredStockMovements;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetFilteredStockMovementsQueryValidator : AbstractValidator<GetFilteredStockMovementsQuery>
 {
     public GetFilteredStockMovementsQueryValidator()

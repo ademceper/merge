@@ -12,10 +12,15 @@ using Merge.Application.Analytics.Queries.GetBestSellers;
 
 namespace Merge.API.Controllers.Analytics.Product;
 
+/// <summary>
+/// Product Analytics API endpoints.
+/// Ürün analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/products")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("ProductAnalytics")]
 public class ProductAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -36,8 +41,6 @@ public class ProductAnalyticsController(
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetProductAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
@@ -57,12 +60,9 @@ public class ProductAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetBestSellersQuery(limit);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
@@ -82,12 +82,9 @@ public class ProductAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetWorstPerformersQuery(limit);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);

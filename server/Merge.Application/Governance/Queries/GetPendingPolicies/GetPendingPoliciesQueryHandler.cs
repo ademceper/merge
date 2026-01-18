@@ -33,7 +33,6 @@ public class GetPendingPoliciesQueryHandler(
             {
                 logger.LogInformation("Cache miss for pending policies. UserId: {UserId}", request.UserId);
 
-                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
                 var pendingPoliciesQuery = context.Set<Policy>()
                     .AsNoTracking()
                     .Where(p => p.IsActive && 

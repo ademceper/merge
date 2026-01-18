@@ -17,7 +17,7 @@ public class OrderDto
     public string Status { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public List<OrderItemDto> OrderItems { get; set; } = new List<OrderItemDto>();
+    public List<OrderItemDto> OrderItems { get; set; } = [];
     public AddressDto Address { get; set; } = null!;
 }
 

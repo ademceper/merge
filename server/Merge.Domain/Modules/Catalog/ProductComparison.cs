@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductComparison : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MaxNameLength = 200;
@@ -23,7 +22,6 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         public const int ShareCodeLength = 8; // GenerateShareCode için kullanılan karakter sayısı
     }
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public User User { get; private set; } = null!;
     
@@ -55,7 +53,6 @@ public class ProductComparison : BaseEntity, IAggregateRoot
     
     public DateTime LastAccessedAt { get; private set; } = DateTime.UtcNow;
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -63,10 +60,8 @@ public class ProductComparison : BaseEntity, IAggregateRoot
     private readonly List<ProductComparisonItem> _items = new();
     public IReadOnlyCollection<ProductComparisonItem> Items => _items.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductComparison() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductComparison Create(
         Guid userId,
         string? name = null,
@@ -87,16 +82,13 @@ public class ProductComparison : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         comparison.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         comparison.AddDomainEvent(new ProductComparisonCreatedEvent(comparison.Id, userId, name, 0));
         
         return comparison;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add product
     public void AddProduct(Guid productId, int position = -1)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -106,7 +98,6 @@ public class ProductComparison : BaseEntity, IAggregateRoot
             throw new DomainException("Bu ürün zaten karşılaştırmada");
         }
         
-        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
         if (_items.Count >= ValidationConstants.MaxProductsInComparison)
         {
             throw new DomainException($"Karşılaştırmada en fazla {ValidationConstants.MaxProductsInComparison} ürün olabilir");
@@ -114,7 +105,6 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         
         var actualPosition = position >= 0 ? position : _items.Count;
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var item = ProductComparisonItem.Create(Id, productId, actualPosition);
         
         // EF Core will set ComparisonId automatically through navigation property
@@ -122,15 +112,12 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         LastAccessedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductComparisonUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün ekleme önemli bir business event'tir
         AddDomainEvent(new ProductComparisonUpdatedEvent(Id, UserId, _items.Count));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove product
     public void RemoveProduct(Guid productId)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -145,15 +132,12 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         LastAccessedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductComparisonUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün çıkarma önemli bir business event'tir
         AddDomainEvent(new ProductComparisonUpdatedEvent(Id, UserId, _items.Count));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Save comparison
     public void Save(string? name = null)
     {
         if (!string.IsNullOrEmpty(name))
@@ -166,57 +150,45 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         LastAccessedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductComparisonUpdatedEvent yayınla (ÖNERİLİR)
         // Karşılaştırma kaydetme önemli bir business event'tir
         AddDomainEvent(new ProductComparisonUpdatedEvent(Id, UserId, _items.Count));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Generate share code
     public void GenerateShareCode()
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
         // Generate a unique share code using ValidationConstants.ShareCodeLength
         var code = Guid.NewGuid().ToString("N")[..ValidationConstants.ShareCodeLength].ToUpperInvariant();
         ShareCode = code;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductComparisonUpdatedEvent yayınla (ÖNERİLİR)
         // Share code oluşturma önemli bir business event'tir
         AddDomainEvent(new ProductComparisonUpdatedEvent(Id, UserId, _items.Count));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Clear share code
     public void ClearShareCode()
     {
         ShareCode = null;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductComparisonUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductComparisonUpdatedEvent(Id, UserId, _items.Count));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update last accessed
     public void UpdateLastAccessed()
     {
         LastAccessedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
         // Note: LastAccessedAt güncellemesi için domain event gerekli değil (frequent operation)
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -224,14 +196,11 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductComparisonDeletedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == UserId)

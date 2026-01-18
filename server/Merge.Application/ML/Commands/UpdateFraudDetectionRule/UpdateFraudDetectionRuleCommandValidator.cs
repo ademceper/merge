@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.ML.Commands.UpdateFraudDetectionRule;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateFraudDetectionRuleCommandValidator : AbstractValidator<UpdateFraudDetectionRuleCommand>
 {
     public UpdateFraudDetectionRuleCommandValidator()

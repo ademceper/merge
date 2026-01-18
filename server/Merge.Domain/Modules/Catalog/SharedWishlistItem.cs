@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class SharedWishlistItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SharedWishlistId { get; private set; }
     public Guid ProductId { get; private set; }
     
@@ -47,7 +46,6 @@ public class SharedWishlistItem : BaseEntity
     public Guid? PurchasedBy { get; private set; }
     public DateTime? PurchasedAt { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -56,10 +54,8 @@ public class SharedWishlistItem : BaseEntity
     public Product Product { get; private set; } = null!;
     public User? PurchasedByUser { get; private set; }
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SharedWishlistItem() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SharedWishlistItem Create(
         Guid sharedWishlistId,
         Guid productId,
@@ -88,24 +84,20 @@ public class SharedWishlistItem : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         item.ValidateInvariants();
         
         return item;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update priority
     public void UpdatePriority(int newPriority)
     {
         Guard.AgainstOutOfRange(newPriority, 0, 3, nameof(newPriority));
         _priority = newPriority;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update note
     public void UpdateNote(string newNote)
     {
         if (newNote != null && newNote.Length > 500)
@@ -115,11 +107,9 @@ public class SharedWishlistItem : BaseEntity
         _note = newNote ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as purchased
     public void MarkAsPurchased(Guid purchasedBy)
     {
         Guard.AgainstDefault(purchasedBy, nameof(purchasedBy));
@@ -132,11 +122,9 @@ public class SharedWishlistItem : BaseEntity
         PurchasedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Unmark as purchased
     public void UnmarkAsPurchased()
     {
         if (!IsPurchased)
@@ -147,11 +135,9 @@ public class SharedWishlistItem : BaseEntity
         PurchasedAt = null;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -159,11 +145,9 @@ public class SharedWishlistItem : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == SharedWishlistId)

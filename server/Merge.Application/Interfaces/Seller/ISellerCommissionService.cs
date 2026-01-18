@@ -2,7 +2,6 @@ using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
 using Merge.Domain.Enums;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Seller;
 
 public interface ISellerCommissionService
@@ -10,7 +9,6 @@ public interface ISellerCommissionService
     // Commissions
     Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId, CancellationToken cancellationToken = default);
     Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default);
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, CommissionStatus? status = null, CancellationToken cancellationToken = default);
     Task<PagedResult<SellerCommissionDto>> GetAllCommissionsAsync(CommissionStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<bool> ApproveCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default);
@@ -31,7 +29,6 @@ public interface ISellerCommissionService
     Task<CommissionPayoutDto> RequestPayoutAsync(Guid sellerId, RequestPayoutDto dto, CancellationToken cancellationToken = default);
     Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId, CancellationToken cancellationToken = default);
     Task<IEnumerable<CommissionPayoutDto>> GetSellerPayoutsAsync(Guid sellerId, CancellationToken cancellationToken = default);
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     Task<PagedResult<CommissionPayoutDto>> GetAllPayoutsAsync(PayoutStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<bool> ProcessPayoutAsync(Guid payoutId, string transactionReference, CancellationToken cancellationToken = default);
     Task<bool> CompletePayoutAsync(Guid payoutId, CancellationToken cancellationToken = default);

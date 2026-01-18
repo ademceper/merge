@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.NotifyPreOrderAvailable;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class NotifyPreOrderAvailableCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -30,10 +28,8 @@ public class NotifyPreOrderAvailableCommandHandler(
             .Include(po => po.User)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null) return;
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder.NotificationSentAt is not null) return;
 
         await emailService.SendEmailAsync(

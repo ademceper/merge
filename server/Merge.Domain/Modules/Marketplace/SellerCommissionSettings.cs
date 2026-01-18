@@ -12,7 +12,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerCommissionSettings : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public decimal CustomCommissionRate { get; private set; } = 0; // Override default tier rate
     public bool UseCustomRate { get; private set; } = false;
@@ -23,10 +22,8 @@ public class SellerCommissionSettings : BaseEntity
     // Navigation properties
     public User Seller { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerCommissionSettings() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerCommissionSettings Create(
         Guid sellerId,
         decimal minimumPayoutAmount = 100)
@@ -45,7 +42,6 @@ public class SellerCommissionSettings : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update custom commission rate
     public void UpdateCustomCommissionRate(decimal commissionRate, bool useCustomRate)
     {
         Guard.AgainstNegative(commissionRate, nameof(commissionRate));
@@ -58,7 +54,6 @@ public class SellerCommissionSettings : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update minimum payout amount
     public void UpdateMinimumPayoutAmount(decimal minimumPayoutAmount)
     {
         Guard.AgainstNegativeOrZero(minimumPayoutAmount, nameof(minimumPayoutAmount));
@@ -67,7 +62,6 @@ public class SellerCommissionSettings : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update payment method
     public void UpdatePaymentMethod(string? paymentMethod, string? paymentDetails)
     {
         if (string.IsNullOrWhiteSpace(paymentMethod) && !string.IsNullOrWhiteSpace(paymentDetails))
@@ -78,7 +72,6 @@ public class SellerCommissionSettings : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if can request payout
     public bool CanRequestPayout(decimal availableBalance)
     {
         return availableBalance >= MinimumPayoutAmount;

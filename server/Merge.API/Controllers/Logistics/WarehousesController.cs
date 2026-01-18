@@ -16,10 +16,15 @@ using Merge.Application.Logistics.Commands.DeactivateWarehouse;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Warehouses API endpoints.
+/// Depo işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/warehouses")]
 [Authorize(Roles = "Admin")]
+[Tags("Warehouses")]
 public class WarehousesController(IMediator mediator) : BaseController
 {
     [HttpGet]
@@ -66,7 +71,7 @@ public class WarehousesController(IMediator mediator) : BaseController
         var warehouse = await mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(warehouse);
     }
@@ -86,7 +91,7 @@ public class WarehousesController(IMediator mediator) : BaseController
         var warehouse = await mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(warehouse);
     }
@@ -143,7 +148,7 @@ public class WarehousesController(IMediator mediator) : BaseController
         var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
         if (existingWarehouse == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var command = new UpdateWarehouseCommand(
@@ -187,7 +192,7 @@ public class WarehousesController(IMediator mediator) : BaseController
         var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
         if (existingWarehouse == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var command = new PatchWarehouseCommand(id, patchDto);

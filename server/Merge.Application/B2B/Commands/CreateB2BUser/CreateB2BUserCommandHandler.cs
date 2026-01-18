@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreateB2BUser;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateB2BUserCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -30,7 +28,6 @@ public class CreateB2BUserCommandHandler(
         logger.LogInformation("Creating B2B user for UserId: {UserId}, OrganizationId: {OrganizationId}",
             request.UserId, request.OrganizationId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
@@ -63,7 +60,6 @@ public class CreateB2BUserCommandHandler(
             throw new BusinessException("Kullanıcı zaten bu organizasyon için B2B kullanıcısı.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var b2bUser = B2BUser.Create(
             request.UserId,
             request.OrganizationId,
@@ -75,7 +71,6 @@ public class CreateB2BUserCommandHandler(
 
         if (request.Settings != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             b2bUser.UpdateSettings(JsonSerializer.Serialize(request.Settings, JsonOptions));
         }
 
@@ -90,7 +85,6 @@ public class CreateB2BUserCommandHandler(
             .Include(b => b.Organization)
             .FirstOrDefaultAsync(b => b.Id == b2bUser.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<B2BUserDto>(b2bUser!);
     }
 }

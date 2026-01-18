@@ -17,13 +17,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetDetailedPerformanceMetrics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetDetailedPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetDetailedPerformanceMetricsQueryHandler> logger) : IRequestHandler<GetDetailedPerformanceMetricsQuery, SellerPerformanceMetricsDto>
 {
 
     public async Task<SellerPerformanceMetricsDto> Handle(GetDetailedPerformanceMetricsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting detailed performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
@@ -31,8 +29,6 @@ public class GetDetailedPerformanceMetricsQueryHandler(IDbContext context, ILogg
         var previousStartDate = request.StartDate.AddDays(-periodDays);
         var previousEndDate = request.StartDate;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales metrics
         var totalSales = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -74,7 +70,6 @@ public class GetDetailedPerformanceMetricsQueryHandler(IDbContext context, ILogg
 
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
-        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var uniqueCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
@@ -84,7 +79,6 @@ public class GetDetailedPerformanceMetricsQueryHandler(IDbContext context, ILogg
             .Distinct()
             .CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
         var averageRating = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved &&

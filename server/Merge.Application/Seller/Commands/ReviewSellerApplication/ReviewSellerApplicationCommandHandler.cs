@@ -25,14 +25,12 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Seller.Commands.ReviewSellerApplication;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ReviewSellerApplicationCommandHandler(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, IOptions<SellerSettings> sellerSettings, ILogger<ReviewSellerApplicationCommandHandler> logger) : IRequestHandler<ReviewSellerApplicationCommand, SellerApplicationDto>
 {
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerApplicationDto> Handle(ReviewSellerApplicationCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Reviewing seller application {ApplicationId} by reviewer {ReviewerId}, Status: {Status}",
             request.ApplicationId, request.ReviewerId, request.Status);
 
@@ -47,7 +45,6 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
                 throw new NotFoundException("Başvuru", request.ApplicationId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (request.Status == SellerApplicationStatus.Approved)
             {
                 application.Approve(request.ReviewerId);
@@ -64,7 +61,6 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
             }
 
             await applicationRepository.UpdateAsync(application);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -116,14 +112,11 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
             return;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var profile = SellerProfile.Create(
             userId: application.UserId,
             storeName: application.BusinessName,
             commissionRate: sellerConfig.DefaultCommissionRate);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         profile.Verify();
         profile.Activate();
 

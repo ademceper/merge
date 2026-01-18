@@ -18,19 +18,15 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class Cart : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
     private readonly List<CartItem> _cartItems = [];
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
     // Navigation properties
     public User User { get; private set; } = null!;
     
-    // ✅ BOLUM 1.4: Aggregate Root Pattern - CartItem'lara sadece Cart üzerinden erişim
     public IReadOnlyCollection<CartItem> CartItems => _cartItems.AsReadOnly();
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -42,7 +38,6 @@ public class Cart : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -54,14 +49,11 @@ public class Cart : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Cart() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Cart Create(Guid userId, User user)
     {
         Guard.AgainstDefault(userId, nameof(userId));
@@ -75,18 +67,15 @@ public class Cart : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - CartCreatedEvent yayınla
         cart.AddDomainEvent(new CartCreatedEvent(cart.Id, userId));
 
         return cart;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Add item to cart
     public void AddItem(CartItem item, int? maxQuantity = null)
     {
         Guard.AgainstNull(item, nameof(item));
 
-        // ✅ BOLUM 1.6: Invariant Validation - Item must belong to this cart
         if (item.CartId != Id)
             throw new DomainException("CartItem bu sepete ait değil");
 
@@ -96,7 +85,6 @@ public class Cart : BaseEntity, IAggregateRoot
             ci.ProductVariantId == item.ProductVariantId &&
             !ci.IsDeleted);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (existingItem is not null)
         {
             // Update quantity instead of adding duplicate
@@ -105,7 +93,6 @@ public class Cart : BaseEntity, IAggregateRoot
             existingItem.UpdateQuantity(newQuantity, maxQuantity);
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events - CartItemQuantityUpdatedEvent yayınla (mevcut item güncellendi)
             AddDomainEvent(new CartItemQuantityUpdatedEvent(Id, existingItem.Id, item.ProductId, oldQuantity, newQuantity));
         }
         else
@@ -118,12 +105,10 @@ public class Cart : BaseEntity, IAggregateRoot
             _cartItems.Add(item);
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events - CartItemAddedEvent yayınla (yeni item eklendi)
             AddDomainEvent(new CartItemAddedEvent(Id, item.ProductId, item.Quantity));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update item quantity in cart
     public void UpdateItemQuantity(Guid cartItemId, int newQuantity, int? maxQuantity = null)
     {
         Guard.AgainstDefault(cartItemId, nameof(cartItemId));
@@ -131,38 +116,30 @@ public class Cart : BaseEntity, IAggregateRoot
 
         var item = _cartItems.FirstOrDefault(ci => ci.Id == cartItemId && !ci.IsDeleted);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (item is null)
             throw new DomainException($"Sepet öğesi bulunamadı: {cartItemId}");
 
         var oldQuantity = item.Quantity;
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         item.UpdateQuantity(newQuantity, maxQuantity);
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CartItemQuantityUpdatedEvent yayınla
         AddDomainEvent(new CartItemQuantityUpdatedEvent(Id, cartItemId, item.ProductId, oldQuantity, newQuantity));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Remove item from cart
-    // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı (modern C#)
     public void RemoveItem(Guid cartItemId)
     {
         var item = _cartItems.FirstOrDefault(ci => ci.Id == cartItemId && !ci.IsDeleted);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (item is null)
             throw new DomainException($"Sepet öğesi bulunamadı: {cartItemId}");
 
         item.MarkAsDeleted();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CartItemRemovedEvent yayınla
         AddDomainEvent(new CartItemRemovedEvent(Id, item.ProductId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Clear cart
     public void Clear()
     {
         foreach (var item in _cartItems.Where(ci => !ci.IsDeleted))
@@ -172,11 +149,9 @@ public class Cart : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CartClearedEvent yayınla
         AddDomainEvent(new CartClearedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate total amount (returns decimal for backward compatibility)
     public decimal CalculateTotalAmount()
     {
         return _cartItems
@@ -184,7 +159,6 @@ public class Cart : BaseEntity, IAggregateRoot
             .Sum(item => item.Quantity * item.Price);
     }
 
-    // ✅ BOLUM 1.3: Value Objects - Calculate total amount as Money Value Object using Money.Add
     public Money CalculateTotalAmountMoney(string currency = "TRY")
     {
         var total = Money.Zero(currency);
@@ -198,7 +172,6 @@ public class Cart : BaseEntity, IAggregateRoot
         return total;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Get item count
     public int GetItemCount()
     {
         return _cartItems.Count(item => !item.IsDeleted);

@@ -43,7 +43,6 @@ public class DeletePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
             if (hasOrders)
             {
                 // Soft delete - just deactivate
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 paymentMethod.Deactivate();
             }
             else

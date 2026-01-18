@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Search Click Recorded Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class SearchClickRecordedEventHandler(
     ILogger<SearchClickRecordedEventHandler> logger) : INotificationHandler<SearchClickRecordedEvent>
 {
 
     public async Task Handle(SearchClickRecordedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Search click recorded event received. SearchHistoryId: {SearchHistoryId}, ProductId: {ProductId}, UserId: {UserId}, SearchTerm: {SearchTerm}",
             notification.SearchHistoryId, notification.ProductId, notification.UserId, notification.SearchTerm);
@@ -32,7 +28,6 @@ public class SearchClickRecordedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling SearchClickRecordedEvent. SearchHistoryId: {SearchHistoryId}, ProductId: {ProductId}",
                 notification.SearchHistoryId, notification.ProductId);

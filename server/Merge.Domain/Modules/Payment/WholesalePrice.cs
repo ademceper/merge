@@ -18,13 +18,11 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class WholesalePrice : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Guid? OrganizationId { get; private set; } // Organization-specific pricing
     public int MinQuantity { get; private set; } // Minimum quantity for this price tier
     public int? MaxQuantity { get; private set; } // Maximum quantity (null = unlimited)
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing field
     private decimal _price;
     
     // Database column (EF Core mapping)
@@ -38,7 +36,6 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money PriceMoney => new Money(_price);
     
@@ -46,7 +43,6 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -54,10 +50,8 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
     public Product Product { get; private set; } = null!;
     public Organization? Organization { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private WholesalePrice() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static WholesalePrice Create(
         Guid productId,
         Product product,
@@ -75,7 +69,6 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         Guard.AgainstNegativeOrZero(minQuantity, nameof(minQuantity));
         Guard.AgainstNegativeOrZero(price, nameof(price));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (maxQuantity.HasValue && maxQuantity.Value < minQuantity)
             throw new DomainException("Maksimum miktar minimum miktardan küçük olamaz");
 
@@ -98,7 +91,6 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Created
         wholesalePrice.AddDomainEvent(new WholesalePriceCreatedEvent(
             wholesalePrice.Id,
             productId,
@@ -110,23 +102,19 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         return wholesalePrice;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update price
     public void UpdatePrice(decimal newPrice)
     {
         Guard.AgainstNegativeOrZero(newPrice, nameof(newPrice));
         Price = newPrice;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
         AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, newPrice));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity range
     public void UpdateQuantityRange(int minQuantity, int? maxQuantity)
     {
         Guard.AgainstNegativeOrZero(minQuantity, nameof(minQuantity));
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (maxQuantity.HasValue && maxQuantity.Value < minQuantity)
             throw new DomainException("Maksimum miktar minimum miktardan küçük olamaz");
 
@@ -134,17 +122,14 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         MaxQuantity = maxQuantity;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
         AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, Price));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
     public void Activate()
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Activated
         AddDomainEvent(new WholesalePriceActivatedEvent(Id, ProductId, OrganizationId));
     }
 
@@ -153,14 +138,11 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Deactivated
         AddDomainEvent(new WholesalePriceDeactivatedEvent(Id, ProductId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update dates
     public void UpdateDates(DateTime? startDate, DateTime? endDate)
     {
-        // ✅ BOLUM 1.6: Invariant validation
         if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
             throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
 
@@ -168,11 +150,9 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         EndDate = endDate;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
         AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, Price));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -181,7 +161,6 @@ public class WholesalePrice : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Deleted
         AddDomainEvent(new WholesalePriceDeletedEvent(Id, ProductId, OrganizationId));
     }
 }

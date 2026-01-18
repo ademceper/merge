@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Inventory;
 /// </summary>
 public class PickPackItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid PickPackId { get; private set; }
     public Guid OrderItemId { get; private set; }
     public Guid ProductId { get; private set; }
@@ -40,10 +39,8 @@ public class PickPackItem : BaseEntity
     public OrderItem OrderItem { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PickPackItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PickPackItem Create(
         Guid pickPackId,
         Guid orderItemId,
@@ -70,7 +67,6 @@ public class PickPackItem : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as picked
     public void MarkAsPicked()
     {
         if (IsPicked) return;
@@ -80,7 +76,6 @@ public class PickPackItem : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as packed
     public void MarkAsPacked()
     {
         if (!IsPicked)
@@ -93,14 +88,12 @@ public class PickPackItem : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update location
     public void UpdateLocation(string? location)
     {
         Location = location;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;

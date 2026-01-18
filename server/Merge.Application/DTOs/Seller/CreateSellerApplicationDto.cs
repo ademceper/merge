@@ -6,8 +6,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Seller;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
-// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
 public record CreateSellerApplicationDto
 {
     [Required]
@@ -15,7 +13,6 @@ public record CreateSellerApplicationDto
     public string BusinessName { get; init; } = string.Empty;
     
     [Required]
-    // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public BusinessType BusinessType { get; init; }
     
     [Required]

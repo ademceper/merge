@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetProductWholesalePrices;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetProductWholesalePricesQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -29,13 +27,9 @@ public class GetProductWholesalePricesQueryHandler(
 
     public async Task<PagedResult<WholesalePriceDto>> Handle(GetProductWholesalePricesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
-        // ✅ PERFORMANCE: Removed manual !wp.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<WholesalePrice>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
@@ -52,7 +46,6 @@ public class GetProductWholesalePricesQueryHandler(
             query = query.Where(wp => wp.OrganizationId == null); // General pricing
         }
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
 
         var prices = await query
@@ -61,10 +54,8 @@ public class GetProductWholesalePricesQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = mapper.Map<List<WholesalePriceDto>>(prices);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<WholesalePriceDto>
         {
             Items = items,

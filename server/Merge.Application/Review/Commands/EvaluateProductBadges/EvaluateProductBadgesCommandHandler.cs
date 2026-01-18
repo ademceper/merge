@@ -18,7 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.EvaluateProductBadges;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateProductBadgesCommandHandler> logger) : IRequestHandler<EvaluateProductBadgesCommand>
 {
 
@@ -26,20 +25,17 @@ public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator m
     {
         logger.LogInformation("Evaluating product badges. ProductId: {ProductId}", request.ProductId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Product")
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
         if (product == null) return;
 
-        // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get product metrics
         var totalSales = await context.Set<OrderItem>()
             .AsNoTracking()
@@ -76,13 +72,11 @@ public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator m
 
             if (qualifies)
             {
-                // ✅ PERFORMANCE: Removed manual !ptb.IsDeleted (Global Query Filter)
                 var existing = await context.Set<ProductTrustBadge>()
                     .FirstOrDefaultAsync(ptb => ptb.ProductId == request.ProductId && ptb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
                 {
-                    // ✅ BOLUM 2.0: MediatR + CQRS pattern - Command çağrısı
                     var awardCommand = new AwardProductBadgeCommand(
                         request.ProductId,
                         badge.Id,

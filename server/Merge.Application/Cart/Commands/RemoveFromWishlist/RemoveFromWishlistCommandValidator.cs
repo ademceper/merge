@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.RemoveFromWishlist;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RemoveFromWishlistCommandValidator : AbstractValidator<RemoveFromWishlistCommand>
 {
     public RemoveFromWishlistCommandValidator()

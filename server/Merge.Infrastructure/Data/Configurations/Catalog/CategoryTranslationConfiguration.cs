@@ -4,21 +4,17 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Infrastructure.Data.Configurations.Catalog;
 
-/// <summary>
-/// CategoryTranslation Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class CategoryTranslationConfiguration : IEntityTypeConfiguration<CategoryTranslation>
 {
     public void Configure(EntityTypeBuilder<CategoryTranslation> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.CategoryId);
         builder.HasIndex(e => e.LanguageId);
         builder.HasIndex(e => e.LanguageCode);
         builder.HasIndex(e => new { e.CategoryId, e.LanguageId }).IsUnique();
         builder.HasIndex(e => new { e.CategoryId, e.LanguageCode }).IsUnique();
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);

@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Redeem Points DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record RedeemPointsDto
 {
     [Required(ErrorMessage = "Points value is required")]

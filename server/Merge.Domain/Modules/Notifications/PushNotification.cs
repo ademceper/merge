@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Notifications;
 /// </summary>
 public class PushNotification : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // Null for broadcast notifications
     public Guid? DeviceId { get; private set; } // Specific device, null for all user devices
     
@@ -60,10 +59,8 @@ public class PushNotification : BaseEntity, IAggregateRoot
     
     public string? Data { get; private set; } // JSON data payload
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status yerine)
     public CommunicationStatus Status { get; private set; } = CommunicationStatus.Pending;
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string NotificationType yerine)
     public NotificationType NotificationType { get; private set; }
     
     public DateTime? SentAt { get; private set; }
@@ -83,7 +80,6 @@ public class PushNotification : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -91,10 +87,8 @@ public class PushNotification : BaseEntity, IAggregateRoot
     public User? User { get; private set; }
     public PushNotificationDevice? Device { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PushNotification() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PushNotification Create(
         NotificationType notificationType,
         string title,
@@ -127,7 +121,6 @@ public class PushNotification : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationCreatedEvent
         pushNotification.AddDomainEvent(new PushNotificationCreatedEvent(
             pushNotification.Id, 
             userId, 
@@ -138,7 +131,6 @@ public class PushNotification : BaseEntity, IAggregateRoot
         return pushNotification;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as sent
     public void MarkAsSent()
     {
         if (Status == CommunicationStatus.Sent)
@@ -148,11 +140,9 @@ public class PushNotification : BaseEntity, IAggregateRoot
         SentAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationSentEvent
         AddDomainEvent(new PushNotificationSentEvent(Id, UserId, SentAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as delivered
     public void MarkAsDelivered()
     {
         if (Status == CommunicationStatus.Delivered)
@@ -165,11 +155,9 @@ public class PushNotification : BaseEntity, IAggregateRoot
         DeliveredAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationDeliveredEvent
         AddDomainEvent(new PushNotificationDeliveredEvent(Id, UserId, DeliveredAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as failed
     public void MarkAsFailed(string errorMessage)
     {
         Guard.AgainstNullOrEmpty(errorMessage, nameof(errorMessage));
@@ -179,21 +167,17 @@ public class PushNotification : BaseEntity, IAggregateRoot
         _errorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationFailedEvent
         AddDomainEvent(new PushNotificationFailedEvent(Id, UserId, errorMessage));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as bounced
     public void MarkAsBounced()
     {
         Status = CommunicationStatus.Bounced;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationBouncedEvent
         AddDomainEvent(new PushNotificationBouncedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete notification (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -202,7 +186,6 @@ public class PushNotification : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PushNotificationDeletedEvent
         AddDomainEvent(new PushNotificationDeletedEvent(Id, UserId));
     }
 }

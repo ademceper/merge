@@ -20,13 +20,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.AddMessage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, ILogger<AddMessageCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<AddMessageCommand, TicketMessageDto>
 {
 
     public async Task<TicketMessageDto> Handle(AddMessageCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Adding message to ticket {TicketId} from user {UserId}. IsStaffResponse: {IsStaffResponse}",
             request.TicketId, request.UserId, request.IsStaffResponse);
 
@@ -42,7 +40,6 @@ public class AddMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
         var oldStatus = ticket.Status;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var message = TicketMessage.Create(
             request.TicketId,
             ticket.TicketNumber,
@@ -53,11 +50,9 @@ public class AddMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
         await context.Set<TicketMessage>().AddAsync(message, cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         ticket.AddMessage();
         ticket.UpdateStatusOnMessage(request.IsStaffResponse);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Message added to ticket {TicketNumber}. Response count: {ResponseCount}, Status: {OldStatus} -> {NewStatus}",
@@ -78,20 +73,17 @@ public class AddMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             }
             catch (Exception ex)
             {
-                // ✅ BOLUM 2.1: Exception handling - Log ve throw (YASAK: Exception yutulmamalı)
                 logger.LogError(ex, "Failed to send response notification for ticket {TicketNumber}", ticket.TicketNumber);
                 // Exception'ı yutmayız, sadece loglarız - mesaj eklendi, email gönderilemedi
             }
         }
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         message = await context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
             .Include(m => m.Attachments)
             .FirstOrDefaultAsync(m => m.Id == message.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<TicketMessageDto>(message!);
     }
 }

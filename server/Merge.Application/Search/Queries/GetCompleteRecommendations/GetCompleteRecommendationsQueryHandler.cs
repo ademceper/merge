@@ -9,18 +9,15 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Search.Queries.GetCompleteRecommendations;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetCompleteRecommendationsQueryHandler(IMediator mediator, ILogger<GetCompleteRecommendationsQueryHandler> logger) : IRequestHandler<GetCompleteRecommendationsQuery, PersonalizedRecommendationsDto>
 {
 
     public async Task<PersonalizedRecommendationsDto> Handle(GetCompleteRecommendationsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Complete recommendations isteniyor. UserId: {UserId}",
             request.UserId);
 
-        // ✅ BOLUM 2.0: MediatR - Handler içinde diğer query'leri çağır
         var forYouQuery = new GetPersonalizedRecommendationsQuery(request.UserId, 10);
         var basedOnHistoryQuery = new GetBasedOnViewHistoryQuery(request.UserId, 10);
         var trendingQuery = new GetTrendingProductsQuery(7, 10);
@@ -31,7 +28,6 @@ public class GetCompleteRecommendationsQueryHandler(IMediator mediator, ILogger<
         var trending = await mediator.Send(trendingQuery, cancellationToken);
         var bestSellers = await mediator.Send(bestSellersQuery, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Complete recommendations tamamlandı. UserId: {UserId}, ForYouCount: {ForYouCount}, BasedOnHistoryCount: {BasedOnHistoryCount}, TrendingCount: {TrendingCount}, BestSellersCount: {BestSellersCount}",
             request.UserId, forYou.Count, basedOnHistory.Count, trending.Count, bestSellers.Count);

@@ -17,20 +17,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.CreateKnowledgeBaseArticle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateKnowledgeBaseArticleCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<CreateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseArticleDto> Handle(CreateKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating knowledge base article. Title: {Title}, AuthorId: {AuthorId}, Status: {Status}",
             request.Title, request.AuthorId, request.Status);
 
         var slug = GenerateSlug(request.Title);
 
-        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Ensure unique slug
         var existingSlug = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
@@ -41,7 +38,6 @@ public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var article = KnowledgeBaseArticle.Create(
             request.Title,
             slug,
@@ -56,20 +52,17 @@ public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
 
         await context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Knowledge base article {ArticleId} created successfully. Title: {Title}, Slug: {Slug}",
             article.Id, request.Title, slug);
 
-        // ✅ PERFORMANCE: Reload with includes for mapping
         article = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
@@ -99,7 +92,6 @@ public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
         // Remove leading/trailing dashes
         slug = slug.Trim('-');
 
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
         if (slug.Length > supportConfig.MaxArticleSlugLength)
         {
             slug = slug.Substring(0, supportConfig.MaxArticleSlugLength);

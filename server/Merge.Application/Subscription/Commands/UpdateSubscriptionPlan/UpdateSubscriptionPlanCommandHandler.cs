@@ -13,16 +13,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Commands.UpdateSubscriptionPlan;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateSubscriptionPlanCommandHandler> logger) : IRequestHandler<UpdateSubscriptionPlanCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateSubscriptionPlanCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating subscription plan. PlanId: {PlanId}", request.Id);
 
-        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
         var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
@@ -31,7 +28,6 @@ public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
             throw new NotFoundException("Abonelik planı", request.Id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         var wasActive = plan.IsActive;
         
         plan.Update(
@@ -48,7 +44,6 @@ public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
             setupFee: request.SetupFee,
             currency: request.Currency);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - IsActive değiştiğinde domain method'ları çağır
         if (request.IsActive.HasValue)
         {
             if (request.IsActive.Value && !wasActive)
@@ -61,10 +56,8 @@ public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
             }
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Subscription plan updated successfully. PlanId: {PlanId}, Name: {Name}",
             plan.Id, plan.Name);
 

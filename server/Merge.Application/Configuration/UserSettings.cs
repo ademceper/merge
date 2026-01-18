@@ -1,9 +1,7 @@
 using Merge.Domain.Modules.Identity;
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// User domain ayarları - Magic number'ları config'e taşıma (BOLUM 12.0)
-/// </summary>
+
 public class UserSettings
 {
     public const string SectionName = "UserSettings";

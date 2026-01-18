@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetOrganizationB2BUsersQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -31,7 +29,6 @@ public class GetOrganizationB2BUsersQueryHandler(
         logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.OrganizationId, request.Status, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
@@ -43,14 +40,12 @@ public class GetOrganizationB2BUsersQueryHandler(
 
         if (!string.IsNullOrEmpty(request.Status))
         {
-            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<EntityStatus>(request.Status, true, out var statusEnum))
             {
                 query = query.Where(b => b.Status == statusEnum);
             }
         }
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
 
         var b2bUsers = await query
@@ -59,10 +54,8 @@ public class GetOrganizationB2BUsersQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = mapper.Map<List<B2BUserDto>>(b2bUsers);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<B2BUserDto>
         {
             Items = items,

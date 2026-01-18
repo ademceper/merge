@@ -12,13 +12,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Queries.GetOrderSplits;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetOrderSplitsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetOrderSplitsQuery, IEnumerable<OrderSplitDto>>
 {
 
     public async Task<IEnumerable<OrderSplitDto>> Handle(GetOrderSplitsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var splits = await context.Set<OrderSplit>()
             .AsNoTracking()
             .AsSplitQuery()

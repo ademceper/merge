@@ -13,10 +13,15 @@ using Merge.Application.Logistics.Commands.SetDefaultShippingAddress;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Shipping Addresses API endpoints.
+/// Kargo adreslerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/shipping-addresses")]
 [Authorize]
+[Tags("ShippingAddresses")]
 public class ShippingAddressesController(IMediator mediator) : BaseController
 {
     [HttpGet]
@@ -48,7 +53,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(query, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(address);
     }
@@ -69,7 +74,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(query, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -133,7 +138,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -185,7 +190,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -227,7 +232,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         var address = await mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))

@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.DeleteEmailTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class DeleteEmailTemplateCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -20,7 +18,6 @@ public class DeleteEmailTemplateCommandHandler(
 {
     public async Task<bool> Handle(DeleteEmailTemplateCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await context.Set<EmailTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
@@ -29,14 +26,10 @@ public class DeleteEmailTemplateCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-        // ✅ BOLUM 1.3: Soft Delete (ZORUNLU)
         template.MarkAsDeleted();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Email template silindi. TemplateId: {TemplateId}",
             request.Id);

@@ -11,7 +11,6 @@ public class GovernanceMappingProfile : Profile
     public GovernanceMappingProfile()
     {
         // Governance mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Governance mappings
         CreateMap<Policy, PolicyDto>()
         .ConstructUsing(src => new PolicyDto(
@@ -44,7 +43,6 @@ public class GovernanceMappingProfile : Profile
         src.AcceptedAt,
         src.IsActive));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // AuditLog mapping
         CreateMap<AuditLog, AuditLogDto>()
         .ConstructUsing(src => new AuditLogDto(

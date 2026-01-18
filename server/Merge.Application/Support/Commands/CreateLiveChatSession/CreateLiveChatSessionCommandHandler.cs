@@ -15,20 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.CreateLiveChatSession;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateLiveChatSessionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateLiveChatSessionCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<CreateLiveChatSessionCommand, LiveChatSessionDto>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<LiveChatSessionDto> Handle(CreateLiveChatSessionCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating live chat session. UserId: {UserId}, GuestName: {GuestName}, Department: {Department}",
             request.UserId, request.GuestName, request.Department);
 
         var sessionId = GenerateSessionId();
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var session = LiveChatSession.Create(
             sessionId,
             request.UserId,
@@ -40,12 +37,10 @@ public class CreateLiveChatSessionCommandHandler(IDbContext context, IUnitOfWork
 
         await context.Set<LiveChatSession>().AddAsync(session, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Live chat session {SessionId} created successfully", sessionId);
 
-        // ✅ PERFORMANCE: Reload with includes for mapping
         session = await context.Set<LiveChatSession>()
             .AsNoTracking()
             .Include(s => s.User)
@@ -53,7 +48,6 @@ public class CreateLiveChatSessionCommandHandler(IDbContext context, IUnitOfWork
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(supportConfig.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.Id == session.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<LiveChatSessionDto>(session!);
     }
 

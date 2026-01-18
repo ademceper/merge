@@ -1,6 +1,5 @@
 using Merge.Application.DTOs.Analytics;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.ML;
 
 public interface IDemandForecastingService

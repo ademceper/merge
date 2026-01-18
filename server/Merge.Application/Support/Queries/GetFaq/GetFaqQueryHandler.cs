@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetFaq;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetFaqQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetFaqQuery, FaqDto?>
 {
 
     public async Task<FaqDto?> Handle(GetFaqQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
         var faq = await context.Set<FAQ>()
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);

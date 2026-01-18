@@ -1,8 +1,6 @@
 namespace Merge.Domain.Enums;
 
-/// <summary>
-/// Alert Type Enum - BOLUM 1.2: Enum kullanımı (string AlertType YASAK)
-/// </summary>
+
 public enum AlertType
 {
     Account = 0,

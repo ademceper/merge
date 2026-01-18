@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetProductAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetProductAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetProductAnalyticsQueryHandler> logger,
@@ -29,9 +27,6 @@ public class GetProductAnalyticsQueryHandler(
         logger.LogInformation("Fetching product analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (tüm ürünleri çekmek yerine)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
         var totalProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
@@ -44,7 +39,6 @@ public class GetProductAnalyticsQueryHandler(
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity == 0, cancellationToken);
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var lowStock = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < settings.Value.LowStockThreshold, cancellationToken);

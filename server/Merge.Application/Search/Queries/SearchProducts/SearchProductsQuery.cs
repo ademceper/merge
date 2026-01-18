@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Search;
 
 namespace Merge.Application.Search.Queries.SearchProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record SearchProductsQuery(
     string? SearchTerm = null,
     Guid? CategoryId = null,

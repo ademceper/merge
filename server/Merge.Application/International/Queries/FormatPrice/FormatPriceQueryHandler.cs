@@ -21,7 +21,7 @@ public class FormatPriceQueryHandler(
 
         var currency = await context.Set<Currency>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.CurrencyCode.ToUpper(), cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode), cancellationToken);
 
         if (currency == null)
         {

@@ -29,7 +29,6 @@ public record CustomerCommunicationDto(
     /// Typed DTO (Over-posting korumasi)
     CustomerCommunicationSettingsDto? Metadata,
     DateTime CreatedAt,
-    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
     [property: JsonPropertyName("_links")]
     Dictionary<string, object>? Links = null
 );

@@ -15,15 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Commands.UpdatePreference;
 
-/// <summary>
-/// Update Preference Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UpdatePreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdatePreferenceCommandHandler> logger) : IRequestHandler<UpdatePreferenceCommand, NotificationPreferenceDto>
 {
 
     public async Task<NotificationPreferenceDto> Handle(UpdatePreferenceCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == request.UserId && 
                                       np.NotificationType == request.NotificationType && 
@@ -34,20 +31,16 @@ public class UpdatePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
             throw new NotFoundException("Tercih", Guid.Empty);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         preference.Update(
             request.Dto.IsEnabled ?? preference.IsEnabled,
             request.Dto.CustomSettings != null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : preference.CustomSettings);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Notification preference güncellendi. UserId: {UserId}, NotificationType: {NotificationType}, Channel: {Channel}",
             request.UserId, request.NotificationType, request.Channel);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<NotificationPreferenceDto>(preference);
     }
 }

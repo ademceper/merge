@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.UpdateCMSPage;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateCMSPageCommandValidator : AbstractValidator<UpdateCMSPageCommand>
 {
     public UpdateCMSPageCommandValidator()

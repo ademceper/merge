@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetSimilarProducts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSimilarProductsQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetSimilarProductsQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

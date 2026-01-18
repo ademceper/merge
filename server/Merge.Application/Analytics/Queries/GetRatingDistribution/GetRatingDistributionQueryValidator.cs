@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetRatingDistribution;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRatingDistributionQueryValidator : AbstractValidator<GetRatingDistributionQuery>
 {
     public GetRatingDistributionQueryValidator()

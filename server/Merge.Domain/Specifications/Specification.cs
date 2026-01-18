@@ -12,8 +12,8 @@ public abstract class Specification<T> : ISpecification<T>
 {
     protected Specification()
     {
-        Includes = new List<Expression<Func<T, object>>>();
-        IncludeStrings = new List<string>();
+        Includes = [];
+        IncludeStrings = [];
         IsNoTracking = true; // ✅ BOLUM 6.1: Default olarak AsNoTracking (read-only queries için)
     }
 

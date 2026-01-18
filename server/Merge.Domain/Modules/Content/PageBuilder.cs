@@ -17,9 +17,7 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class PageBuilder : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
     public Slug Slug { get; private set; } = null!;
     public string Title { get; private set; } = string.Empty;
     public string Content { get; private set; } = string.Empty; // JSON content for page builder
@@ -36,14 +34,11 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     public string? PageType { get; private set; } // Home, Category, Product, Custom
     public Guid? RelatedEntityId { get; private set; } // Related category/product ID if applicable
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PageBuilder() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PageBuilder Create(
         string name,
         string title,
@@ -61,14 +56,12 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(content, nameof(content));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxPageBuilderNameLength=200, MaxPageBuilderTitleLength=200, MaxPageBuilderContentLength=50000, MaxPageTypeLength=50
         Guard.AgainstLength(name, 200, nameof(name));
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstLength(content, 50000, nameof(content));
         if (!string.IsNullOrEmpty(pageType))
             Guard.AgainstLength(pageType, 50, nameof(pageType));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxTemplateNameLength=100, MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
         if (template != null)
             Guard.AgainstLength(template, 100, nameof(template));
@@ -77,10 +70,8 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         if (metaDescription != null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
 
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
 
-        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
         if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
         {
             throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
@@ -107,7 +98,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
             UpdatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ÖNERİLİR)
         pageBuilder.AddDomainEvent(new PageBuilderCreatedEvent(
             pageBuilder.Id,
             pageBuilder.Name,
@@ -117,11 +107,9 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         return pageBuilder;
     }
 
-    // ✅ BOLUM 1.1: Domain Methods - Business logic encapsulation
     public void UpdateName(string name)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxPageBuilderNameLength=200
         Guard.AgainstLength(name, 200, nameof(name));
         Name = name;
@@ -132,7 +120,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     public void UpdateSlug(string slug)
     {
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(slug);
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
@@ -141,7 +128,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     public void UpdateTitle(string title)
     {
         Guard.AgainstNullOrEmpty(title, nameof(title));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxPageBuilderTitleLength=200
         Guard.AgainstLength(title, 200, nameof(title));
         Title = title;
@@ -152,7 +138,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     public void UpdateContent(string content)
     {
         Guard.AgainstNullOrEmpty(content, nameof(content));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxPageBuilderContentLength=50000
         Guard.AgainstLength(content, 50000, nameof(content));
         Content = content;
@@ -162,7 +147,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
 
     public void UpdateTemplate(string? template)
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxTemplateNameLength=100
         if (template != null)
             Guard.AgainstLength(template, 100, nameof(template));
@@ -197,7 +181,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
 
     public void UpdatePageType(string? pageType)
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxPageTypeLength=50
         if (!string.IsNullOrEmpty(pageType))
             Guard.AgainstLength(pageType, 50, nameof(pageType));
@@ -215,13 +198,11 @@ public class PageBuilder : BaseEntity, IAggregateRoot
 
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? ogImageUrl)
     {
-        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
         if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
         {
             throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
         }
         
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
         if (metaTitle != null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
@@ -286,7 +267,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - PageBuilderViewedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new PageBuilderViewedEvent(Id, Name, ViewCount));
     }
 
@@ -298,7 +278,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         AddDomainEvent(new PageBuilderDeletedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Restore deleted page builder
     public void Restore()
     {
         if (!IsDeleted) return;
@@ -307,7 +286,6 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         AddDomainEvent(new PageBuilderRestoredEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.3: URL Validation Helper Method
     private static bool IsValidUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))

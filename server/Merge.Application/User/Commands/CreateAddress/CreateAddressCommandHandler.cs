@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.CreateAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateAddressCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -25,7 +24,6 @@ public class CreateAddressCommandHandler(
 
     public async Task<AddressDto> Handle(CreateAddressCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Creating new address for user ID: {UserId}", request.UserId);
 
@@ -47,7 +45,6 @@ public class CreateAddressCommandHandler(
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var address = AddressEntity.Create(
             userId: request.UserId,
             title: request.Title,
@@ -64,13 +61,10 @@ public class CreateAddressCommandHandler(
 
         await context.Set<AddressEntity>().AddAsync(address, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<AddressDto>(address);
     }
 }

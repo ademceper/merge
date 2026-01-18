@@ -1,8 +1,6 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// Pagination ayarları - Magic number'ları config'e taşıma (BOLUM 12.0)
-/// </summary>
+
 public class PaginationSettings
 {
     public const string SectionName = "PaginationSettings";

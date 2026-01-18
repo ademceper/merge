@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.ExportProductsToJson;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class ExportProductsToJsonQueryValidator : AbstractValidator<ExportProductsToJsonQuery>
 {
     public ExportProductsToJsonQueryValidator()

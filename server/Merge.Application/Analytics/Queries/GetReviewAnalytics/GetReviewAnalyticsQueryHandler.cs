@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReviewAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReviewAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetReviewAnalyticsQueryHandler> logger,
@@ -30,9 +28,6 @@ public class GetReviewAnalyticsQueryHandler(
         logger.LogInformation("Fetching review analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var reviewsQuery = context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.CreatedAt >= request.StartDate && r.CreatedAt <= request.EndDate);
@@ -52,8 +47,6 @@ public class GetReviewAnalyticsQueryHandler(
         var helpfulPercentage = totalVotes > 0 ? (decimal)helpfulVotes / totalVotes * 100 : 0;
 
         // Reviews with media - Database'de count
-        // ✅ PERFORMANCE: Removed manual !rm.IsDeleted check (Global Query Filter handles it)
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var reviewIdsSubquery = from r in reviewsQuery select r.Id;
         var reviewsWithMedia = await context.Set<ReviewMedia>()
             .AsNoTracking()
@@ -62,7 +55,6 @@ public class GetReviewAnalyticsQueryHandler(
             .Distinct()
             .CountAsync(cancellationToken);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new ReviewAnalyticsDto(
             request.StartDate,
             request.EndDate,
@@ -76,7 +68,6 @@ public class GetReviewAnalyticsQueryHandler(
             Math.Round(helpfulPercentage, 2),
             await GetRatingDistributionAsync(request.StartDate, request.EndDate, cancellationToken),
             await GetReviewTrendsAsync(request.StartDate, request.EndDate, cancellationToken),
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
             await GetTopReviewedProductsAsync(settings.Value.MaxQueryLimit, cancellationToken),
             await GetTopReviewersAsync(settings.Value.MaxQueryLimit, cancellationToken)
         );
@@ -106,7 +97,6 @@ public class GetReviewAnalyticsQueryHandler(
         var rating4Count = await query.CountAsync(r => r.Rating == 4, cancellationToken);
         var rating5Count = await query.CountAsync(r => r.Rating == 5, cancellationToken);
 
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - 5 eleman biliniyor (rating 1-5)
         return new List<RatingDistributionDto>(5)
         {
             new RatingDistributionDto(1, rating1Count, total > 0 ? Math.Round((decimal)rating1Count / total * 100, 2) : 0),

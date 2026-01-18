@@ -17,14 +17,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetFrequentlyBoughtTogether;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetFrequentlyBoughtTogetherQueryHandler(IDbContext context, IMapper mapper, ILogger<GetFrequentlyBoughtTogetherQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetFrequentlyBoughtTogetherQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetFrequentlyBoughtTogetherQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Frequently bought together isteniyor. ProductId: {ProductId}, MaxResults: {MaxResults}",
             request.ProductId, request.MaxResults);
@@ -33,8 +31,6 @@ public class GetFrequentlyBoughtTogetherQueryHandler(IDbContext context, IMapper
             ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var frequentlyBought = await (
             from oi1 in context.Set<OrderItem>().AsNoTracking()
             join oi2 in context.Set<OrderItem>().AsNoTracking()
@@ -54,15 +50,13 @@ public class GetFrequentlyBoughtTogetherQueryHandler(IDbContext context, IMapper
             return Array.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = frequentlyBought.Select(fb => fb.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var fb in frequentlyBought)
         {
             if (products.TryGetValue(fb.ProductId, out var product))
@@ -83,7 +77,6 @@ public class GetFrequentlyBoughtTogetherQueryHandler(IDbContext context, IMapper
             }
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Frequently bought together tamamlandı. ProductId: {ProductId}, Count: {Count}",
             request.ProductId, recommendations.Count);

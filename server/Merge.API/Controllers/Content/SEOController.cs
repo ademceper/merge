@@ -21,11 +21,15 @@ using Merge.Application.Content.Queries.GetRobotsTxt;
 
 namespace Merge.API.Controllers.Content;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// SEO API endpoints.
+/// SEO ayarlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/seo")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("SEO")]
 public class SEOController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -55,7 +59,6 @@ public class SEOController(
         [FromBody] CreateOrUpdateSEOSettingsCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
@@ -81,12 +84,11 @@ public class SEOController(
         [FromQuery] Guid? entityId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSEOSettingsQuery(pageType, entityId);
         var settings = await mediator.Send(query, cancellationToken);
         if (settings == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(settings);
     }
@@ -117,12 +119,11 @@ public class SEOController(
         [FromQuery] Guid entityId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteSEOSettingsCommand(pageType, entityId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -151,7 +152,6 @@ public class SEOController(
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateProductSEOCommand(productId);
         var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
@@ -181,7 +181,6 @@ public class SEOController(
         Guid categoryId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateCategorySEOCommand(categoryId);
         var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
@@ -211,7 +210,6 @@ public class SEOController(
         Guid postId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateBlogPostSEOCommand(postId);
         var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
@@ -241,7 +239,6 @@ public class SEOController(
         [FromBody] CreateSitemapEntryCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var entry = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSitemapEntries), new { id = entry.Id }, entry);
     }
@@ -269,7 +266,6 @@ public class SEOController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSitemapEntriesQuery(isActive, page, pageSize);
         var entries = await mediator.Send(query, cancellationToken);
         return Ok(entries);
@@ -303,12 +299,11 @@ public class SEOController(
         [FromBody] UpdateSitemapEntryCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -342,7 +337,7 @@ public class SEOController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -371,12 +366,11 @@ public class SEOController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteSitemapEntryCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -396,7 +390,6 @@ public class SEOController(
     public async Task<IActionResult> GetSitemapXml(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSitemapXmlQuery();
         var xml = await mediator.Send(query, cancellationToken);
         return Content(xml, "application/xml");
@@ -417,7 +410,6 @@ public class SEOController(
     public async Task<IActionResult> GetRobotsTxt(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRobotsTxtQuery();
         var content = await mediator.Send(query, cancellationToken);
         return Content(content, "text/plain");

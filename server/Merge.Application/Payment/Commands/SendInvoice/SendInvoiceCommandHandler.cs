@@ -35,10 +35,8 @@ public class SendInvoiceCommandHandler(IDbContext context, IUnitOfWork unitOfWor
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             invoice.MarkAsSent();
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 

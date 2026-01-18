@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Security.Commands.VerifyOrder;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class VerifyOrderCommandValidator : AbstractValidator<VerifyOrderCommand>
 {
     public VerifyOrderCommandValidator()

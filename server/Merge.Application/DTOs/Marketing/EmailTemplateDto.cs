@@ -1,9 +1,7 @@
 using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Email Template DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record EmailTemplateDto(
     Guid Id,
     string Name,

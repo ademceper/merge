@@ -15,13 +15,11 @@ public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvid
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
         }
 
-        // ✅ ARCHITECTURE: Input validation
         if (string.IsNullOrWhiteSpace(request.OrderNumber))
         {
             throw new ValidationException("Sipariş numarası boş olamaz.");
@@ -67,7 +65,6 @@ public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvid
 
     public async Task<ShippingTrackingDto> GetTrackingAsync(string trackingNumber)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
             throw new ArgumentNullException(nameof(trackingNumber));
@@ -104,7 +101,6 @@ public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvid
 
     public async Task<ShippingLabelDto> GetShippingLabelAsync(string trackingNumber)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
             throw new ArgumentNullException(nameof(trackingNumber));
@@ -124,7 +120,6 @@ public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvid
 
     public async Task<bool> CancelShipmentAsync(string trackingNumber)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
             throw new ArgumentNullException(nameof(trackingNumber));
@@ -139,7 +134,6 @@ public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvid
 
     public async Task<decimal> CalculateShippingCostAsync(ShippingCostRequestDto request)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));

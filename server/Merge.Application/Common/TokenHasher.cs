@@ -3,7 +3,6 @@ using System.Text;
 
 namespace Merge.Application.Common;
 
-// ✅ BOLUM 9.1: Refresh token hash'leme (PLAIN TEXT YASAK)
 public static class TokenHasher
 {
     /// <summary>

@@ -10,12 +10,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetLoyaltyStats;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetLoyaltyStatsQueryHandler(IDbContext context) : IRequestHandler<GetLoyaltyStatsQuery, LoyaltyStatsDto>
 {
     public async Task<LoyaltyStatsDto> Handle(GetLoyaltyStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var totalMembers = await context.Set<LoyaltyAccount>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
@@ -29,7 +27,6 @@ public class GetLoyaltyStatsQueryHandler(IDbContext context) : IRequestHandler<G
             .Where(t => t.Points < 0)
             .SumAsync(t => (long)Math.Abs(t.Points), cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // NOT: GroupBy ile Include birlikte kullanıldığında AsSplitQuery kullanılamaz
         // Bu durumda Join kullanarak Tier bilgisini alıyoruz
         var membersByTierId = await context.Set<LoyaltyAccount>()

@@ -11,10 +11,18 @@ using Merge.Application.Order.Queries.GetOrderSplits;
 using Merge.Application.Order.Queries.GetSplitOrders;
 using Merge.Application.Order.Queries.GetOrderById;
 using Merge.API.Middleware;
+
 namespace Merge.API.Controllers.Order;
+
+/// <summary>
+/// Order Split API endpoints.
+/// Sipariş bölme işlemlerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/orders/splits")]
+[Route("api/v{version:apiVersion}/orders/splits")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("OrderSplits")]
 public class OrderSplitsController(IMediator mediator) : BaseController
 {
     [HttpPost("order/{orderId}")]
@@ -40,7 +48,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -68,13 +76,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var split = await mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -102,7 +110,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -132,7 +140,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var splitOrder = await mediator.Send(getOrderQuery, cancellationToken);
         if (splitOrder == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (splitOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -160,13 +168,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var split = await mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -176,7 +184,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -198,13 +206,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var split = await mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -214,7 +222,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

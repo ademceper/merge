@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerTrustBadge : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public Guid TrustBadgeId { get; private set; }
     public DateTime AwardedAt { get; private set; }
@@ -28,10 +27,8 @@ public class SellerTrustBadge : BaseEntity
     public SellerProfile Seller { get; private set; } = null!;
     public TrustBadge TrustBadge { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerTrustBadge() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerTrustBadge Create(
         Guid sellerId,
         Guid trustBadgeId,
@@ -60,7 +57,6 @@ public class SellerTrustBadge : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate badge
     public void Activate()
     {
         if (_isActive) return;
@@ -68,7 +64,6 @@ public class SellerTrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate badge
     public void Deactivate()
     {
         if (!_isActive) return;
@@ -76,7 +71,6 @@ public class SellerTrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update expiry date
     public void UpdateExpiryDate(DateTime? newExpiryDate)
     {
         if (newExpiryDate.HasValue && newExpiryDate.Value <= AwardedAt)
@@ -87,14 +81,12 @@ public class SellerTrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update award reason
     public void UpdateAwardReason(string? newReason)
     {
         AwardReason = newReason;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update awarded date
     public void UpdateAwardedAt(DateTime newAwardedAt)
     {
         if (ExpiresAt.HasValue && ExpiresAt.Value <= newAwardedAt)
@@ -105,13 +97,11 @@ public class SellerTrustBadge : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if expired
     public bool IsExpired()
     {
         return ExpiresAt.HasValue && ExpiresAt.Value < DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted)

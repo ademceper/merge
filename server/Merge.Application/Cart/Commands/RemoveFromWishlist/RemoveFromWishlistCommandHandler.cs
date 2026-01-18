@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.RemoveFromWishlist;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RemoveFromWishlistCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,11 +22,9 @@ public class RemoveFromWishlistCommandHandler(
         logger.LogInformation("Removing product {ProductId} from wishlist for user {UserId}",
             request.ProductId, request.UserId);
 
-        // ✅ PERFORMANCE: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         var wishlist = await context.Set<Wishlist>()
             .FirstOrDefaultAsync(w => w.UserId == request.UserId && w.ProductId == request.ProductId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (wishlist is null)
         {
             logger.LogWarning(
@@ -37,7 +33,6 @@ public class RemoveFromWishlistCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         wishlist.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

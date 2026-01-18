@@ -19,10 +19,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing.EmailCampaigns;
 
+/// <summary>
+/// Email Campaigns API endpoints.
+/// E-posta kampanyalarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/email-campaigns")]
 [Authorize]
+[Tags("EmailCampaigns")]
 public class EmailCampaignsController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -75,7 +80,7 @@ public class EmailCampaignsController(
 
         if (campaign == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(campaign);
@@ -182,7 +187,7 @@ public class EmailCampaignsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -207,7 +212,7 @@ public class EmailCampaignsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -231,7 +236,7 @@ public class EmailCampaignsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -255,7 +260,7 @@ public class EmailCampaignsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -279,7 +284,7 @@ public class EmailCampaignsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();

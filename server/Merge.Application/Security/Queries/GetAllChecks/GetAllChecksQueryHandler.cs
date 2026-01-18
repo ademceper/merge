@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Queries.GetAllChecks;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAllChecksQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllChecksQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllChecksQuery, PagedResult<PaymentFraudPreventionDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -24,15 +23,12 @@ public class GetAllChecksQueryHandler(IDbContext context, IMapper mapper, ILogge
 
     public async Task<PagedResult<PaymentFraudPreventionDto>> Handle(GetAllChecksQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Payment fraud check'ler sorgulanıyor. Status: {Status}, IsBlocked: {IsBlocked}, Page: {Page}, PageSize: {PageSize}",
             request.Status ?? "All", request.IsBlocked?.ToString() ?? "All", request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         IQueryable<PaymentFraudPrevention> query = context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment);

@@ -6,15 +6,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Notification.EventHandlers;
 
-/// <summary>
-/// Notification Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// </summary>
+
 public class NotificationDeletedEventHandler(ILogger<NotificationDeletedEventHandler> logger) : INotificationHandler<NotificationDeletedEvent>
 {
 
     public async Task Handle(NotificationDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Notification deleted event received. NotificationId: {NotificationId}, UserId: {UserId}",
             notification.NotificationId, notification.UserId);

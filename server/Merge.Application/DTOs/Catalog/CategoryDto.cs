@@ -3,8 +3,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Catalog;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
-// ✅ BOLUM 4.1: Validation Attributes (ZORUNLU)
 public record CategoryDto(
     Guid Id,
     [Required(ErrorMessage = "Kategori adı zorunludur")]

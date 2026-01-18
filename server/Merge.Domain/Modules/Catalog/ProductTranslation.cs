@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductTranslation : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Guid LanguageId { get; private set; }
     public string LanguageCode { get; private set; } = string.Empty;
@@ -27,7 +26,6 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
     public string MetaDescription { get; private set; } = string.Empty;
     public string MetaKeywords { get; private set; } = string.Empty;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -35,10 +33,8 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
     public Product Product { get; private set; } = null!;
     public Language Language { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductTranslation() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductTranslation Create(
         Guid productId,
         Guid languageId,
@@ -96,16 +92,13 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         translation.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTranslationCreatedEvent
         translation.AddDomainEvent(new ProductTranslationCreatedEvent(translation.Id, productId, languageId, languageCode, name));
         
         return translation;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update translation
     public void Update(
         string name,
         string description = "",
@@ -150,14 +143,11 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         MetaKeywords = metaKeywords;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTranslationUpdatedEvent
         AddDomainEvent(new ProductTranslationUpdatedEvent(Id, ProductId, LanguageCode));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -166,14 +156,11 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductTranslationDeletedEvent
         AddDomainEvent(new ProductTranslationDeletedEvent(Id, ProductId, LanguageCode));
     }
 
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture - Domain katmanı Application'a bağımlı olmamalı)
     // Not: Application katmanındaki InternationalSettings ile senkronize tutulmalı
     private static class ValidationConstants
     {
@@ -185,7 +172,6 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         public const int MaxMetaKeywordsLength = 200;
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ProductId)
@@ -200,7 +186,6 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(Name))
             throw new DomainException("Çeviri adı boş olamaz");
 
-        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
         Guard.AgainstLength(Name, ValidationConstants.MaxNameLength, nameof(Name));
         Guard.AgainstLength(Description, ValidationConstants.MaxDescriptionLength, nameof(Description));
         Guard.AgainstLength(ShortDescription, ValidationConstants.MaxShortDescriptionLength, nameof(ShortDescription));

@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Seller;
 
 public interface ISellerOnboardingService

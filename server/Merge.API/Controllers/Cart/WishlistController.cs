@@ -13,11 +13,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Wishlist API endpoints.
+/// İstek listesi işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/wishlist")]
 [Authorize]
+[Tags("Wishlist")]
 public class WishlistController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -45,8 +49,6 @@ public class WishlistController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -76,14 +78,13 @@ public class WishlistController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> AddToWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new AddToWishlistCommand(userId, productId);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return BadRequest();
+            return Problem("Invalid request", "Bad Request", StatusCodes.Status400BadRequest);
         }
         return NoContent();
     }
@@ -106,14 +107,13 @@ public class WishlistController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RemoveFromWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new RemoveFromWishlistCommand(userId, productId);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -134,11 +134,10 @@ public class WishlistController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<bool>> IsInWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var query = new IsInWishlistQuery(userId, productId);
         var result = await mediator.Send(query, cancellationToken);
-        return Ok(new { isInWishlist = result });
+        return Ok(result);
     }
 }
 

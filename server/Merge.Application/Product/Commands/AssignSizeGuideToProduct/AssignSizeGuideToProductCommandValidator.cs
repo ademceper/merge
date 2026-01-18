@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.AssignSizeGuideToProduct;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class AssignSizeGuideToProductCommandValidator : AbstractValidator<AssignSizeGuideToProductCommand>
 {
     public AssignSizeGuideToProductCommandValidator()

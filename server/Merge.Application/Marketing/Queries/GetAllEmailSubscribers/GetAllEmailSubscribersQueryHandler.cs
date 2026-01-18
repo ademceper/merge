@@ -12,14 +12,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetAllEmailSubscribers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetAllEmailSubscribersQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllEmailSubscribersQuery, PagedResult<EmailSubscriberDto>>
 {
     public async Task<PagedResult<EmailSubscriberDto>> Handle(GetAllEmailSubscribersQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         IQueryable<EmailSubscriber> query = context.Set<EmailSubscriber>()
             .AsNoTracking();
 
@@ -36,7 +32,6 @@ public class GetAllEmailSubscribersQueryHandler(IDbContext context, IMapper mapp
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<EmailSubscriberDto>
         {
             Items = mapper.Map<List<EmailSubscriberDto>>(subscribers),

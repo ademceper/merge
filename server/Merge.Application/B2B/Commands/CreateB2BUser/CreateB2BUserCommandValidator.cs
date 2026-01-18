@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Commands.CreateB2BUser;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateB2BUserCommandValidator : AbstractValidator<CreateB2BUserCommand>
 {
     public CreateB2BUserCommandValidator()

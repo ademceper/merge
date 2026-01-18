@@ -18,11 +18,9 @@ namespace Merge.Domain.Modules.Inventory;
 /// </summary>
 public class PickPack : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public string PackNumber { get; private set; } = string.Empty; // Auto-generated: PK-XXXXXX
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public PickPackStatus Status { get; private set; } = PickPackStatus.Pending;
     public Guid? PickedByUserId { get; private set; } // Staff who picked the items
     public Guid? PackedByUserId { get; private set; } // Staff who packed the items
@@ -55,7 +53,6 @@ public class PickPack : BaseEntity, IAggregateRoot
         } 
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -64,12 +61,10 @@ public class PickPack : BaseEntity, IAggregateRoot
     public Warehouse Warehouse { get; private set; } = null!;
     public User? PickedBy { get; private set; }
     public User? PackedBy { get; private set; }
-    public ICollection<PickPackItem> Items { get; private set; } = new List<PickPackItem>();
+    public ICollection<PickPackItem> Items { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PickPack() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PickPack Create(
         Guid orderId,
         Guid warehouseId,
@@ -92,13 +87,11 @@ public class PickPack : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackCreatedEvent
         pickPack.AddDomainEvent(new PickPackCreatedEvent(pickPack.Id, pickPack.OrderId, pickPack.WarehouseId, pickPack.PackNumber));
 
         return pickPack;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Start picking
     public void StartPicking(Guid pickedByUserId)
     {
         Guard.AgainstDefault(pickedByUserId, nameof(pickedByUserId));
@@ -111,11 +104,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         PickedByUserId = pickedByUserId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Complete picking
     public void CompletePicking()
     {
         if (Status != PickPackStatus.Picking)
@@ -126,11 +117,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         PickedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Start packing
     public void StartPacking(Guid packedByUserId)
     {
         Guard.AgainstDefault(packedByUserId, nameof(packedByUserId));
@@ -143,11 +132,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         PackedByUserId = packedByUserId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Complete packing
     public void CompletePacking(decimal weight, string? dimensions = null, int packageCount = 1)
     {
         if (Status != PickPackStatus.Packing)
@@ -164,11 +151,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         _packageCount = packageCount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Ship
     public void Ship()
     {
         if (Status != PickPackStatus.Packed)
@@ -179,11 +164,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         ShippedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel
     public void Cancel(string? reason = null)
     {
         if (Status == PickPackStatus.Shipped)
@@ -194,11 +177,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         Notes = reason != null ? $"{Notes}\nİptal nedeni: {reason}".Trim() : Notes;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackStatusChangedEvent
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string? notes,
         decimal? weight,
@@ -220,21 +201,17 @@ public class PickPack : BaseEntity, IAggregateRoot
         Dimensions = dimensions;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackDetailsUpdatedEvent
         AddDomainEvent(new PickPackDetailsUpdatedEvent(Id, OrderId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update notes
     public void UpdateNotes(string? notes)
     {
         Notes = notes;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PickPackDetailsUpdatedEvent (notes update is part of details update)
         AddDomainEvent(new PickPackDetailsUpdatedEvent(Id, OrderId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;

@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.UpdateCMSPage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateCMSPageCommandHandler(
     IRepository cmsPageRepository,
     IDbContext context,
@@ -35,7 +33,6 @@ public class UpdateCMSPageCommandHandler(
     {
         logger.LogInformation("Updating CMS page. PageId: {PageId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -46,7 +43,6 @@ public class UpdateCMSPageCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Manager sadece kendi sayfalarını güncelleyebilmeli (Admin hariç)
             // PerformedBy null ise (Admin), tüm sayfaları güncelleyebilir
             // PerformedBy null değilse (Manager), sadece kendi sayfalarını güncelleyebilir
             if (request.PerformedBy.HasValue && page.AuthorId.HasValue && page.AuthorId.Value != request.PerformedBy.Value)
@@ -60,7 +56,6 @@ public class UpdateCMSPageCommandHandler(
             var oldSlug = page.Slug;
             var wasHomePage = page.IsHomePage;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (!string.IsNullOrEmpty(request.Title))
             {
                 page.UpdateTitle(request.Title);
@@ -73,7 +68,6 @@ public class UpdateCMSPageCommandHandler(
                 page.UpdatePageType(request.PageType);
             if (!string.IsNullOrEmpty(request.Status))
             {
-                // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
                 if (Enum.TryParse<ContentStatus>(request.Status, true, out var newStatus))
                 {
                     page.UpdateStatus(newStatus);
@@ -111,7 +105,6 @@ public class UpdateCMSPageCommandHandler(
 
             logger.LogInformation("CMS page updated successfully. PageId: {PageId}", request.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all CMS page-related cache
             await cache.RemoveAsync($"{CACHE_KEY_CMS_PAGE_BY_ID}{request.Id}", cancellationToken);
             if (oldSlug != page.Slug)
             {
@@ -141,7 +134,6 @@ public class UpdateCMSPageCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error updating CMS page. PageId: {PageId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

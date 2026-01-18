@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetDashboardSummary;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetDashboardSummaryQueryValidator : AbstractValidator<GetDashboardSummaryQuery>
 {
     public GetDashboardSummaryQueryValidator()

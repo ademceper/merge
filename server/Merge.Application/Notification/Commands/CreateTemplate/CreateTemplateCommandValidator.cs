@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.CreateTemplate;
 
-/// <summary>
-/// Create Template Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class CreateTemplateCommandValidator : AbstractValidator<CreateTemplateCommand>
 {
     public CreateTemplateCommandValidator()

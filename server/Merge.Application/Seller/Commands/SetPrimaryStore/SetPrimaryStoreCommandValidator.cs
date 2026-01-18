@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.SetPrimaryStore;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SetPrimaryStoreCommandValidator : AbstractValidator<SetPrimaryStoreCommand>
 {
     public SetPrimaryStoreCommandValidator()

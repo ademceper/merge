@@ -20,7 +20,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CreateReturnRequest;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateReturnRequestCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -41,7 +40,6 @@ public class CreateReturnRequestCommandHandler(
             throw new ArgumentNullException(nameof(request.Dto));
         }
 
-        // ✅ PERFORMANCE: Memory'de kontrol (DTO'dan geldiği için database query gerekmez)
         if (request.Dto.OrderItemIds == null || request.Dto.OrderItemIds.Count == 0)
         {
             throw new ValidationException("İade edilecek ürün seçilmedi.");
@@ -66,7 +64,6 @@ public class CreateReturnRequestCommandHandler(
             throw new BusinessException("Sadece teslim edilmiş siparişler için iade yapılabilir.");
         }
 
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         if (order.DeliveredDate.HasValue && (DateTime.UtcNow - order.DeliveredDate.Value).TotalDays > _orderSettings.ReturnPeriodDays)
         {
             throw new BusinessException($"İade süresi dolmuş. Teslim tarihinden itibaren {_orderSettings.ReturnPeriodDays} gün içinde iade yapılabilir.");
@@ -81,8 +78,6 @@ public class CreateReturnRequestCommandHandler(
             throw new ValidationException("İade edilecek ürün seçilmedi.");
         }
 
-        // ✅ PERFORMANCE: Order zaten yukarıda query edildi, tekrar query etme
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.Dto.UserId, cancellationToken);
         if (user == null)
@@ -90,7 +85,6 @@ public class CreateReturnRequestCommandHandler(
             throw new NotFoundException("Kullanıcı", request.Dto.UserId);
         }
 
-        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
         var refundAmountMoney = new Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             request.Dto.OrderId,
@@ -102,7 +96,6 @@ public class CreateReturnRequestCommandHandler(
             user);
 
         await context.Set<ReturnRequest>().AddAsync(returnRequest, cancellationToken);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var reloadedReturnRequest = await context.Set<ReturnRequest>()

@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Review.Commands.CreateReview;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateReviewCommandValidator : AbstractValidator<CreateReviewCommand>
 {
     public CreateReviewCommandValidator()

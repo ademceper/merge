@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReferralPerformance;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReferralPerformanceQueryHandler(
     IDbContext context,
     ILogger<GetReferralPerformanceQueryHandler> logger) : IRequestHandler<GetReferralPerformanceQuery, ReferralPerformanceDto>
@@ -23,9 +21,6 @@ public class GetReferralPerformanceQueryHandler(
         logger.LogInformation("Fetching referral performance. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var referralsQuery = context.Set<Referral>()
             .AsNoTracking()
             .Where(r => r.CreatedAt >= request.StartDate && r.CreatedAt <= request.EndDate);
@@ -34,7 +29,6 @@ public class GetReferralPerformanceQueryHandler(
         var successfulReferrals = await referralsQuery.CountAsync(r => r.CompletedAt != null, cancellationToken);
         var totalRewardsGiven = await referralsQuery.SumAsync(r => r.PointsAwarded, cancellationToken);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new ReferralPerformanceDto(
             totalReferrals,
             successfulReferrals,

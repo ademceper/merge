@@ -15,19 +15,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetUserSubscriptions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserSubscriptionsQueryHandler> logger) : IRequestHandler<GetUserSubscriptionsQuery, PagedResult<UserSubscriptionDto>>
 {
 
     public async Task<PagedResult<UserSubscriptionDto>> Handle(GetUserSubscriptionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > 100 ? 100 : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<UserSubscription> query = context.Set<UserSubscription>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -42,7 +37,6 @@ public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Pagination uygula
         var subscriptionIds = await query
             .OrderByDescending(us => us.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -50,7 +44,6 @@ public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper
             .Select(us => us.Id)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var subscriptions = await context.Set<UserSubscription>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -60,7 +53,6 @@ public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper
             .OrderByDescending(us => us.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
         var recentPaymentsDict = await context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => subscriptionIds.Contains(p.UserSubscriptionId))
@@ -73,7 +65,7 @@ public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper
             })
             .ToDictionaryAsync(x => x.UserSubscriptionId, x => x.Payments, cancellationToken);
 
-        var result = new List<UserSubscriptionDto>();
+        List<UserSubscriptionDto> result = [];
         foreach (var subscription in subscriptions)
         {
             var dto = mapper.Map<UserSubscriptionDto>(subscription);
@@ -87,7 +79,7 @@ public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper
             }
             else
             {
-                dto.RecentPayments = new List<SubscriptionPaymentDto>();
+                dto.RecentPayments = [];
             }
             
             result.Add(dto);

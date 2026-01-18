@@ -15,19 +15,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetUnassignedTickets;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUnassignedTicketsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetUnassignedTicketsQuery, IEnumerable<SupportTicketDto>>
 {
 
     public async Task<IEnumerable<SupportTicketDto>> Handle(GetUnassignedTicketsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var ticketsQuery = context.Set<SupportTicket>()
             .AsNoTracking()
             .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed);
 
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var tickets = await ticketsQuery
             .AsSplitQuery()
             .Include(t => t.User)
@@ -37,7 +33,6 @@ public class GetUnassignedTicketsQueryHandler(IDbContext context, IMapper mapper
             .ThenBy(t => t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets (subquery ile)
         var ticketIdsSubquery = from t in ticketsQuery select t.Id;
         var messagesDict = await context.Set<TicketMessage>()
             .AsNoTracking()
@@ -67,7 +62,6 @@ public class GetUnassignedTicketsQueryHandler(IDbContext context, IMapper mapper
         {
             var dto = mapper.Map<SupportTicketDto>(ticket);
             
-            // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
@@ -88,7 +82,6 @@ public class GetUnassignedTicketsQueryHandler(IDbContext context, IMapper mapper
                 attachments = Array.Empty<TicketAttachmentDto>().AsReadOnly();
             }
             
-            // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
             dtos.Add(dto with { Messages = messages, Attachments = attachments });
         }
 

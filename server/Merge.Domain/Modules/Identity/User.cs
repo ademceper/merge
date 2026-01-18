@@ -23,9 +23,8 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class User : IdentityUser<Guid>, IAggregateRoot
 {
-    private readonly List<IDomainEvent> _domainEvents = new();
+    private readonly List<IDomainEvent> _domainEvents = [];
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation (mümkün olduğunca)
     // NOT: IdentityUser base class'ı bazı property'leri public set gerektiriyor, bu yüzden kısmi private set kullanıyoruz
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
@@ -35,33 +34,30 @@ public class User : IdentityUser<Guid>, IAggregateRoot
     public bool IsDeleted { get; private set; } = false;
     
     // Navigation properties
-    public ICollection<Address> Addresses { get; private set; } = new List<Address>();
-    public ICollection<Order> Orders { get; private set; } = new List<Order>();
-    public ICollection<Cart> Carts { get; private set; } = new List<Cart>();
-    public ICollection<Review> Reviews { get; private set; } = new List<Review>();
-    public ICollection<Wishlist> Wishlists { get; private set; } = new List<Wishlist>();
-    public ICollection<CouponUsage> CouponUsages { get; private set; } = new List<CouponUsage>();
-    public ICollection<ReturnRequest> ReturnRequests { get; private set; } = new List<ReturnRequest>();
-    public ICollection<Notification> Notifications { get; private set; } = new List<Notification>();
-    public ICollection<RecentlyViewedProduct> RecentlyViewedProducts { get; private set; } = new List<RecentlyViewedProduct>();
+    public ICollection<Address> Addresses { get; private set; } = [];
+    public ICollection<Order> Orders { get; private set; } = [];
+    public ICollection<Cart> Carts { get; private set; } = [];
+    public ICollection<Review> Reviews { get; private set; } = [];
+    public ICollection<Wishlist> Wishlists { get; private set; } = [];
+    public ICollection<CouponUsage> CouponUsages { get; private set; } = [];
+    public ICollection<ReturnRequest> ReturnRequests { get; private set; } = [];
+    public ICollection<Notification> Notifications { get; private set; } = [];
+    public ICollection<RecentlyViewedProduct> RecentlyViewedProducts { get; private set; } = [];
     public SellerProfile? SellerProfile { get; private set; }
-    public ICollection<SavedCartItem> SavedCartItems { get; private set; } = new List<SavedCartItem>();
-    public ICollection<EmailVerification> EmailVerifications { get; private set; } = new List<EmailVerification>();
-    public ICollection<GiftCard> PurchasedGiftCards { get; private set; } = new List<GiftCard>();
-    public ICollection<GiftCard> AssignedGiftCards { get; private set; } = new List<GiftCard>();
+    public ICollection<SavedCartItem> SavedCartItems { get; private set; } = [];
+    public ICollection<EmailVerification> EmailVerifications { get; private set; } = [];
+    public ICollection<GiftCard> PurchasedGiftCards { get; private set; } = [];
+    public ICollection<GiftCard> AssignedGiftCards { get; private set; } = [];
     
     // Organization & Team
     public Guid? OrganizationId { get; private set; }
     public Organization? Organization { get; private set; }
-    public ICollection<TeamMember> TeamMemberships { get; private set; } = new List<TeamMember>();
+    public ICollection<TeamMember> TeamMemberships { get; private set; } = [];
 
-    // ✅ SECURITY: Refresh tokens for JWT authentication
-    public ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
+    public ICollection<RefreshToken> RefreshTokens { get; private set; } = [];
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
-    // ✅ BOLUM 1.1: Factory Method
     public static User Create(string firstName, string lastName, string email, string? phoneNumber = null)
     {
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
@@ -70,7 +66,6 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         Guard.AgainstLength(lastName, 100, nameof(lastName));
         Guard.AgainstNullOrEmpty(email, nameof(email));
 
-        // ✅ BOLUM 1.3: Value Objects - Email validation
         var emailValueObject = new Email(email);
 
         var user = new User
@@ -87,13 +82,11 @@ public class User : IdentityUser<Guid>, IAggregateRoot
             IsDeleted = false
         };
         
-        // ✅ BOLUM 1.5: Domain Events - Add UserCreatedEvent
         user.AddDomainEvent(new UserCreatedEvent(user.Id, firstName, lastName, emailValueObject.Value));
         
         return user;
     }
 
-    // ✅ BOLUM 1.5: Domain Events - Add domain event
     // NOT: Public yapıldı çünkü command handler'lardan erişilmesi gerekiyor
     public void AddDomainEvent(IDomainEvent domainEvent)
     {
@@ -103,13 +96,11 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         _domainEvents.Add(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Clear domain events
     public void ClearDomainEvents()
     {
         _domainEvents.Clear();
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -118,7 +109,6 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         _domainEvents.Remove(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update user profile
     public void UpdateProfile(string firstName, string lastName, string? phoneNumber = null)
     {
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
@@ -134,11 +124,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserUpdatedEvent
         AddDomainEvent(new UserUpdatedEvent(Id, FirstName, LastName, PhoneNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -147,11 +135,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserDeletedEvent
         AddDomainEvent(new UserDeletedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore user
     public void Restore()
     {
         if (!IsDeleted)
@@ -160,11 +146,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserRestoredEvent
         AddDomainEvent(new UserRestoredEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Confirm email
     public void ConfirmEmail()
     {
         if (EmailConfirmed)
@@ -173,11 +157,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         EmailConfirmed = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserEmailConfirmedEvent
         AddDomainEvent(new UserEmailConfirmedEvent(Id, Email ?? string.Empty));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate user (set EmailConfirmed = true)
     public void Activate()
     {
         if (EmailConfirmed)
@@ -186,11 +168,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         EmailConfirmed = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserActivatedEvent
         AddDomainEvent(new UserActivatedEvent(Id, Email ?? string.Empty));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate user (set EmailConfirmed = false)
     public void Deactivate()
     {
         if (!EmailConfirmed)
@@ -199,7 +179,6 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         EmailConfirmed = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - UserDeactivatedEvent
         AddDomainEvent(new UserDeactivatedEvent(Id, Email ?? string.Empty));
     }
 }

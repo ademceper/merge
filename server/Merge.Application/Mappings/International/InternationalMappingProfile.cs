@@ -13,7 +13,6 @@ public class InternationalMappingProfile : Profile
     public InternationalMappingProfile()
     {
         // International mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Language, LanguageDto>()
         .ConstructUsing(src => new LanguageDto(
         src.Id,

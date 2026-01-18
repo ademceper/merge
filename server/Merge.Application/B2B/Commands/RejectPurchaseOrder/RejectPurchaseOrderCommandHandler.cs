@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.RejectPurchaseOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RejectPurchaseOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +22,6 @@ public class RejectPurchaseOrderCommandHandler(
         logger.LogInformation("Rejecting purchase order. PurchaseOrderId: {PurchaseOrderId}, Reason: {Reason}",
             request.Id, request.Reason);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var po = await context.Set<PurchaseOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken);
 
@@ -34,8 +31,6 @@ public class RejectPurchaseOrderCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-        // ✅ ARCHITECTURE: Domain event'ler entity içinde oluşturuluyor (PurchaseOrder.Reject() içinde PurchaseOrderRejectedEvent)
         po.Reject(request.Reason);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

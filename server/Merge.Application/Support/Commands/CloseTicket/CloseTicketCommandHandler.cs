@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.CloseTicket;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CloseTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, ILogger<CloseTicketCommandHandler> logger) : IRequestHandler<CloseTicketCommand, bool>
 {
 
@@ -32,10 +31,8 @@ public class CloseTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             throw new NotFoundException("Destek bileti", request.TicketId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         ticket.Close();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Ticket {TicketNumber} closed successfully", ticket.TicketNumber);
@@ -53,7 +50,6 @@ public class CloseTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception handling - Log ve throw (YASAK: Exception yutulmamalı)
             logger.LogError(ex, "Failed to send closure email for ticket {TicketNumber}", ticket.TicketNumber);
             // Exception'ı yutmayız, sadece loglarız - ticket kapatıldı, email gönderilemedi
         }

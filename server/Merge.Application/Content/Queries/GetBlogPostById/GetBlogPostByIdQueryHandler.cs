@@ -15,8 +15,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Queries.GetBlogPostById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetBlogPostByIdQueryHandler(
     IDbContext context,
     IRepository postRepository,
@@ -34,7 +32,6 @@ public class GetBlogPostByIdQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_POST_BY_ID}{request.Id}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for single blog post
         var cachedPost = await cache.GetAsync<BlogPostDto>(cacheKey, cancellationToken);
         if (cachedPost != null && !request.TrackView) // Don't use cache if tracking view (need to update)
         {
@@ -44,7 +41,6 @@ public class GetBlogPostByIdQueryHandler(
 
         logger.LogInformation("Cache miss for blog post. PostId: {PostId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries (unless tracking view)
         var post = request.TrackView
             ? await context.Set<BlogPost>()
                 .Include(p => p.Category)
@@ -62,7 +58,6 @@ public class GetBlogPostByIdQueryHandler(
             return null;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (request.TrackView && post.Status == ContentStatus.Published)
         {
             post.IncrementViewCount();
@@ -72,7 +67,6 @@ public class GetBlogPostByIdQueryHandler(
 
         logger.LogInformation("Successfully retrieved blog post {PostId}", request.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var postDto = mapper.Map<BlogPostDto>(post);
 
         // Cache the result (only if not tracking view)

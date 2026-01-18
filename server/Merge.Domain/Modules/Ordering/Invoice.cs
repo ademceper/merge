@@ -21,13 +21,11 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class Invoice : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public string InvoiceNumber { get; private set; } = string.Empty;
     public DateTime InvoiceDate { get; private set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _subTotal;
     private decimal _tax;
     private decimal _shippingCost;
@@ -85,7 +83,6 @@ public class Invoice : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money SubTotalMoney => new Money(_subTotal);
     
@@ -101,12 +98,10 @@ public class Invoice : BaseEntity, IAggregateRoot
     [NotMapped]
     public Money TotalAmountMoney => new Money(_totalAmount);
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public InvoiceStatus Status { get; private set; } = InvoiceStatus.Draft;
     public string? PdfUrl { get; private set; }
     public string? Notes { get; private set; }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -118,7 +113,6 @@ public class Invoice : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -130,18 +124,14 @@ public class Invoice : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Order Order { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Invoice() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public static Invoice Create(
         Guid orderId,
         string invoiceNumber,
@@ -187,7 +177,6 @@ public class Invoice : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - InvoiceCreatedEvent yayınla
         invoice.AddDomainEvent(new InvoiceCreatedEvent(
             invoice.Id,
             orderId,
@@ -197,7 +186,6 @@ public class Invoice : BaseEntity, IAggregateRoot
         return invoice;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as sent
     public void MarkAsSent()
     {
         if (Status != InvoiceStatus.Draft)
@@ -206,11 +194,9 @@ public class Invoice : BaseEntity, IAggregateRoot
         Status = InvoiceStatus.Sent;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - InvoiceSentEvent yayınla
         AddDomainEvent(new InvoiceSentEvent(Id, OrderId, InvoiceNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as paid
     public void MarkAsPaid()
     {
         if (Status != InvoiceStatus.Sent && Status != InvoiceStatus.Overdue)
@@ -219,11 +205,9 @@ public class Invoice : BaseEntity, IAggregateRoot
         Status = InvoiceStatus.Paid;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - InvoicePaidEvent yayınla
         AddDomainEvent(new InvoicePaidEvent(Id, OrderId, InvoiceNumber, TotalAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as overdue
     public void MarkAsOverdue()
     {
         if (Status == InvoiceStatus.Paid || Status == InvoiceStatus.Cancelled)
@@ -235,11 +219,9 @@ public class Invoice : BaseEntity, IAggregateRoot
         Status = InvoiceStatus.Overdue;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - InvoiceOverdueEvent yayınla
         AddDomainEvent(new InvoiceOverdueEvent(Id, OrderId, InvoiceNumber, DueDate!.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Cancel invoice
     public void Cancel(string? reason = null)
     {
         if (Status == InvoiceStatus.Paid)
@@ -250,11 +232,9 @@ public class Invoice : BaseEntity, IAggregateRoot
             Notes = string.IsNullOrEmpty(Notes) ? reason : $"{Notes}\nİptal nedeni: {reason}";
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - InvoiceCancelledEvent yayınla
         AddDomainEvent(new InvoiceCancelledEvent(Id, OrderId, InvoiceNumber, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set PDF URL
     public void SetPdfUrl(string pdfUrl)
     {
         Guard.AgainstNullOrEmpty(pdfUrl, nameof(pdfUrl));
@@ -262,7 +242,6 @@ public class Invoice : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update notes
     public void UpdateNotes(string notes)
     {
         Notes = notes;

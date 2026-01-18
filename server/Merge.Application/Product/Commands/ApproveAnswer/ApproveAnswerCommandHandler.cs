@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.ApproveAnswer;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ApproveAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveAnswerCommandHandler> logger, ICacheService cache) : IRequestHandler<ApproveAnswerCommand, bool>
 {
 
@@ -31,12 +30,10 @@ public class ApproveAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfW
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             answer.Approve();
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{answer.QuestionId}", cancellationToken);
 
             logger.LogInformation("Answer approved successfully. AnswerId: {AnswerId}", request.AnswerId);

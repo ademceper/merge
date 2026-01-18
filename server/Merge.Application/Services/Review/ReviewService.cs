@@ -27,32 +27,26 @@ namespace Merge.Application.Services.Review;
 public class ReviewService(IReviewRepository reviewRepository, IProductRepository productRepository, IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ReviewService> logger) : IReviewService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReviewDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var review = await context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         if (review == null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
         return mapper.Map<ReviewDto>(review);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ReviewDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check (Global Query Filter)
         var query = context.Set<ReviewEntity>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -68,12 +62,10 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Retrieved {Count} reviews for product {ProductId}, page {Page}, pageSize {PageSize}, totalCount {TotalCount}",
             reviews.Count, productId, page, pageSize, totalCount);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
         var reviewDtos = mapper.Map<IEnumerable<ReviewDto>>(reviews);
 
@@ -86,12 +78,10 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         };
     }
 
-    // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
     public async Task<PagedResult<ReviewDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
         var query = context.Set<ReviewEntity>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -111,7 +101,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             "Retrieved {Count} reviews for user {UserId}, page {Page}, pageSize {PageSize}",
             reviews.Count, userId, page, pageSize);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var reviewDtos = mapper.Map<IEnumerable<ReviewDto>>(reviews);
 
         return new PagedResult<ReviewDto>
@@ -125,7 +114,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
 
     public async Task<ReviewDto> CreateAsync(CreateReviewDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
         ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.Rating < 1 || dto.Rating > 5)
@@ -138,14 +126,11 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             throw new ValidationException("Yorum boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted check (Global Query Filter)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var hasOrder = await context.Set<OrderItem>()
             .AnyAsync(oi => oi.ProductId == dto.ProductId &&
                           oi.Order.UserId == dto.UserId &&
                           oi.Order.PaymentStatus == PaymentStatus.Completed, cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var rating = new Rating(dto.Rating);
         var review = ReviewEntity.Create(
             dto.UserId,
@@ -161,10 +146,8 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(dto.ProductId, cancellationToken);
 
-        // ✅ CRITICAL: Save changes via UnitOfWork
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -172,7 +155,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);
 
-        // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
         if (review == null)
         {
             logger.LogError("Review not found after creation. ReviewId: {ReviewId}", review?.Id);
@@ -183,14 +165,12 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             "Review created. ReviewId: {ReviewId}, ProductId: {ProductId}, UserId: {UserId}, Rating: {Rating}",
             review.Id, dto.ProductId, dto.UserId, dto.Rating);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
         return mapper.Map<ReviewDto>(review);
     }
 
     public async Task<ReviewDto> UpdateAsync(Guid id, UpdateReviewDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
         ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.Rating < 1 || dto.Rating > 5)
@@ -204,7 +184,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             throw new NotFoundException("Değerlendirme", id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         var oldRating = review.Rating; // ✅ Rating is int in Review entity
         var newRating = new Rating(dto.Rating);
         review.UpdateRating(newRating);
@@ -222,12 +201,11 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
-        // ✅ CRITICAL: Save changes via UnitOfWork
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -236,7 +214,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             "Review updated. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
             id, oldRating, dto.Rating);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
         return mapper.Map<ReviewDto>(review!);
     }
@@ -255,7 +232,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(productId, cancellationToken);
 
-        // ✅ CRITICAL: Save changes via UnitOfWork
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review deleted. ReviewId: {ReviewId}, ProductId: {ProductId}", id, productId);
@@ -270,7 +246,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         // TODO: ApprovedByUserId parametresi eklenmeli
         review.Approve(Guid.Empty);
         await reviewRepository.UpdateAsync(review);
@@ -278,7 +253,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
-        // ✅ CRITICAL: Save changes via UnitOfWork
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review approved. ReviewId: {ReviewId}, ProductId: {ProductId}", id, review.ProductId);
@@ -296,7 +270,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         var productId = review.ProductId;
         await reviewRepository.DeleteAsync(review);
 
-        // ✅ CRITICAL: Save changes via UnitOfWork
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review rejected. ReviewId: {ReviewId}, Reason: {Reason}", id, reason);
@@ -305,8 +278,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter)
-        // ✅ PERFORMANCE: Use server-side aggregation instead of loading all reviews
         var reviewStats = await context.Set<ReviewEntity>()
             .Where(r => r.ProductId == productId && r.IsApproved)
             .GroupBy(r => r.ProductId)
@@ -322,7 +293,6 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             var product = await productRepository.GetByIdAsync(productId);
             if (product != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 product.UpdateRating(reviewStats.AverageRating, reviewStats.Count);
                 await productRepository.UpdateAsync(product);
             }

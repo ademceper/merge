@@ -17,10 +17,15 @@ using Merge.Application.Catalog.Queries.GetInventoryById;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Stock Movements API endpoints.
+/// Stok hareketlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/stock-movements")]
 [Authorize(Roles = "Admin,Seller")]
+[Tags("StockMovements")]
 public class StockMovementsController(
     IMediator mediator,
     IOptions<ShippingSettings> shippingSettings) : BaseController
@@ -47,14 +52,14 @@ public class StockMovementsController(
         var movement = await mediator.Send(query, cancellationToken);
         if (movement == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var productQuery = new GetProductByIdQuery(movement.ProductId);
         var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
@@ -85,14 +90,14 @@ public class StockMovementsController(
         var inventory = await mediator.Send(inventoryQuery, cancellationToken);
         if (inventory == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var productQuery = new GetProductByIdQuery(inventory.ProductId);
         var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
@@ -127,7 +132,7 @@ public class StockMovementsController(
         var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
@@ -190,7 +195,7 @@ public class StockMovementsController(
             var product = await mediator.Send(productQuery, cancellationToken);
             if (product == null)
             {
-                return NotFound();
+                return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
             }
 
             if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
@@ -236,7 +241,7 @@ public class StockMovementsController(
         var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))

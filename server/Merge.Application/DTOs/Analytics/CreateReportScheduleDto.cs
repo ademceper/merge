@@ -4,10 +4,7 @@ using Merge.Domain.Modules.Analytics;
 
 namespace Merge.Application.DTOs.Analytics;
 
-/// <summary>
-/// Create Report Schedule DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
-/// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
-/// </summary>
+
 public record CreateReportScheduleDto(
     [Required(ErrorMessage = "Zamanlama adı zorunludur")]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Zamanlama adı en az 2, en fazla 200 karakter olmalıdır.")]
@@ -32,7 +29,6 @@ public record CreateReportScheduleDto(
     
     TimeSpan TimeOfDay,
     
-    // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
     // Typed DTO kullanılıyor
     ReportFiltersDto? Filters,
     
@@ -44,7 +40,6 @@ public record CreateReportScheduleDto(
     string EmailRecipients
 ) : IValidatableObject
 {
-    // ✅ BOLUM 4.1: Custom Validation
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         // Type enum kontrolü

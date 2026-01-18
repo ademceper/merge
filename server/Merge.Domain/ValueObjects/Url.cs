@@ -2,9 +2,7 @@ using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.ValueObjects;
 
-/// <summary>
-/// URL Value Object - BOLUM 1.3: Value Objects (ZORUNLU)
-/// </summary>
+
 public record Url
 {
     public string Value { get; }

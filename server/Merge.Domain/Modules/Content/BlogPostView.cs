@@ -12,14 +12,12 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class BlogPostView : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid BlogPostId { get; private set; }
     public Guid? UserId { get; private set; } // Nullable for anonymous views
     public string IpAddress { get; private set; } = string.Empty;
     public string UserAgent { get; private set; } = string.Empty;
     public int ViewDurationSeconds { get; private set; } = 0; // How long user viewed the post
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -27,10 +25,8 @@ public class BlogPostView : BaseEntity
     public BlogPost BlogPost { get; private set; } = null!;
     public User? User { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private BlogPostView() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static BlogPostView Create(
         Guid blogPostId,
         Guid? userId = null,
@@ -40,7 +36,6 @@ public class BlogPostView : BaseEntity
     {
         Guard.AgainstDefault(blogPostId, nameof(blogPostId));
         Guard.AgainstNegative(viewDurationSeconds, nameof(viewDurationSeconds));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxIpAddressLength=45, MaxUserAgentLength=500
         if (!string.IsNullOrEmpty(ipAddress))
             Guard.AgainstLength(ipAddress, 45, nameof(ipAddress));
@@ -62,7 +57,6 @@ public class BlogPostView : BaseEntity
         return view;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update view duration
     public void UpdateViewDuration(int durationSeconds)
     {
         Guard.AgainstNegative(durationSeconds, nameof(durationSeconds));
@@ -70,7 +64,6 @@ public class BlogPostView : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -80,7 +73,6 @@ public class BlogPostView : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Restore deleted view
     public void Restore()
     {
         if (!IsDeleted)

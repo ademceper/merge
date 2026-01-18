@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Queries.GetAllLandingPages;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class GetAllLandingPagesQueryValidator : AbstractValidator<GetAllLandingPagesQuery>
 {
     public GetAllLandingPagesQueryValidator()

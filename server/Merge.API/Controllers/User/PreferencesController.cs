@@ -9,9 +9,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.User;
 
+/// <summary>
+/// User Preferences API endpoints.
+/// Kullanıcı tercihlerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/user/preferences")]
 [Authorize]
+[Tags("UserPreferences")]
 public class PreferencesController(IMediator mediator) : BaseController
 {
 

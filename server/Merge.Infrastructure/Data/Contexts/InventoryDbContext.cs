@@ -20,7 +20,6 @@ public class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : 
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("InventoryDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -34,7 +33,6 @@ public class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Inventory");
 
-        // ✅ HIGH-DB-003 FIX: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

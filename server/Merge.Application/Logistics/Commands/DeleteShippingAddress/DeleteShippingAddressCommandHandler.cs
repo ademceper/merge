@@ -12,9 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.DeleteShippingAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class DeleteShippingAddressCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -25,7 +22,6 @@ public class DeleteShippingAddressCommandHandler(
     {
         logger.LogInformation("Deleting shipping address. AddressId: {AddressId}", request.Id);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
@@ -35,7 +31,6 @@ public class DeleteShippingAddressCommandHandler(
             throw new NotFoundException("Kargo adresi", request.Id);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if address is used in any orders
         var hasOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .AnyAsync(o => o.AddressId == request.Id, cancellationToken);
@@ -49,12 +44,9 @@ public class DeleteShippingAddressCommandHandler(
         else
         {
             // Hard delete if no orders
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             address.MarkAsDeleted();
         }
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Shipping address deleted successfully. AddressId: {AddressId}", request.Id);

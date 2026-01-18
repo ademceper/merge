@@ -35,7 +35,6 @@ public class UpdatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             var settingsJson = request.Settings != null ? JsonSerializer.Serialize(request.Settings) : null;
             paymentMethod.Update(
                 request.Name,

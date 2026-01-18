@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Product.Commands.CreateProductTemplate;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateProductTemplateCommandValidator : AbstractValidator<CreateProductTemplateCommand>
 {
     public CreateProductTemplateCommandValidator()

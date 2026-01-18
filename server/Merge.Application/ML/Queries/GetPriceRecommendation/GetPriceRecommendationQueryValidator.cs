@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.ML.Queries.GetPriceRecommendation;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetPriceRecommendationQueryValidator : AbstractValidator<GetPriceRecommendationQuery>
 {
     public GetPriceRecommendationQueryValidator()

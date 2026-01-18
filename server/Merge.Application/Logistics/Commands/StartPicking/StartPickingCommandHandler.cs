@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.StartPicking;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class StartPickingCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +21,6 @@ public class StartPickingCommandHandler(
     {
         logger.LogInformation("Starting picking. PickPackId: {PickPackId}, UserId: {UserId}", request.PickPackId, request.UserId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
@@ -34,11 +30,8 @@ public class StartPickingCommandHandler(
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         pickPack.StartPicking(request.UserId);
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Picking started successfully. PickPackId: {PickPackId}", request.PickPackId);

@@ -4,7 +4,6 @@ using Merge.Application.DTOs.Search;
 
 namespace Merge.API.Helpers;
 
-// ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
 /// <summary>
 /// HATEOAS helper for generating hypermedia links in API responses
 /// </summary>
@@ -280,7 +279,7 @@ public static class HateoasHelper
         object? routeValues = null,
         string version = "1.0")
     {
-        var links = new Dictionary<string, LinkDto>();
+        Dictionary<string, LinkDto> links = [];
 
         // Helper method to merge route values
         Dictionary<string, object?> MergeRouteValues(int? pageValue = null)

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetUsers;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetUsersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetUsersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

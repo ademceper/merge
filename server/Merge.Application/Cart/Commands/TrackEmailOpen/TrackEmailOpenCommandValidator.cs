@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Cart.Commands.TrackEmailOpen;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class TrackEmailOpenCommandValidator : AbstractValidator<TrackEmailOpenCommand>
 {
     public TrackEmailOpenCommandValidator()

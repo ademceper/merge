@@ -12,21 +12,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Queries.GetUserPreferencesSummary;
 
-/// <summary>
-/// Get User Preferences Summary Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class GetUserPreferencesSummaryQueryHandler(IDbContext context) : IRequestHandler<GetUserPreferencesSummaryQuery, NotificationPreferenceSummaryDto>
 {
 
     public async Task<NotificationPreferenceSummaryDto> Handle(GetUserPreferencesSummaryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == request.UserId)
             .ToListAsync(cancellationToken);
 
-        var preferencesDict = new Dictionary<string, Dictionary<string, bool>>();
+        Dictionary<string, Dictionary<string, bool>> preferencesDict = [];
         int totalEnabled = 0;
         int totalDisabled = 0;
 
@@ -37,7 +34,7 @@ public class GetUserPreferencesSummaryQueryHandler(IDbContext context) : IReques
             
             if (!preferencesDict.ContainsKey(typeKey))
             {
-                preferencesDict[typeKey] = new Dictionary<string, bool>();
+                preferencesDict[typeKey] = [];
             }
             preferencesDict[typeKey][channelKey] = pref.IsEnabled;
 
@@ -47,7 +44,6 @@ public class GetUserPreferencesSummaryQueryHandler(IDbContext context) : IReques
                 totalDisabled++;
         }
 
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı
         return new NotificationPreferenceSummaryDto(
             request.UserId,
             preferencesDict,

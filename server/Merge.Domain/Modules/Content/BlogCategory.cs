@@ -14,9 +14,7 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class BlogCategory : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
     public Slug Slug { get; private set; } = null!;
     public string? Description { get; private set; }
     public Guid? ParentCategoryId { get; private set; }
@@ -24,24 +22,20 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     public int DisplayOrder { get; private set; } = 0;
     public bool IsActive { get; private set; } = true;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public BlogCategory? ParentCategory { get; private set; }
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<BlogCategory> _subCategories = new();
     public IReadOnlyCollection<BlogCategory> SubCategories => _subCategories.AsReadOnly();
     
     private readonly List<BlogPost> _posts = new();
     public IReadOnlyCollection<BlogPost> Posts => _posts.AsReadOnly();
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private BlogCategory() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static BlogCategory Create(
         string name,
         string? description = null,
@@ -53,7 +47,6 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxCategoryNameLength=100, MaxCategoryDescriptionLength=1000
         Guard.AgainstLength(name, 100, nameof(name));
         if (description != null)
@@ -64,10 +57,8 @@ public class BlogCategory : BaseEntity, IAggregateRoot
             throw new DomainException("Geçersiz parent category ID.");
         }
 
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
 
-        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
         if (!string.IsNullOrEmpty(imageUrl) && !IsValidUrl(imageUrl))
         {
             throw new DomainException("Geçerli bir image URL giriniz.");
@@ -87,55 +78,43 @@ public class BlogCategory : BaseEntity, IAggregateRoot
             UpdatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryCreatedEvent yayınla (ÖNERİLİR)
         category.AddDomainEvent(new BlogCategoryCreatedEvent(category.Id, name, finalSlug.Value));
 
         return category;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update name
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxCategoryNameLength=100
         Guard.AgainstLength(newName, 100, nameof(newName));
         Name = newName;
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(newName);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, newName, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update slug (manual slug update)
     public void UpdateSlug(string newSlug)
     {
         Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
-        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(newSlug);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update description
     public void UpdateDescription(string? newDescription)
     {
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxCategoryDescriptionLength=1000
         if (newDescription != null)
             Guard.AgainstLength(newDescription, 1000, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update parent category
     public void UpdateParentCategory(Guid? parentCategoryId)
     {
         if (parentCategoryId.HasValue && parentCategoryId.Value == Id)
@@ -145,14 +124,11 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         ParentCategoryId = parentCategoryId;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update image URL
     public void UpdateImageUrl(string? newImageUrl)
     {
-        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
         if (!string.IsNullOrEmpty(newImageUrl) && !IsValidUrl(newImageUrl))
         {
             throw new DomainException("Geçerli bir image URL giriniz.");
@@ -161,22 +137,18 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         ImageUrl = newImageUrl;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update display order
     public void UpdateDisplayOrder(int newDisplayOrder)
     {
         Guard.AgainstNegative(newDisplayOrder, nameof(newDisplayOrder));
         DisplayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate
     public void Activate()
     {
         if (IsActive)
@@ -185,11 +157,9 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryActivatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryActivatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate
     public void Deactivate()
     {
         if (!IsActive)
@@ -198,11 +168,9 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryDeactivatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryDeactivatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -211,11 +179,9 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Restore deleted category
     public void Restore()
     {
         if (!IsDeleted)
@@ -224,11 +190,9 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - BlogCategoryRestoredEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new BlogCategoryRestoredEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.3: URL Validation Helper Method
     private static bool IsValidUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))

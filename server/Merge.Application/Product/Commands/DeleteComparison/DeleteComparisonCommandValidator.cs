@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Product.Commands.DeleteComparison;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class DeleteComparisonCommandValidator : AbstractValidator<DeleteComparisonCommand>
 {
     public DeleteComparisonCommandValidator()

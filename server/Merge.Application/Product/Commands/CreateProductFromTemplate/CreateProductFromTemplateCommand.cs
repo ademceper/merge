@@ -5,7 +5,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Product.Commands.CreateProductFromTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateProductFromTemplateCommand(
     Guid TemplateId,
     string Name,

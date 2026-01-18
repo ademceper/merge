@@ -10,10 +10,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.ML;
 
+/// <summary>
+/// Demand Forecasting API endpoints.
+/// Talep tahmini işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/ml/demand-forecasting")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("DemandForecasting")]
 public class DemandForecastsController(IMediator mediator) : BaseController
 {
     [HttpPost("products/{productId}")]

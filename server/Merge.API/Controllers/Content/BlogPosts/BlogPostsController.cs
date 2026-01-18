@@ -21,9 +21,14 @@ using Merge.Application.Content.Queries.GetBlogAnalytics;
 
 namespace Merge.API.Controllers.Content.BlogPosts;
 
+/// <summary>
+/// Blog Posts API endpoints.
+/// Blog yazılarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/blog/posts")]
+[Tags("BlogPosts")]
 public class BlogPostsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -54,7 +59,6 @@ public class BlogPostsController(
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostsQuery(categoryId, status, page, pageSize);
         var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
@@ -81,12 +85,11 @@ public class BlogPostsController(
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostByIdQuery(id, trackView);
         var post = await mediator.Send(query, cancellationToken);
         if (post == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(post);
     }
@@ -112,12 +115,11 @@ public class BlogPostsController(
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostBySlugQuery(slug, trackView);
         var post = await mediator.Send(query, cancellationToken);
         if (post == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(post);
     }
@@ -139,7 +141,6 @@ public class BlogPostsController(
         [FromQuery] int count = 5,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetFeaturedBlogPostsQuery(count);
         var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
@@ -162,7 +163,6 @@ public class BlogPostsController(
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRecentBlogPostsQuery(count);
         var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
@@ -191,7 +191,6 @@ public class BlogPostsController(
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var searchQuery = new SearchBlogPostsQuery(query, page, pageSize);
         var posts = await mediator.Send(searchQuery, cancellationToken);
         return Ok(posts);
@@ -222,7 +221,6 @@ public class BlogPostsController(
         [FromBody] CreateBlogPostCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var authorId = GetUserId();
         var createCommand = command with { AuthorId = authorId };
         var post = await mediator.Send(createCommand, cancellationToken);
@@ -258,8 +256,6 @@ public class BlogPostsController(
         [FromBody] UpdateBlogPostCommand command,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateBlogPostCommandHandler)
         // Admin/Manager ise PerformedBy = null (tüm post'ları güncelleyebilir), Writer ise PerformedBy = userId
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") || User.IsInRole("Manager") ? (Guid?)null : userId;
@@ -268,7 +264,7 @@ public class BlogPostsController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -314,7 +310,7 @@ public class BlogPostsController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -344,8 +340,6 @@ public class BlogPostsController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteBlogPostCommandHandler)
         // Admin ise PerformedBy = null (tüm post'ları silebilir), Manager ise PerformedBy = userId
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
@@ -354,7 +348,7 @@ public class BlogPostsController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -384,8 +378,6 @@ public class BlogPostsController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (PublishBlogPostCommandHandler)
         // Admin ise PerformedBy = null (tüm post'ları yayınlayabilir), Manager ise PerformedBy = userId
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
@@ -394,7 +386,7 @@ public class BlogPostsController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -423,7 +415,6 @@ public class BlogPostsController(
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);

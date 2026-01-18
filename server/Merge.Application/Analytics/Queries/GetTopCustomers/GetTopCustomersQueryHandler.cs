@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetTopCustomers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetTopCustomersQueryHandler(
     IDbContext context,
     ILogger<GetTopCustomersQueryHandler> logger,
@@ -28,17 +26,12 @@ public class GetTopCustomersQueryHandler(
     {
         logger.LogInformation("Fetching top customers. Limit: {Limit}", request.Limit);
 
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
         var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         return await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.User)
             .GroupBy(o => new { o.UserId, o.User.FirstName, o.User.LastName, o.User.Email })
-            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
             .Select(g => new TopCustomerDto(
                 g.Key.UserId,
                 $"{g.Key.FirstName} {g.Key.LastName}",

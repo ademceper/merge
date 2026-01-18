@@ -17,10 +17,8 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class TwoFactorAuth : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public TwoFactorMethod Method { get; private set; }
     public string Secret { get; private set; } = string.Empty; // For authenticator apps (TOTP secret)
     public string? PhoneNumber { get; private set; } // For SMS
@@ -35,7 +33,6 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -47,7 +44,6 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -56,10 +52,8 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TwoFactorAuth() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TwoFactorAuth Create(
         Guid userId,
         TwoFactorMethod method,
@@ -85,7 +79,6 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         if (method == TwoFactorMethod.Email && string.IsNullOrEmpty(email))
             throw new DomainException("Email is required for Email 2FA method");
         
-        // ✅ BOLUM 1.3: Value Objects - Email validation
         if (!string.IsNullOrEmpty(email))
         {
             var emailValueObject = new Email(email);
@@ -119,13 +112,11 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - TwoFactorAuthCreatedEvent
         twoFactorAuth.AddDomainEvent(new TwoFactorAuthCreatedEvent(twoFactorAuth.Id, userId, method));
 
         return twoFactorAuth;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Enable 2FA
     public void Enable()
     {
         if (IsEnabled)
@@ -140,11 +131,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         IsEnabled = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TwoFactorEnabledEvent
         AddDomainEvent(new TwoFactorEnabledEvent(Id, UserId, Method));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Disable 2FA
     public void Disable()
     {
         if (!IsEnabled)
@@ -153,11 +142,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         IsEnabled = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TwoFactorDisabledEvent
         AddDomainEvent(new TwoFactorDisabledEvent(UserId, Id, Method));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update 2FA setup (for reconfiguration)
     public void UpdateSetup(
         TwoFactorMethod method,
         string secret,
@@ -181,7 +168,6 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         if (method == TwoFactorMethod.Email && string.IsNullOrEmpty(email))
             throw new DomainException("Email is required for Email 2FA method");
         
-        // ✅ BOLUM 1.3: Value Objects - Email validation
         if (!string.IsNullOrEmpty(email))
         {
             var emailValueObject = new Email(email);
@@ -213,7 +199,6 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify 2FA setup
     public void Verify()
     {
         if (IsVerified)
@@ -222,11 +207,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         IsVerified = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new TwoFactorVerifiedEvent(Id, UserId, Method));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record failed attempt
     // NOT: Lockout logic configuration'dan gelmeli, ancak entity'de business rule olarak tutuluyor
     // Configuration değerleri handler'dan geçirilmeli veya entity'ye inject edilmeli
     // Şimdilik parametre olarak alıyoruz
@@ -244,11 +227,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new TwoFactorFailedAttemptRecordedEvent(Id, UserId, Method, FailedAttempts, IsLocked && !wasLocked));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reset failed attempts
     public void ResetFailedAttempts()
     {
         if (FailedAttempts == 0 && !IsLocked) return;
@@ -258,11 +239,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         LockedUntil = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new TwoFactorFailedAttemptsResetEvent(Id, UserId, Method));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update backup codes
     public void UpdateBackupCodes(string[] backupCodes)
     {
         Guard.AgainstNull(backupCodes, nameof(backupCodes));
@@ -282,11 +261,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         BackupCodes = backupCodes;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new TwoFactorBackupCodesUpdatedEvent(Id, UserId, Method, backupCodes.Length));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Remove backup code
     public void RemoveBackupCode(string backupCode)
     {
         Guard.AgainstNullOrEmpty(backupCode, nameof(backupCode));
@@ -309,11 +286,9 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         BackupCodes = remainingCodes;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new TwoFactorBackupCodeRemovedEvent(Id, UserId, Method, remainingCodes.Length));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Computed properties
     public bool IsLocked => LockedUntil.HasValue && DateTime.UtcNow < LockedUntil.Value;
     public bool CanAttempt => !IsLocked;
 }

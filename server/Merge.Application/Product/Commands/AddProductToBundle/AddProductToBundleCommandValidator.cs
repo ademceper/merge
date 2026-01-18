@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.AddProductToBundle;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class AddProductToBundleCommandValidator : AbstractValidator<AddProductToBundleCommand>
 {
     public AddProductToBundleCommandValidator()

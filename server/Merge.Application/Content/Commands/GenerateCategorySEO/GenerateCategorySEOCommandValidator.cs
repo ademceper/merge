@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.GenerateCategorySEO;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GenerateCategorySEOCommandValidator : AbstractValidator<GenerateCategorySEOCommand>
 {
     public GenerateCategorySEOCommandValidator()

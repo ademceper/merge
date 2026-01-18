@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerProductsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSellerProductsQuery, PagedResult<ProductDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -24,18 +23,14 @@ public class GetSellerProductsQueryHandler(IDbContext context, IMapper mapper, I
 
     public async Task<PagedResult<ProductDto>> Handle(GetSellerProductsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller products. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}",
             request.SellerId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -49,7 +44,6 @@ public class GetSellerProductsQueryHandler(IDbContext context, IMapper mapper, I
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var productDtos = mapper.Map<IEnumerable<ProductDto>>(products).ToList();
 
         return new PagedResult<ProductDto>

@@ -4,14 +4,11 @@ using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// LiveStream Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class LiveStreamConfiguration : IEntityTypeConfiguration<LiveStream>
 {
     public void Configure(EntityTypeBuilder<LiveStream> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.SellerId);
         builder.HasIndex(e => e.Status);
         builder.HasIndex(e => e.IsActive);
@@ -42,16 +39,13 @@ public class LiveStreamConfiguration : IEntityTypeConfiguration<LiveStream>
         builder.Property(e => e.Tags)
             .HasMaxLength(500);
         
-        // ✅ BOLUM 1.3: Value Objects - Money (decimal precision)
         builder.Property(e => e.Revenue)
             .HasPrecision(18, 2);
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
         
-        // ✅ BOLUM 6.2: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_LiveStream_Revenue_NonNegative", "\"Revenue\" >= 0");
@@ -67,7 +61,6 @@ public class LiveStreamConfiguration : IEntityTypeConfiguration<LiveStream>
             .HasForeignKey(e => e.SellerId)
             .OnDelete(DeleteBehavior.Restrict);
         
-        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
         builder.HasMany(e => e.Products)
             .WithOne(e => e.LiveStream)
             .HasForeignKey(e => e.LiveStreamId)

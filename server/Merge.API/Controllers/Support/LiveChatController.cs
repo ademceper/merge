@@ -20,9 +20,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Support;
 
+/// <summary>
+/// Live Chat API endpoints.
+/// Canlı destek sohbet işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/live-chat")]
+[Tags("LiveChat")]
 public class LiveChatController(IMediator mediator) : BaseController
 {
 
@@ -76,7 +81,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(query, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
                 var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -112,7 +117,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(query, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
                 var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -216,7 +221,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -241,7 +246,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(sessionQuery, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -254,7 +259,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -283,7 +288,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(sessionQuery, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -325,7 +330,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(sessionQuery, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -359,7 +364,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var session = await mediator.Send(sessionQuery, cancellationToken);
         if (session == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
@@ -372,7 +377,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

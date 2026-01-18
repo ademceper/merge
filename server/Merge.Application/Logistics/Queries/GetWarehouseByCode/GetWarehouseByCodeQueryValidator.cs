@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.GetWarehouseByCode;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetWarehouseByCodeQueryValidator : AbstractValidator<GetWarehouseByCodeQuery>
 {
     public GetWarehouseByCodeQueryValidator()

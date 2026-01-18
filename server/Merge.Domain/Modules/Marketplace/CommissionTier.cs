@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class CommissionTier : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public decimal MinSales { get; private set; } = 0; // Minimum sales to qualify for this tier
     public decimal MaxSales { get; private set; } = decimal.MaxValue;
@@ -20,10 +19,8 @@ public class CommissionTier : BaseEntity
     public bool IsActive { get; private set; } = true;
     public int Priority { get; private set; } = 0; // Higher priority tiers checked first
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CommissionTier() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CommissionTier Create(
         string name,
         decimal minSales,
@@ -62,7 +59,6 @@ public class CommissionTier : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update tier details
     public void UpdateDetails(
         string? name = null,
         decimal? minSales = null,
@@ -110,7 +106,6 @@ public class CommissionTier : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate tier
     public void Activate()
     {
         if (IsActive)
@@ -120,7 +115,6 @@ public class CommissionTier : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate tier
     public void Deactivate()
     {
         if (!IsActive)
@@ -130,7 +124,6 @@ public class CommissionTier : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete tier (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -141,7 +134,6 @@ public class CommissionTier : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if sales qualify for tier
     public bool QualifiesForTier(decimal totalSales)
     {
         return IsActive && totalSales >= MinSales && totalSales <= MaxSales;

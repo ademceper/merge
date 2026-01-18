@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.CreateInventory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateInventoryCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -39,12 +37,10 @@ public class CreateInventoryCommandHandler(
             throw new ValidationException("Miktar negatif olamaz.");
         }
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini oluşturabilmeli
             var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
@@ -78,7 +74,6 @@ public class CreateInventoryCommandHandler(
                 throw new BusinessException("Bu ürün-depo kombinasyonu için envanter zaten mevcut.");
             }
 
-            // ✅ BOLUM 1.1: Factory Method kullanımı
             var inventory = Inventory.Create(
                 request.ProductId,
                 request.WarehouseId,
@@ -90,7 +85,6 @@ public class CreateInventoryCommandHandler(
 
             await context.Set<Inventory>().AddAsync(inventory, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create initial stock movement
             if (request.Quantity > 0)
             {
@@ -112,12 +106,9 @@ public class CreateInventoryCommandHandler(
                 await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
             }
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
             var reloadedInventory = await context.Set<Inventory>()
                 .AsNoTracking()
                 .Include(i => i.Product)
@@ -133,7 +124,6 @@ public class CreateInventoryCommandHandler(
             logger.LogInformation("Successfully created inventory with Id: {InventoryId} for ProductId: {ProductId}",
                 reloadedInventory.Id, request.ProductId);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{reloadedInventory.Id}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
@@ -142,10 +132,8 @@ public class CreateInventoryCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating inventory for ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 request.ProductId, request.WarehouseId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

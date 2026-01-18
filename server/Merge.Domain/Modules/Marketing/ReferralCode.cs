@@ -16,11 +16,9 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class ReferralCode : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string Code { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.6: Invariant validation - UsageCount >= 0
     private int _usageCount = 0;
     public int UsageCount 
     { 
@@ -32,7 +30,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - MaxUsage >= 0
     private int _maxUsage = 0; // 0 = unlimited
     public int MaxUsage 
     { 
@@ -47,7 +44,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
     public DateTime? ExpiresAt { get; private set; }
     public bool IsActive { get; private set; } = true;
     
-    // ✅ BOLUM 1.6: Invariant validation - PointsReward >= 0
     private int _pointsReward = 100;
     public int PointsReward 
     { 
@@ -59,7 +55,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - DiscountPercentage >= 0 && <= 100
     private decimal _discountPercentage = 10;
     public decimal DiscountPercentage 
     { 
@@ -76,14 +71,11 @@ public class ReferralCode : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ReferralCode() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ReferralCode Create(
         Guid userId,
         string code,
@@ -117,13 +109,11 @@ public class ReferralCode : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCodeCreatedEvent
         referralCode.AddDomainEvent(new ReferralCodeCreatedEvent(referralCode.Id, userId, referralCode.Code));
 
         return referralCode;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment usage
     public void IncrementUsage()
     {
         if (!IsActive)
@@ -138,11 +128,9 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         _usageCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCodeUsedEvent
         AddDomainEvent(new ReferralCodeUsedEvent(Id, UserId, Code, _usageCount, _maxUsage));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate
     public void Activate()
     {
         if (IsActive) return;
@@ -150,11 +138,9 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCodeActivatedEvent
         AddDomainEvent(new ReferralCodeActivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -162,11 +148,9 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCodeDeactivatedEvent
         AddDomainEvent(new ReferralCodeDeactivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if valid
     public bool IsValid()
     {
         if (!IsActive)
@@ -181,7 +165,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         return true;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update discount percentage
     public void UpdateDiscountPercentage(decimal discountPercentage)
     {
         Guard.AgainstNegative(discountPercentage, nameof(discountPercentage));
@@ -192,7 +175,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update points reward
     public void UpdatePointsReward(int pointsReward)
     {
         Guard.AgainstNegative(pointsReward, nameof(pointsReward));
@@ -200,7 +182,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -209,7 +190,6 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCodeDeletedEvent
         AddDomainEvent(new ReferralCodeDeletedEvent(Id, UserId, Code));
     }
 }

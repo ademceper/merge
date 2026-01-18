@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.UpdateCreditTerm;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateCreditTermCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,7 +20,6 @@ public class UpdateCreditTermCommandHandler(
     {
         logger.LogInformation("Updating credit term. CreditTermId: {CreditTermId}", request.Id);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var creditTerm = await context.Set<CreditTerm>()
             .FirstOrDefaultAsync(ct => ct.Id == request.Id, cancellationToken);
 
@@ -32,7 +29,6 @@ public class UpdateCreditTermCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         creditTerm.UpdateDetails(request.Dto.Name, request.Dto.PaymentDays, request.Dto.Terms);
         creditTerm.UpdateCreditLimit(request.Dto.CreditLimit);
         // creditTerm.UpdatedAt = DateTime.UtcNow; // Handled by entity

@@ -26,7 +26,7 @@ public class CreateProductTranslationCommandHandler(
             request.ProductId, request.LanguageCode);
 
         var language = await context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode), cancellationToken);
 
         if (language == null)
         {
@@ -36,7 +36,7 @@ public class CreateProductTranslationCommandHandler(
 
         var exists = await context.Set<ProductTranslation>()
             .AnyAsync(pt => pt.ProductId == request.ProductId &&
-                           pt.LanguageCode.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+                           EF.Functions.ILike(pt.LanguageCode, request.LanguageCode), cancellationToken);
 
         if (exists)
         {

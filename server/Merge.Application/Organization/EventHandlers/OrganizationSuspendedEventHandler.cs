@@ -5,15 +5,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Organization.EventHandlers;
 
-/// <summary>
-/// Organization Suspended Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public class OrganizationSuspendedEventHandler(ILogger<OrganizationSuspendedEventHandler> logger) : INotificationHandler<OrganizationSuspendedEvent>
 {
 
     public async Task Handle(OrganizationSuspendedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Organization suspended event received. OrganizationId: {OrganizationId}, Name: {Name}",
             notification.OrganizationId, notification.Name);

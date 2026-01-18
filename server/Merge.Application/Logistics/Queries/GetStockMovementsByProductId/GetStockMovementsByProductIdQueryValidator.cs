@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.GetStockMovementsByProductId;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetStockMovementsByProductIdQueryValidator : AbstractValidator<GetStockMovementsByProductIdQuery>
 {
     public GetStockMovementsByProductIdQueryValidator()

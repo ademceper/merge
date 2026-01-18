@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.FilterOrders;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class FilterOrdersQueryValidator : AbstractValidator<FilterOrdersQuery>
 {
     public FilterOrdersQueryValidator()

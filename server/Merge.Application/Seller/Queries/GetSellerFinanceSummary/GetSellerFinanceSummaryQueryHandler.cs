@@ -18,18 +18,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerFinanceSummary;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerFinanceSummaryQueryHandler(IDbContext context, IMediator mediator, ILogger<GetSellerFinanceSummaryQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetSellerFinanceSummaryQuery, SellerFinanceSummaryDto>
 {
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerFinanceSummaryDto> Handle(GetSellerFinanceSummaryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller finance summary. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-sellerConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
@@ -38,18 +35,15 @@ public class GetSellerFinanceSummaryQueryHandler(IDbContext context, IMediator m
         var balance = await mediator.Send(balanceQuery, cancellationToken);
 
         // Get recent transactions using existing query
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var transactionsQuery = new Queries.GetSellerTransactions.GetSellerTransactionsQuery(
             request.SellerId, null, startDate, endDate, 1, sellerConfig.RecentItemsLimit);
         var transactions = await mediator.Send(transactionsQuery, cancellationToken);
 
         // Get recent invoices using existing query
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var invoicesQuery = new Queries.GetSellerInvoices.GetSellerInvoicesQuery(
             request.SellerId, null, 1, sellerConfig.RecentItemsLimit);
         var invoices = await mediator.Send(invoicesQuery, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Earnings by month
         var earningsByMonth = await context.Set<SellerCommission>()
             .AsNoTracking()
@@ -60,7 +54,6 @@ public class GetSellerFinanceSummaryQueryHandler(IDbContext context, IMediator m
             .Select(g => new { Key = $"{g.Key.Year}-{g.Key.Month:D2}", Value = g.Sum(c => c.NetAmount) })
             .ToDictionaryAsync(x => x.Key, x => x.Value, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Payouts by month
         var payoutsByMonth = await context.Set<CommissionPayout>()
             .AsNoTracking()

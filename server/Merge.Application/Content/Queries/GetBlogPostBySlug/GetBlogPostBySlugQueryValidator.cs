@@ -3,7 +3,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Content.Queries.GetBlogPostBySlug;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetBlogPostBySlugQueryValidator : AbstractValidator<GetBlogPostBySlugQuery>
 {
     public GetBlogPostBySlugQueryValidator()

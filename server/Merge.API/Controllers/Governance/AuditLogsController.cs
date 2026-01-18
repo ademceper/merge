@@ -15,10 +15,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Governance;
 
+/// <summary>
+/// Audit Logs API endpoints.
+/// Denetim kayıtlarını yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/governance/audit-logs")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("AuditLogs")]
 public class AuditLogsController(IMediator mediator) : BaseController
 {
 
@@ -54,7 +59,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
             auditDto.UserEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new CreateAuditLogCommand(
             auditDto.UserId,
             auditDto.UserEmail,
@@ -91,13 +95,12 @@ public class AuditLogsController(IMediator mediator) : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAuditLogByIdQuery(id);
         var audit = await mediator.Send(query, cancellationToken);
 
         if (audit == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(audit);
@@ -120,7 +123,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new SearchAuditLogsQuery(
             filter.UserId,
             filter.UserEmail,
@@ -155,13 +157,12 @@ public class AuditLogsController(IMediator mediator) : BaseController
         Guid entityId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetEntityHistoryQuery(entityType, entityId);
         var history = await mediator.Send(query, cancellationToken);
 
         if (history == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(history);
@@ -180,7 +181,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAuditStatsQuery(days);
         var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
@@ -200,7 +200,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetUserAuditHistoryQuery(userId, days);
         var audits = await mediator.Send(query, cancellationToken);
         return Ok(audits);
@@ -224,8 +223,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi audit geçmişini görebilir
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetUserAuditHistoryQuery(userId, days);
         var audits = await mediator.Send(query, cancellationToken);
         return Ok(audits);
@@ -245,7 +242,6 @@ public class AuditLogsController(IMediator mediator) : BaseController
         Guid auditLogId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new CompareChangesQuery(auditLogId);
         var comparisons = await mediator.Send(query, cancellationToken);
         return Ok(comparisons);
@@ -265,9 +261,8 @@ public class AuditLogsController(IMediator mediator) : BaseController
         [FromQuery] int daysToKeep = 365,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteOldAuditLogsCommand(daysToKeep);
         await mediator.Send(command, cancellationToken);
-        return Ok(new { message = $"Audit logs older than {daysToKeep} days deleted successfully" });
+        return NoContent();
     }
 }

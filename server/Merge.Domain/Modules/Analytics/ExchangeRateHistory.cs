@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class ExchangeRateHistory : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid CurrencyId { get; private set; }
     public string CurrencyCode { get; private set; } = string.Empty;
     
@@ -35,14 +34,11 @@ public class ExchangeRateHistory : BaseEntity
     // Navigation properties
     public Currency Currency { get; private set; } = null!;
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ExchangeRateHistory() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ExchangeRateHistory Create(
         Guid currencyId,
         string currencyCode,

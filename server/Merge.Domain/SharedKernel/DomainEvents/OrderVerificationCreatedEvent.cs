@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Order Verification Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record OrderVerificationCreatedEvent(
     Guid VerificationId,
     Guid OrderId,

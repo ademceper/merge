@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetLowStockProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetLowStockProductsQueryHandler(
     IDbContext context,
     ILogger<GetLowStockProductsQueryHandler> logger,
@@ -27,16 +25,11 @@ public class GetLowStockProductsQueryHandler(
     {
         logger.LogInformation("Fetching low stock products. Threshold: {Threshold}", request.Threshold);
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var threshold = request.Threshold <= 0 ? settings.Value.DefaultLowStockThreshold : request.Threshold;
         
-        // ✅ PERFORMANCE: Database'de DTO oluştur (memory'de Select/ToList YASAK)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
         return await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StockQuantity < threshold && p.StockQuantity > 0)
-            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
             .Select(p => new LowStockProductDto(
                 p.Id,
                 p.Name,
@@ -46,7 +39,6 @@ public class GetLowStockProductsQueryHandler(
                 threshold * 2
             ))
             .OrderBy(p => p.CurrentStock)
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
             .Take(settings.Value.MaxQueryLimit)
             .ToListAsync(cancellationToken);
     }

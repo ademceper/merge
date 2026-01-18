@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Queries.GetInventoryByProductAndWarehouse;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetInventoryByProductAndWarehouseQueryValidator : AbstractValidator<GetInventoryByProductAndWarehouseQuery>
 {
     public GetInventoryByProductAndWarehouseQueryValidator()

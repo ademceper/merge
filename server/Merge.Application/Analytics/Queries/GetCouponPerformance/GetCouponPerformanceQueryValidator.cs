@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetCouponPerformance;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetCouponPerformanceQueryValidator : AbstractValidator<GetCouponPerformanceQuery>
 {
     public GetCouponPerformanceQueryValidator()

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Security.Commands.TakeAction;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class TakeActionCommandValidator : AbstractValidator<TakeActionCommand>
 {
     public TakeActionCommandValidator()

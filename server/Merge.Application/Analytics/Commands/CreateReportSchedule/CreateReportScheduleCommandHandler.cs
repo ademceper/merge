@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.CreateReportSchedule;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateReportScheduleCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -29,7 +27,6 @@ public class CreateReportScheduleCommandHandler(
         logger.LogInformation("Creating report schedule. UserId: {UserId}, ReportType: {ReportType}, Frequency: {Frequency}",
             request.UserId, request.Type, request.Frequency);
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var schedule = ReportSchedule.Create(
             request.Name,
             request.Description,
@@ -48,7 +45,6 @@ public class CreateReportScheduleCommandHandler(
 
         logger.LogInformation("Report schedule created successfully. ScheduleId: {ScheduleId}, UserId: {UserId}", schedule.Id, request.UserId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<ReportScheduleDto>(schedule);
     }
 }

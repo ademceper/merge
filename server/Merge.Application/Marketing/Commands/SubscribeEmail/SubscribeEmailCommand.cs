@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Marketing.Commands.SubscribeEmail;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record SubscribeEmailCommand(
     string Email,
     string? FirstName,

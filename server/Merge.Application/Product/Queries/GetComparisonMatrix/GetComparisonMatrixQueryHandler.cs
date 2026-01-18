@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetComparisonMatrix;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetComparisonMatrixQueryHandler(
     IDbContext context,
     ILogger<GetComparisonMatrixQueryHandler> logger,
@@ -25,8 +24,6 @@ public class GetComparisonMatrixQueryHandler(
     IOptions<CacheSettings> cacheSettings,
     IMapper mapper) : IRequestHandler<GetComparisonMatrixQuery, ComparisonMatrixDto>
 {
-    private readonly CacheSettings cacheConfig = cacheSettings.Value;
-
     private const string CACHE_KEY_COMPARISON_MATRIX = "comparison_matrix_";
 
     public async Task<ComparisonMatrixDto> Handle(GetComparisonMatrixQuery request, CancellationToken cancellationToken)
@@ -35,7 +32,6 @@ public class GetComparisonMatrixQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_COMPARISON_MATRIX}{request.ComparisonId}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
@@ -49,7 +45,7 @@ public class GetComparisonMatrixQueryHandler(
                             .ThenInclude(p => p.Category)
                     .FirstOrDefaultAsync(c => c.Id == request.ComparisonId, cancellationToken);
 
-                if (comparison == null)
+                if (comparison is null)
                 {
                     throw new NotFoundException("Karşılaştırma", request.ComparisonId);
                 }
@@ -71,7 +67,6 @@ public class GetComparisonMatrixQueryHandler(
                     })
                     .ToDictionaryAsync(x => x.ProductId, cancellationToken);
 
-                // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
                 var attributeNames = new List<string>
                 {
                     "Price",
@@ -82,7 +77,7 @@ public class GetComparisonMatrixQueryHandler(
                     "Category"
                 };
 
-                var comparisonProducts = new List<ComparisonProductDto>();
+                List<ComparisonProductDto> comparisonProducts = [];
                 var attributeValues = new Dictionary<string, List<string>>();
 
                 var products = comparison.Items
@@ -94,39 +89,38 @@ public class GetComparisonMatrixQueryHandler(
                 {
                     var reviewStats = reviewsDict.TryGetValue(product.Id, out var stats) ? stats : null;
                     var compProduct = mapper.Map<ComparisonProductDto>(product);
-                    // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
                     compProduct = compProduct with
                     {
-                        Rating = reviewStats != null ? (decimal?)reviewStats.Rating : null,
+                        Rating = reviewStats is not null ? (decimal?)reviewStats.Rating : null,
                         ReviewCount = reviewStats?.Count ?? 0,
                         Specifications = new Dictionary<string, string>().AsReadOnly(),
-                        Features = new List<string>().AsReadOnly()
+                        Features = Array.Empty<string>()
                     };
                     comparisonProducts.Add(compProduct);
 
                     // Add attribute values
                     if (!attributeValues.ContainsKey("Price"))
-                        attributeValues["Price"] = new List<string>();
+                        attributeValues["Price"] = [];
                     attributeValues["Price"].Add(product.DiscountPrice?.ToString("C") ?? product.Price.ToString("C"));
 
                     if (!attributeValues.ContainsKey("Stock"))
-                        attributeValues["Stock"] = new List<string>();
+                        attributeValues["Stock"] = [];
                     attributeValues["Stock"].Add(product.StockQuantity.ToString());
 
                     if (!attributeValues.ContainsKey("Rating"))
-                        attributeValues["Rating"] = new List<string>();
-                    attributeValues["Rating"].Add(reviewStats != null ? reviewStats.Rating.ToString("F1") : "N/A");
+                        attributeValues["Rating"] = [];
+                    attributeValues["Rating"].Add(reviewStats is not null ? reviewStats.Rating.ToString("F1") : "N/A");
 
                     if (!attributeValues.ContainsKey("Reviews"))
-                        attributeValues["Reviews"] = new List<string>();
+                        attributeValues["Reviews"] = [];
                     attributeValues["Reviews"].Add((reviewStats?.Count ?? 0).ToString());
 
                     if (!attributeValues.ContainsKey("Brand"))
-                        attributeValues["Brand"] = new List<string>();
+                        attributeValues["Brand"] = [];
                     attributeValues["Brand"].Add(product.Brand);
 
                     if (!attributeValues.ContainsKey("Category"))
-                        attributeValues["Category"] = new List<string>();
+                        attributeValues["Category"] = [];
                     attributeValues["Category"].Add(product.Category?.Name ?? "N/A");
                 }
 
@@ -141,7 +135,7 @@ public class GetComparisonMatrixQueryHandler(
 
                 return matrix;
             },
-            TimeSpan.FromMinutes(cacheConfig.ComparisonMatrixCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheSettings.Value.ComparisonMatrixCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

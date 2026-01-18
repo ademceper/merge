@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.AddReviewMedia;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class AddReviewMediaCommandValidator : AbstractValidator<AddReviewMediaCommand>
 {
     public AddReviewMediaCommandValidator()

@@ -18,10 +18,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing;
 
+/// <summary>
+/// Loyalty API endpoints.
+/// Sadakat programı işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/loyalty")]
 [Authorize]
+[Tags("Loyalty")]
 public class LoyaltyController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -132,9 +137,18 @@ public class LoyaltyController(
         return Ok(stats);
     }
 
+    /// <summary>
+    /// Satın alma tutarından kazanılacak puanları hesaplar
+    /// </summary>
+    /// <param name="amount">Satın alma tutarı</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Kazanılacak puan miktarı</returns>
+    /// <response code="200">Puan başarıyla hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("calculate-points")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<int>> CalculatePoints(
@@ -143,12 +157,21 @@ public class LoyaltyController(
     {
         var query = new CalculatePointsFromPurchaseQuery(amount);
         var points = await mediator.Send(query, cancellationToken);
-        return Ok(new { amount, points });
+        return Ok(points);
     }
 
+    /// <summary>
+    /// Puanlardan hesaplanacak indirim tutarını hesaplar
+    /// </summary>
+    /// <param name="points">Kullanılacak puan miktarı</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İndirim tutarı</returns>
+    /// <response code="200">İndirim başarıyla hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("calculate-discount")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<decimal>> CalculateDiscount(
@@ -157,6 +180,6 @@ public class LoyaltyController(
     {
         var query = new CalculateDiscountFromPointsQuery(points);
         var discount = await mediator.Send(query, cancellationToken);
-        return Ok(new { points, discount });
+        return Ok(discount);
     }
 }

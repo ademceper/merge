@@ -1,12 +1,10 @@
 using Merge.Application.DTOs.User;
 using Merge.Domain.Modules.Identity;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.User;
 
 public interface IUserActivityService
 {
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     Task LogActivityAsync(CreateActivityLogDto activityDto, string ipAddress, string userAgent, CancellationToken cancellationToken = default);
     Task<UserActivityLogDto?> GetActivityByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserActivityLogDto>> GetUserActivitiesAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default);

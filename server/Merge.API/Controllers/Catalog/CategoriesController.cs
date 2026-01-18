@@ -16,10 +16,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Catalog;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Category API endpoints.
+/// Tüm kategori operasyonlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/catalog/categories")]
+[Tags("Categories")]
 public class CategoriesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -36,6 +40,7 @@ public class CategoriesController(
     /// <response code="400">Geçersiz sayfalama parametreleri</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet]
+    [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<CategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -45,8 +50,6 @@ public class CategoriesController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -66,6 +69,7 @@ public class CategoriesController(
     /// <response code="400">Geçersiz sayfalama parametreleri</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("main")]
+    [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<CategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -75,8 +79,6 @@ public class CategoriesController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -94,7 +96,8 @@ public class CategoriesController(
     /// <response code="200">Kategori başarıyla getirildi</response>
     /// <response code="404">Kategori bulunamadı</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -103,13 +106,12 @@ public class CategoriesController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCategoryByIdQuery(id);
         var category = await mediator.Send(query, cancellationToken);
         
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(category);
     }
@@ -142,7 +144,6 @@ public class CategoriesController(
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var category = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = category.Id }, category);
     }
@@ -161,7 +162,7 @@ public class CategoriesController(
     /// <response code="404">Kategori bulunamadı</response>
     /// <response code="422">İş kuralı ihlali</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
-    [HttpPut("{id}")]
+    [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
@@ -169,7 +170,7 @@ public class CategoriesController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CategoryDto>> Update(
         Guid id,
@@ -179,17 +180,16 @@ public class CategoriesController(
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var category = await mediator.Send(updateCommand, cancellationToken);
         return Ok(category);
     }
 
     /// <summary>
-    /// Kategoriyi kısmi olarak günceller (PATCH)
-    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// Partially update a category.
+    /// Only provided fields will be updated.
     /// </summary>
-    [HttpPatch("{id}")]
+    [HttpPatch("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(20, 60)]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
@@ -197,7 +197,6 @@ public class CategoriesController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CategoryDto>> Patch(
         Guid id,
@@ -224,26 +223,24 @@ public class CategoriesController(
     /// <response code="404">Kategori bulunamadı</response>
     /// <response code="422">İş kuralı ihlali (örneğin alt kategoriler varsa silinemez)</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteCategoryCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

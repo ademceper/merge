@@ -13,9 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.CalculateShippingCost;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CalculateShippingCostQueryHandler(
     IDbContext context,
     ILogger<CalculateShippingCostQueryHandler> logger,
@@ -29,7 +26,6 @@ public class CalculateShippingCostQueryHandler(
     {
         logger.LogInformation("Calculating shipping cost. OrderId: {OrderId}, Provider: {Provider}", request.OrderId, request.ShippingProvider);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
@@ -41,7 +37,6 @@ public class CalculateShippingCostQueryHandler(
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         // Kargo sağlayıcısına göre maliyet hesaplama
         decimal baseCost = _shippingSettings.DefaultShippingCost;
         

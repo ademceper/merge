@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.UpdateOrderStatus;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdateOrderStatusCommandValidator : AbstractValidator<UpdateOrderStatusCommand>
 {
     public UpdateOrderStatusCommandValidator()

@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReportSchedules;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReportSchedulesQueryHandler(
     IDbContext context,
     ILogger<GetReportSchedulesQueryHandler> logger,
@@ -31,14 +29,10 @@ public class GetReportSchedulesQueryHandler(
         logger.LogInformation("Fetching report schedules. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
             request.UserId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<ReportSchedule>()
             .AsNoTracking()
             .Where(s => s.OwnerId == request.UserId);
@@ -51,7 +45,6 @@ public class GetReportSchedulesQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<ReportScheduleDto>
         {
             Items = mapper.Map<List<ReportScheduleDto>>(schedules),

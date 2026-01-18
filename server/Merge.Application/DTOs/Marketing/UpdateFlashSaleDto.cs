@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Update Flash Sale DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record UpdateFlashSaleDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Başlık en az 2, en fazla 200 karakter olmalıdır.")]

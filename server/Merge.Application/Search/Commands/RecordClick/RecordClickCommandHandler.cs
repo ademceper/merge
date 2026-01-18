@@ -10,13 +10,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Commands.RecordClick;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RecordClickCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RecordClickCommandHandler> logger) : IRequestHandler<RecordClickCommand>
 {
 
     public async Task Handle(RecordClickCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !sh.IsDeleted (Global Query Filter)
         var searchHistory = await context.Set<SearchHistory>()
             .FirstOrDefaultAsync(sh => sh.Id == request.SearchHistoryId, cancellationToken);
 
@@ -25,22 +23,18 @@ public class RecordClickCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             return;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         searchHistory.RecordClick(request.ProductId);
 
-        // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
         var popularSearch = await context.Set<PopularSearch>()
-            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == searchHistory.SearchTerm.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, searchHistory.SearchTerm), cancellationToken);
 
         if (popularSearch != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             popularSearch.IncrementClickThroughCount();
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Search click kaydedildi. SearchHistoryId: {SearchHistoryId}, ProductId: {ProductId}",
             request.SearchHistoryId, request.ProductId);

@@ -4,6 +4,5 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetCartByCartItemId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetCartByCartItemIdQuery(Guid CartItemId) : IRequest<CartDto?>;
 

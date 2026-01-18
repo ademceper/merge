@@ -31,10 +31,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(modelBuilder);
 
-        // ✅ PERFORMANCE: Global Query Filter for Soft Delete (BOLUM 6.2)
         ConfigureGlobalQueryFilters(modelBuilder);
 
-        // ✅ BOLUM 1.1: Discovery-based Configuration
         // Automatically find and apply all IEntityTypeConfiguration classes in this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }

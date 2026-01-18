@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class ShippingAddress : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string Label { get; private set; } = string.Empty; // Home, Work, Other, etc.
     public string FirstName { get; private set; } = string.Empty;
@@ -32,7 +31,6 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Instructions { get; private set; } // Delivery instructions
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -44,7 +42,6 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -58,12 +55,10 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
 
     // Navigation properties
     public User User { get; private set; } = null!;
-    public ICollection<Order> Orders { get; private set; } = new List<Order>();
+    public ICollection<Order> Orders { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ShippingAddress() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ShippingAddress Create(
         Guid userId,
         string label,
@@ -108,7 +103,6 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressCreatedEvent
         address.AddDomainEvent(new ShippingAddressCreatedEvent(
             address.Id,
             address.UserId,
@@ -120,7 +114,6 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         return address;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update address details
     public void UpdateDetails(
         string label,
         string firstName,
@@ -155,11 +148,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         Instructions = instructions;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressUpdatedEvent
         AddDomainEvent(new ShippingAddressUpdatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set as default
     public void SetAsDefault()
     {
         if (IsDefault) return;
@@ -167,11 +158,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsDefault = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressSetAsDefaultEvent
         AddDomainEvent(new ShippingAddressSetAsDefaultEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unset as default
     public void UnsetAsDefault()
     {
         if (!IsDefault) return;
@@ -179,11 +168,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressUnsetAsDefaultEvent
         AddDomainEvent(new ShippingAddressUnsetAsDefaultEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate address
     public void Activate()
     {
         if (IsActive) return;
@@ -191,11 +178,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressActivatedEvent
         AddDomainEvent(new ShippingAddressActivatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate address
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -203,11 +188,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressDeactivatedEvent
         AddDomainEvent(new ShippingAddressDeactivatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -217,7 +200,6 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - ShippingAddressDeletedEvent
         AddDomainEvent(new ShippingAddressDeletedEvent(Id, UserId));
     }
 }

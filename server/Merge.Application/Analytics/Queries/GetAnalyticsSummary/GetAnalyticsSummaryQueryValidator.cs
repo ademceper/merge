@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetAnalyticsSummary;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAnalyticsSummaryQueryValidator : AbstractValidator<GetAnalyticsSummaryQuery>
 {
     public GetAnalyticsSummaryQueryValidator()

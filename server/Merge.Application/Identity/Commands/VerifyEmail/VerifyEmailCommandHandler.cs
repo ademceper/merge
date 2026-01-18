@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.SharedKernel.DomainEvents;
 using UserEntity = Merge.Domain.Modules.Identity.User;
@@ -14,6 +15,7 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Marketing.EmailVerification>;
+using static Merge.Application.Common.LogMasking;
 
 namespace Merge.Application.Identity.Commands.VerifyEmail;
 
@@ -27,7 +29,7 @@ public class VerifyEmailCommandHandler(
 
     public async Task<Unit> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Email verification attempt. Token: {Token}", request.Token);
+        logger.LogInformation("Email verification attempt. Token: {MaskedToken}", MaskToken(request.Token));
 
         var verification = await context.Set<EmailVerification>()
             .Include(ev => ev.User)
@@ -35,7 +37,7 @@ public class VerifyEmailCommandHandler(
 
         if (verification == null)
         {
-            logger.LogWarning("Email verification failed - invalid token. Token: {Token}", request.Token);
+            logger.LogWarning("Email verification failed - invalid token. Token: {MaskedToken}", MaskToken(request.Token));
             throw new BusinessException("Geçersiz token.");
         }
 
@@ -47,7 +49,7 @@ public class VerifyEmailCommandHandler(
 
         if (verification.ExpiresAt < DateTime.UtcNow)
         {
-            logger.LogWarning("Email verification failed - token expired. Token: {Token}, ExpiresAt: {ExpiresAt}", request.Token, verification.ExpiresAt);
+            logger.LogWarning("Email verification failed - token expired. Token: {MaskedToken}, ExpiresAt: {ExpiresAt}", MaskToken(request.Token), verification.ExpiresAt);
             throw new BusinessException("Doğrulama linki süresi dolmuş.");
         }
 
@@ -60,7 +62,7 @@ public class VerifyEmailCommandHandler(
         
         await userManager.UpdateAsync(verification.User);
 
-        logger.LogInformation("Email verified successfully. UserId: {UserId}, Email: {Email}", verification.UserId, verification.Email);
+        logger.LogInformation("Email verified successfully. UserId: {UserId}, Email: {MaskedEmail}", verification.UserId, MaskEmail(verification.Email));
         return Unit.Value;
     }
 }

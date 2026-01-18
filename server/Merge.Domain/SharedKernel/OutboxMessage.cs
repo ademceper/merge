@@ -1,7 +1,6 @@
 using Merge.Domain.SharedKernel;
 namespace Merge.Domain.Entities;
 
-// ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
 public class OutboxMessage : BaseEntity
 {
     public string Type { get; set; } = string.Empty;

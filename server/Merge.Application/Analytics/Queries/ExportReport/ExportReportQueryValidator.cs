@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.ExportReport;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ExportReportQueryValidator : AbstractValidator<ExportReportQuery>
 {
     public ExportReportQueryValidator()

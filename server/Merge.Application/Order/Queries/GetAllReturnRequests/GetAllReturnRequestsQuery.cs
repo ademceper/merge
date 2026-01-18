@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.GetAllReturnRequests;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetAllReturnRequestsQuery(
     string? Status = null,
     int Page = 1,

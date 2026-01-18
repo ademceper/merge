@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Security.Commands.RejectOrder;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class RejectOrderCommandValidator : AbstractValidator<RejectOrderCommand>
 {
     public RejectOrderCommandValidator()

@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.DeleteKnowledgeBaseArticle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteKnowledgeBaseArticleCommandHandler> logger) : IRequestHandler<DeleteKnowledgeBaseArticleCommand, bool>
 {
 
     public async Task<bool> Handle(DeleteKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Deleting knowledge base article {ArticleId}", request.ArticleId);
 
         var article = await context.Set<KnowledgeBaseArticle>()
@@ -29,10 +27,8 @@ public class DeleteKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
         article.MarkAsDeleted();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Knowledge base article {ArticleId} deleted successfully", request.ArticleId);

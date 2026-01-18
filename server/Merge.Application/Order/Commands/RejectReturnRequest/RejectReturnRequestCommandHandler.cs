@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.RejectReturnRequest;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RejectReturnRequestCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RejectReturnRequestCommandHandler> logger) : IRequestHandler<RejectReturnRequestCommand, bool>
 {
 
@@ -26,10 +25,8 @@ public class RejectReturnRequestCommandHandler(IDbContext context, IUnitOfWork u
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         returnRequest.Reject(request.Reason);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Return request rejected. ReturnRequestId: {ReturnRequestId}, Reason: {Reason}", 

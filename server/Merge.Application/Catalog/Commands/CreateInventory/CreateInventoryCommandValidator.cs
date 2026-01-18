@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.CreateInventory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateInventoryCommandValidator : AbstractValidator<CreateInventoryCommand>
 {
     public CreateInventoryCommandValidator()

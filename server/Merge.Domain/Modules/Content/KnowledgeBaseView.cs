@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class KnowledgeBaseView : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ArticleId { get; private set; }
     public Guid? UserId { get; private set; }
     public string IpAddress { get; private set; } = string.Empty;
@@ -24,14 +23,11 @@ public class KnowledgeBaseView : BaseEntity
     public KnowledgeBaseArticle Article { get; private set; } = null!;
     public User? User { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private KnowledgeBaseView() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static KnowledgeBaseView Create(
         Guid articleId,
         Guid? userId = null,
@@ -41,7 +37,6 @@ public class KnowledgeBaseView : BaseEntity
     {
         Guard.AgainstDefault(articleId, nameof(articleId));
         Guard.AgainstNegative(viewDuration, nameof(viewDuration));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxIpAddressLength=45, MaxUserAgentLength=500
         if (!string.IsNullOrEmpty(ipAddress))
             Guard.AgainstLength(ipAddress, 45, nameof(ipAddress));
@@ -61,7 +56,6 @@ public class KnowledgeBaseView : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update view duration
     public void UpdateViewDuration(int duration)
     {
         Guard.AgainstNegative(duration, nameof(duration));
@@ -69,7 +63,6 @@ public class KnowledgeBaseView : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -79,7 +72,6 @@ public class KnowledgeBaseView : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted view
     public void Restore()
     {
         if (!IsDeleted)

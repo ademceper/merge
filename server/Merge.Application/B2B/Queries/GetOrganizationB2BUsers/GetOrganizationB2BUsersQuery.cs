@@ -4,7 +4,6 @@ using Merge.Application.DTOs.B2B;
 
 namespace Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetOrganizationB2BUsersQuery(
     Guid OrganizationId,
     string? Status = null,

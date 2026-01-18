@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.ImportProductsFromJson;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record ImportProductsFromJsonCommand(
     Stream FileStream
 ) : IRequest<BulkProductImportResultDto>;

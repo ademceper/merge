@@ -15,10 +15,15 @@ using Merge.Application.Security.Queries.GetAllVerifications;
 
 namespace Merge.API.Controllers.Security;
 
+/// <summary>
+/// Order Verification API endpoints.
+/// Sipariş doğrulama işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/security/order-verifications")]
 [Authorize]
+[Tags("OrderVerifications")]
 public class OrderVerificationsController(IMediator mediator, IOptions<PaginationSettings> paginationSettings) : BaseController
 {
     private readonly PaginationSettings _paginationSettings = paginationSettings.Value;
@@ -61,7 +66,7 @@ public class OrderVerificationsController(IMediator mediator, IOptions<Paginatio
         var verification = await mediator.Send(query, cancellationToken);
         if (verification == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(verification);
     }
@@ -121,7 +126,7 @@ public class OrderVerificationsController(IMediator mediator, IOptions<Paginatio
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -145,7 +150,7 @@ public class OrderVerificationsController(IMediator mediator, IOptions<Paginatio
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

@@ -13,8 +13,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.DeleteBanner;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteBannerCommandHandler(
     IRepository bannerRepository,
     IDbContext context,
@@ -30,7 +28,6 @@ public class DeleteBannerCommandHandler(
     {
         logger.LogInformation("Deleting banner. BannerId: {BannerId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -44,7 +41,6 @@ public class DeleteBannerCommandHandler(
             // Store position for cache invalidation
             var position = banner.Position;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             banner.MarkAsDeleted();
 
             await bannerRepository.UpdateAsync(banner, cancellationToken);
@@ -53,7 +49,6 @@ public class DeleteBannerCommandHandler(
 
             logger.LogInformation("Banner deleted successfully. BannerId: {BannerId}", request.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all banner-related cache
             await cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{position}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
@@ -69,7 +64,6 @@ public class DeleteBannerCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error deleting banner. BannerId: {BannerId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

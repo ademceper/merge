@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CompleteOrderSplit;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CompleteOrderSplitCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CompleteOrderSplitCommandHandler> logger) : IRequestHandler<CompleteOrderSplitCommand, bool>
 {
 
@@ -22,10 +21,8 @@ public class CompleteOrderSplitCommandHandler(IDbContext context, IUnitOfWork un
 
         if (split == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         split.Complete();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("Order split completed. SplitId: {SplitId}", request.SplitId);

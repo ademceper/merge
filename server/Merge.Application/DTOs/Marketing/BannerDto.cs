@@ -1,9 +1,7 @@
 using Merge.Domain.Modules.Content;
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Banner DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record BannerDto(
     Guid Id,
     string Title,

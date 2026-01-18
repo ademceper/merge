@@ -4,18 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Logistics.EventHandlers;
 
-/// <summary>
-/// ShippingAddress Unset As Default Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
-/// </summary>
+
 public class ShippingAddressUnsetAsDefaultEventHandler(
     ILogger<ShippingAddressUnsetAsDefaultEventHandler> logger) : INotificationHandler<ShippingAddressUnsetAsDefaultEvent>
 {
 
     public async Task Handle(ShippingAddressUnsetAsDefaultEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "ShippingAddress unset as default event received. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
             notification.ShippingAddressId, notification.UserId);
@@ -29,7 +24,6 @@ public class ShippingAddressUnsetAsDefaultEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ShippingAddressUnsetAsDefaultEvent. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
                 notification.ShippingAddressId, notification.UserId);

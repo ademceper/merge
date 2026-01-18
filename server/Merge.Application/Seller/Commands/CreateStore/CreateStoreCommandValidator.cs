@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.CreateStore;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateStoreCommandValidator : AbstractValidator<CreateStoreCommand>
 {
     public CreateStoreCommandValidator()

@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.UpdateStore;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreCommand>
 {
     public UpdateStoreCommandValidator()

@@ -31,14 +31,11 @@ namespace Merge.Application.Services.Payment;
 
 public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderRepository orderRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<InvoiceService> logger, IOptions<PaymentSettings> paymentSettings) : IInvoiceService
 {
-    private readonly PaymentSettings paymentConfig = paymentSettings.Value;
-
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-
         var invoice = await context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -48,18 +45,17 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
-        if (invoice == null) return null;
+        if (invoice is null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber, BillingAddress, Items AutoMapper'da zaten map ediliyor
         return mapper.Map<InvoiceDto>(invoice);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         var invoice = await context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -69,23 +65,17 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(i => i.OrderId == orderId, cancellationToken);
 
-        if (invoice == null) return null;
+        if (invoice is null) return null;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber, BillingAddress, Items AutoMapper'da zaten map ediliyor
         return mapper.Map<InvoiceDto>(invoice);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<InvoiceDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var query = context.Set<Invoice>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -106,8 +96,6 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         // Not: OrderNumber, BillingAddress, Items AutoMapper'da zaten map ediliyor
         var dtos = mapper.Map<IEnumerable<InvoiceDto>>(invoices);
 
@@ -120,23 +108,21 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InvoiceDto> GenerateInvoiceAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Invoice oluşturuluyor. OrderId: {OrderId}",
             orderId);
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var order = await context.Set<OrderEntity>()
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(o => o.Address)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken); // ✅ Global Query Filter handles !o.IsDeleted
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", orderId);
         }
@@ -147,19 +133,17 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
         }
 
         // Mevcut fatura var mı kontrol et
-        // ✅ PERFORMANCE: Global Query Filter automatically filters !i.IsDeleted
         var existingInvoice = await context.Set<Invoice>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(i => i.OrderId == orderId, cancellationToken);
 
-        if (existingInvoice != null)
+        if (existingInvoice is not null)
         {
             return await GetByIdAsync(existingInvoice.Id, cancellationToken) ?? throw new BusinessException("Fatura oluşturulamadı.");
         }
 
         var invoiceNumber = GenerateInvoiceNumber();
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
         var subTotalMoney = new Money(order.SubTotal);
         var taxMoney = new Money(order.Tax);
         var shippingCostMoney = new Money(order.ShippingCost);
@@ -169,7 +153,7 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
             orderId: orderId,
             invoiceNumber: invoiceNumber,
             invoiceDate: DateTime.UtcNow,
-            dueDate: DateTime.UtcNow.AddDays(paymentConfig.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
+            dueDate: DateTime.UtcNow.AddDays(paymentSettings.Value.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
             subTotal: subTotalMoney,
             tax: taxMoney,
             shippingCost: shippingCostMoney,
@@ -181,6 +165,7 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
 
         invoice = await context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -190,26 +175,22 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Invoice oluşturuldu. InvoiceId: {InvoiceId}, InvoiceNumber: {InvoiceNumber}, OrderId: {OrderId}",
             invoice!.Id, invoice.InvoiceNumber, orderId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber, BillingAddress, Items AutoMapper'da zaten map ediliyor
         return mapper.Map<InvoiceDto>(invoice);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> SendInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
         var invoice = await invoiceRepository.GetByIdAsync(invoiceId);
-        if (invoice == null)
+        if (invoice is null)
         {
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         invoice.MarkAsSent();
         await invoiceRepository.UpdateAsync(invoice);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -218,14 +199,13 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<string> GenerateInvoicePdfAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
         // Burada PDF oluşturma kütüphanesi kullanılacak (iTextSharp, QuestPDF, vb.)
         // Şimdilik sadece placeholder URL döndürüyoruz
         
         var invoice = await invoiceRepository.GetByIdAsync(invoiceId);
-        if (invoice == null)
+        if (invoice is null)
         {
             throw new NotFoundException("Fatura", invoiceId);
         }
@@ -235,7 +215,6 @@ public class InvoiceService(IInvoiceRepository invoiceRepository, IOrderReposito
         // var pdfUrl = await UploadPdfToStorage(pdfBytes, invoice.InvoiceNumber);
         
         var pdfUrl = $"/invoices/{invoice.InvoiceNumber}.pdf";
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         invoice.SetPdfUrl(pdfUrl);
         await invoiceRepository.UpdateAsync(invoice);
         await unitOfWork.SaveChangesAsync(cancellationToken);

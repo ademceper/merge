@@ -14,10 +14,18 @@ using Merge.Application.Order.Queries.GetAllReturnRequests;
 using Merge.API.Middleware;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+
 namespace Merge.API.Controllers.Order;
+
+/// <summary>
+/// Return Request API endpoints.
+/// İade taleplerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/orders/return-requests")]
+[Route("api/v{version:apiVersion}/orders/return-requests")]
 [Authorize]
+[Tags("ReturnRequests")]
 public class ReturnRequestsController(
     IMediator mediator,
     IOptions<OrderSettings> orderSettings) : BaseController
@@ -75,7 +83,7 @@ public class ReturnRequestsController(
         var returnRequest = await mediator.Send(query, cancellationToken);
         if (returnRequest == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (returnRequest.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -117,7 +125,7 @@ public class ReturnRequestsController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -142,7 +150,7 @@ public class ReturnRequestsController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -167,7 +175,7 @@ public class ReturnRequestsController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

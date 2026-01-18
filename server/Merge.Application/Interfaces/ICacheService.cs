@@ -1,6 +1,5 @@
 namespace Merge.Application.Interfaces;
 
-// ✅ BOLUM 10.2: Distributed cache interface (Redis)
 public interface ICacheService
 {
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class;

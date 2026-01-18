@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReviewTrends;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReviewTrendsQueryHandler(
     IDbContext context,
     ILogger<GetReviewTrendsQueryHandler> logger) : IRequestHandler<GetReviewTrendsQuery, List<ReviewTrendDto>>
@@ -25,10 +23,6 @@ public class GetReviewTrendsQueryHandler(
         logger.LogInformation("Fetching review trends. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved && r.CreatedAt >= request.StartDate && r.CreatedAt <= request.EndDate)

@@ -12,9 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.UpdatePickPackDetails;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class UpdatePickPackDetailsCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -25,7 +22,6 @@ public class UpdatePickPackDetailsCommandHandler(
     {
         logger.LogInformation("Updating pick-pack details. PickPackId: {PickPackId}", request.PickPackId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
@@ -35,7 +31,6 @@ public class UpdatePickPackDetailsCommandHandler(
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Sadece details update (notes, weight, dimensions, packageCount)
         // Status transition'ları için ayrı command'lar kullanılmalı (StartPicking, CompletePicking, StartPacking, CompletePacking, Ship, Cancel)
         pickPack.UpdateDetails(
@@ -44,8 +39,6 @@ public class UpdatePickPackDetailsCommandHandler(
             request.Dimensions,
             request.PackageCount);
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Pick-pack details updated successfully. PickPackId: {PickPackId}", request.PickPackId);

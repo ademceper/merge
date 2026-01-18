@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.ApprovePurchaseOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ApprovePurchaseOrderCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -26,12 +24,10 @@ public class ApprovePurchaseOrderCommandHandler(
         logger.LogInformation("Approving purchase order. PurchaseOrderId: {PurchaseOrderId}, ApprovedByUserId: {ApprovedByUserId}",
             request.Id, request.ApprovedByUserId);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PurchaseOrder + CreditTerm updates)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
             var po = await context.Set<PurchaseOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken);
 
@@ -45,20 +41,16 @@ public class ApprovePurchaseOrderCommandHandler(
             // Check credit limit if credit term is used
             if (po.CreditTermId.HasValue)
             {
-                // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
                 var creditTerm = await context.Set<CreditTerm>()
                     .FirstOrDefaultAsync(ct => ct.Id == po.CreditTermId.Value, cancellationToken);
 
                 if (creditTerm != null && creditTerm.CreditLimit.HasValue)
                 {
-                    // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
                     // Entity method içinde zaten credit limit kontrolü var
                     creditTerm.UseCredit(po.TotalAmount);
                 }
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-            // ✅ ARCHITECTURE: Domain event'ler entity içinde oluşturuluyor (PurchaseOrder.Approve() içinde PurchaseOrderApprovedEvent)
             po.Approve(request.ApprovedByUserId);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -68,11 +60,9 @@ public class ApprovePurchaseOrderCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "PurchaseOrder onaylama hatasi. PurchaseOrderId: {PurchaseOrderId}, ApprovedByUserId: {ApprovedByUserId}",
                 request.Id, request.ApprovedByUserId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

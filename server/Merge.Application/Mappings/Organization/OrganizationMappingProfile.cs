@@ -11,8 +11,6 @@ public class OrganizationMappingProfile : Profile
     public OrganizationMappingProfile()
     {
         // Organization mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs + error handling)
-        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<OrganizationEntity, OrganizationDto>()
         .ConvertUsing((src, context) =>
         {
@@ -25,7 +23,6 @@ public class OrganizationMappingProfile : Profile
         }
         catch
         {
-        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
         }
         }
 
@@ -53,7 +50,6 @@ public class OrganizationMappingProfile : Profile
         src.CreatedAt);
         });
 
-        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<Team, TeamDto>()
         .ConvertUsing((src, context) =>
         {
@@ -66,7 +62,6 @@ public class OrganizationMappingProfile : Profile
         }
         catch
         {
-        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
         }
         }
 

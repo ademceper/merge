@@ -18,12 +18,10 @@ namespace Merge.Application.Services.User;
 public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserPreferenceService> logger) : IUserPreferenceService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving preferences for user: {UserId}", userId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !up.IsDeleted (Global Query Filter)
         var preferences = await context.Set<UserPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
@@ -41,14 +39,11 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
             logger.LogInformation("Default preferences created for user: {UserId}", userId);
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<UserPreferenceDto>(preferences);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
@@ -67,7 +62,6 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
         if (!string.IsNullOrEmpty(dto.TimeFormat) && Enum.TryParse<TimeFormat>(dto.TimeFormat, true, out var parsedTimeFormat))
             timeFormat = parsedTimeFormat;
 
-        // ✅ BOLUM 1.1: Domain Method use (Encapsulation)
         preferences.UpdatePreferences(
             theme: theme,
             defaultLanguage: dto.DefaultLanguage,
@@ -98,14 +92,11 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<UserPreferenceDto>(preferences);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
@@ -122,7 +113,6 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<UserPreferenceDto>(preferences);
     }
 

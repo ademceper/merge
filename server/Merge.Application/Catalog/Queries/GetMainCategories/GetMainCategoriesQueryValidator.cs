@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Catalog.Queries.GetMainCategories;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetMainCategoriesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetMainCategoriesQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

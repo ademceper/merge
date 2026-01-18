@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetInventoryOverview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetInventoryOverviewQueryHandler(
     IDbContext context,
     ILogger<GetInventoryOverviewQueryHandler> logger,
@@ -29,15 +27,10 @@ public class GetInventoryOverviewQueryHandler(
     {
         logger.LogInformation("Fetching inventory overview");
         
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !i.IsDeleted checks (Global Query Filter handles it)
         var totalInventoryValue = await context.Set<Inventory>()
             .AsNoTracking()
             .SumAsync(i => i.Quantity * i.UnitCost, cancellationToken);
 
-        // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-        // ✅ PERFORMANCE: Database'de filtreleme yap (memory'de değil)
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var maxAlerts = settings.Value.MaxLowStockAlertsInOverview;
         var lowStockInventories = await context.Set<Inventory>()
             .AsNoTracking()
@@ -49,7 +42,6 @@ public class GetInventoryOverviewQueryHandler(
             .Take(maxAlerts)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var lowStockAlerts = mapper.Map<List<LowStockAlertDto>>(lowStockInventories);
 
         var overview = new InventoryOverviewDto(

@@ -6,7 +6,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetRecentlyViewed;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetRecentlyViewedQuery(
     Guid UserId,
     int Page = 1,

@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetProductBundleById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetProductBundleByIdQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetProductBundleByIdQuery, ProductBundleDto?>
 {
     private readonly CacheSettings cacheConfig = cacheSettings.Value;
@@ -27,7 +25,6 @@ public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper
     {
         logger.LogInformation("Fetching product bundle by Id: {BundleId}", request.Id);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}";
         var cachedBundle = await cache.GetAsync<ProductBundleDto>(cacheKey, cancellationToken);
         if (cachedBundle != null)
@@ -50,8 +47,6 @@ public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper
 
         var bundleDto = mapper.Map<ProductBundleDto>(bundle);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, bundleDto, TimeSpan.FromMinutes(cacheConfig.ProductBundleCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Product bundle retrieved successfully. BundleId: {BundleId}", request.Id);

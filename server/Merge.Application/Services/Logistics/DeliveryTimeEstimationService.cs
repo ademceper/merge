@@ -19,7 +19,6 @@ namespace Merge.Application.Services.Logistics;
 public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger) : IDeliveryTimeEstimationService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimationDto> CreateEstimationAsync(CreateDeliveryTimeEstimationDto dto, CancellationToken cancellationToken = default)
     {
         // Factory method kullan
@@ -40,38 +39,32 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         await context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var createdEstimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == estimation.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<DeliveryTimeEstimationDto>(createdEstimation!);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimationDto?> GetEstimationByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<DeliveryTimeEstimationDto>> GetAllEstimationsAsync(Guid? productId = null, Guid? categoryId = null, Guid? warehouseId = null, bool? isActive = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         IQueryable<DeliveryTimeEstimation> query = context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -103,15 +96,11 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
             .OrderBy(e => e.AverageDays)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<DeliveryTimeEstimationDto>>(estimations);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdateEstimationAsync(Guid id, UpdateDeliveryTimeEstimationDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
@@ -144,11 +133,8 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteEstimationAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
@@ -160,7 +146,6 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimateResultDto> EstimateDeliveryTimeAsync(EstimateDeliveryTimeDto dto, CancellationToken cancellationToken = default)
     {
         // Try to find most specific estimation
@@ -168,7 +153,6 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         string? source = null;
 
         // 1. Product-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (dto.ProductId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -187,7 +171,6 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         }
 
         // 2. Category-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null && dto.CategoryId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -206,7 +189,6 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         }
 
         // 3. Warehouse-specific estimation
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null && dto.WarehouseId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
@@ -224,7 +206,6 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         }
 
         // 4. Default estimation (no specific match)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()

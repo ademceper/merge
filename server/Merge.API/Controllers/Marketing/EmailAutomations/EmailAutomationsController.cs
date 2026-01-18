@@ -13,10 +13,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing.EmailAutomations;
 
+/// <summary>
+/// Email Automations API endpoints.
+/// E-posta otomasyonlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/email-automations")]
 [Authorize]
+[Tags("EmailAutomations")]
 public class EmailAutomationsController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -85,7 +90,7 @@ public class EmailAutomationsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -108,7 +113,7 @@ public class EmailAutomationsController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();

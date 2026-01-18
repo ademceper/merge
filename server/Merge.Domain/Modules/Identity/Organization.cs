@@ -16,13 +16,11 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class Organization : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string? LegalName { get; private set; }
     public string? TaxNumber { get; private set; } // Tax ID / VAT Number
     public string? RegistrationNumber { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects - Email backing field (EF Core compatibility)
     private string? _email;
     public string? Email 
     { 
@@ -30,7 +28,6 @@ public class Organization : BaseEntity, IAggregateRoot
         private set => _email = value; 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - PhoneNumber backing field (EF Core compatibility)
     private string? _phone;
     public string? Phone 
     { 
@@ -38,7 +35,6 @@ public class Organization : BaseEntity, IAggregateRoot
         private set => _phone = value; 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - URL backing field (EF Core compatibility)
     private string? _website;
     public string? Website 
     { 
@@ -46,7 +42,6 @@ public class Organization : BaseEntity, IAggregateRoot
         private set => _website = value; 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - Address backing fields (EF Core compatibility)
     // Address Value Object için tüm alanlar zorunlu olduğundan, nullable olarak tutuyoruz
     // Address Value Object'i oluşturmak için tüm alanların dolu olması gerekiyor
     private string? _addressLine1;
@@ -64,7 +59,6 @@ public class Organization : BaseEntity, IAggregateRoot
         private set => _addressLine1 = value; 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - AddressLine2 property (backing field access)
     public string? AddressLine2 
     { 
         get => _addressLine2; 
@@ -95,7 +89,6 @@ public class Organization : BaseEntity, IAggregateRoot
         private set => _country = value; 
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from backing fields)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public AddressValueObject? AddressValueObject
     {
@@ -108,7 +101,6 @@ public class Organization : BaseEntity, IAggregateRoot
                 string.IsNullOrWhiteSpace(_country))
                 return null;
             
-            // ✅ BOLUM 1.3: Value Objects - Address Value Object oluştur (validation otomatik yapılır)
             // Eğer Address Value Object oluşturulamazsa (validation hatası), exception fırlatılır
             // Bu doğru davranıştır - invalid address data'sı için exception fırlatılmalı
             return new AddressValueObject(
@@ -126,17 +118,12 @@ public class Organization : BaseEntity, IAggregateRoot
     public DateTime? VerifiedAt { get; private set; }
     public string? Settings { get; private set; } // JSON for organization-specific settings
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Encapsulated collections with backing fields
-    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
     private readonly List<User> _users = [];
     private readonly List<Team> _teams = [];
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties (read-only collections)
-    // ✅ BOLUM 1.4: Aggregate Root Pattern - Users ve Teams'e sadece Organization üzerinden erişim
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
     public IReadOnlyCollection<Team> Teams => _teams.AsReadOnly();
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı (User entity'sinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -148,7 +135,6 @@ public class Organization : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -157,10 +143,8 @@ public class Organization : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Organization() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Organization Create(
         string name,
         string? legalName = null,
@@ -178,7 +162,6 @@ public class Organization : BaseEntity, IAggregateRoot
         string? settings = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
-        // ✅ BOLUM 1.1: Name validation - Minimum length kontrolü (DTO ile uyumlu)
         Guard.AgainstOutOfRange(name.Length, 2, 200, nameof(name));
         
         if (!string.IsNullOrEmpty(legalName))
@@ -200,7 +183,6 @@ public class Organization : BaseEntity, IAggregateRoot
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             
-            // ✅ BOLUM 1.1: JSON validation - Settings JSON format kontrolü
             try
             {
                 System.Text.Json.JsonDocument.Parse(settings);
@@ -211,7 +193,6 @@ public class Organization : BaseEntity, IAggregateRoot
             }
         }
 
-        // ✅ BOLUM 1.3: Value Objects - Email validation
         string? validatedEmail = null;
         if (!string.IsNullOrEmpty(email))
         {
@@ -219,7 +200,6 @@ public class Organization : BaseEntity, IAggregateRoot
             validatedEmail = emailValueObject.Value;
         }
 
-        // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation
         string? validatedPhone = null;
         if (!string.IsNullOrEmpty(phone))
         {
@@ -227,7 +207,6 @@ public class Organization : BaseEntity, IAggregateRoot
             validatedPhone = phoneValueObject.Value;
         }
 
-        // ✅ BOLUM 1.3: Value Objects - URL validation
         string? validatedWebsite = null;
         if (!string.IsNullOrEmpty(website))
         {
@@ -235,14 +214,12 @@ public class Organization : BaseEntity, IAggregateRoot
             validatedWebsite = urlValueObject.Value;
         }
         
-        // ✅ BOLUM 1.3: Value Objects - Address validation
         // Address Value Object için tüm alanlar zorunlu olduğundan, sadece tüm alanlar doluysa oluşturuyoruz
         if (!string.IsNullOrEmpty(address) && 
             !string.IsNullOrEmpty(city) && 
             !string.IsNullOrEmpty(postalCode) && 
             !string.IsNullOrEmpty(country))
         {
-            // ✅ BOLUM 1.3: Value Objects - Address Value Object validation (tüm alanlar zorunlu)
             // Address Value Object constructor içinde validation yapılır
             var addressValueObject = new AddressValueObject(
                 address,
@@ -291,13 +268,11 @@ public class Organization : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         organization.AddDomainEvent(new OrganizationCreatedEvent(organization.Id, organization.Name, organization.Email));
 
         return organization;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update organization
     public void Update(
         string? name = null,
         string? legalName = null,
@@ -314,19 +289,16 @@ public class Organization : BaseEntity, IAggregateRoot
         string? country = null,
         string? settings = null)
     {
-        // ✅ BOLUM 1.1: Business Invariants - Silinmiş organizasyon güncellenemez
         if (IsDeleted)
             throw new DomainException("Silinmiş organizasyon güncellenemez");
 
-        var changedFields = new List<string>();
+        List<string> changedFields = [];
 
-        // ✅ BOLUM 1.1: Name validation - null check, empty check ve minimum length kontrolü (DTO ile uyumlu)
         if (name != null && name != Name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("Organizasyon adı boş olamaz");
             
-            // ✅ BOLUM 1.1: Name validation - Minimum length kontrolü (Create ile uyumlu)
             Guard.AgainstOutOfRange(name.Length, 2, 200, nameof(name));
             Name = name;
             changedFields.Add(nameof(Name));
@@ -340,7 +312,6 @@ public class Organization : BaseEntity, IAggregateRoot
             }
             else
             {
-                // ✅ BOLUM 1.3: Value Objects - Email validation
                 var emailValueObject = new Email(email);
                 Email = emailValueObject.Value;
             }
@@ -355,7 +326,6 @@ public class Organization : BaseEntity, IAggregateRoot
             }
             else
             {
-                // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation
                 var phoneValueObject = new PhoneNumber(phone);
                 Phone = phoneValueObject.Value;
             }
@@ -370,7 +340,6 @@ public class Organization : BaseEntity, IAggregateRoot
             }
             else
             {
-                // ✅ BOLUM 1.3: Value Objects - URL validation
                 var urlValueObject = new Url(website);
                 Website = urlValueObject.Value;
             }
@@ -419,7 +388,6 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(RegistrationNumber));
         }
         
-        // ✅ BOLUM 1.3: Value Objects - Address validation
         // Address Value Object için tüm alanlar zorunlu olduğundan, sadece tüm alanlar doluysa oluşturuyoruz
         var addressChanged = (address != null && address != Address) ||
                              (addressLine2 != null && addressLine2 != AddressLine2) ||
@@ -443,7 +411,6 @@ public class Organization : BaseEntity, IAggregateRoot
                 !string.IsNullOrEmpty(finalPostalCode) && 
                 !string.IsNullOrEmpty(finalCountry))
             {
-                // ✅ BOLUM 1.3: Value Objects - Address Value Object validation (tüm alanlar zorunlu)
                 // Address Value Object constructor içinde validation yapılır
                 var addressValueObject = new AddressValueObject(
                     finalAddress,
@@ -544,7 +511,6 @@ public class Organization : BaseEntity, IAggregateRoot
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             
-            // ✅ BOLUM 1.1: JSON validation - Settings JSON format kontrolü
             if (!string.IsNullOrEmpty(settings))
             {
                 try
@@ -566,19 +532,15 @@ public class Organization : BaseEntity, IAggregateRoot
         {
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events - Add domain event with changed fields
             AddDomainEvent(new OrganizationUpdatedEvent(Id, Name, changedFields));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify organization
     public void Verify()
     {
-        // ✅ BOLUM 1.1: Business Invariants - Silinmiş organizasyon doğrulanamaz
         if (IsDeleted)
             throw new DomainException("Silinmiş organizasyon doğrulanamaz");
 
-        // ✅ BOLUM 1.1: Business Invariants - Askıya alınmış organizasyon doğrulanamaz
         if (Status == EntityStatus.Suspended)
             throw new DomainException("Askıya alınmış organizasyon doğrulanamaz");
 
@@ -589,11 +551,9 @@ public class Organization : BaseEntity, IAggregateRoot
         VerifiedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new OrganizationVerifiedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Suspend organization
     public void Suspend()
     {
         if (Status == EntityStatus.Suspended)
@@ -605,11 +565,9 @@ public class Organization : BaseEntity, IAggregateRoot
         Status = EntityStatus.Suspended;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new OrganizationSuspendedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate organization
     public void Activate()
     {
         if (Status == EntityStatus.Active)
@@ -621,11 +579,9 @@ public class Organization : BaseEntity, IAggregateRoot
         Status = EntityStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new OrganizationActivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete organization (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -635,7 +591,6 @@ public class Organization : BaseEntity, IAggregateRoot
         Status = EntityStatus.Deleted;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new OrganizationDeletedEvent(Id, Name));
     }
 }

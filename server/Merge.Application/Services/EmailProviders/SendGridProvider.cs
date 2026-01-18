@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.EmailProviders;
+using Merge.Application.Common;
 using Merge.Domain.ValueObjects;
+using static Merge.Application.Common.LogMasking;
 
 namespace Merge.Application.Services.EmailProviders;
 
@@ -11,7 +13,7 @@ public class SendGridProvider(IConfiguration configuration, ILogger<SendGridProv
 
     public async Task<EmailSendResult> SendEmailAsync(EmailMessage message)
     {
-        logger.LogInformation("SendGrid email sending started. To: {To}, Subject: {Subject}", message.To, message.Subject);
+        logger.LogInformation("SendGrid email sending started. To: {MaskedEmail}, Subject: {Subject}", MaskEmail(message.To), message.Subject);
         
         var apiKey = configuration["EmailProviders:SendGrid:ApiKey"];
         

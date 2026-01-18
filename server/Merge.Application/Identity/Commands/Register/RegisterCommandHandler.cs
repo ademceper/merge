@@ -14,6 +14,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
+using static Merge.Application.Common.LogMasking;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Modules.Identity.User;
 using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
@@ -38,12 +39,12 @@ public class RegisterCommandHandler(
 
     public async Task<AuthResponseDto> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Registration attempt. Email: {Email}", request.Email);
+        logger.LogInformation("Registration attempt. Email: {MaskedEmail}", MaskEmail(request.Email));
 
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
         {
-            logger.LogWarning("Registration failed - email already exists. Email: {Email}", request.Email);
+            logger.LogWarning("Registration failed - email already exists. Email: {MaskedEmail}", MaskEmail(request.Email));
             throw new BusinessException("Bu email adresi zaten kullanılıyor.");
         }
 
@@ -53,7 +54,7 @@ public class RegisterCommandHandler(
         if (!result.Succeeded)
         {
             var errors = result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description });
-            logger.LogWarning("Registration failed - validation errors. Email: {Email}, Errors: {Errors}", request.Email, errors);
+            logger.LogWarning("Registration failed - validation errors. Email: {MaskedEmail}, Errors: {Errors}", MaskEmail(request.Email), errors);
             throw new ValidationException("Kullanıcı oluşturulamadı.", errors);
         }
 
@@ -65,8 +66,8 @@ public class RegisterCommandHandler(
         userEntry.State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
 
         logger.LogInformation(
-            "User registered successfully. UserId: {UserId}, Email: {Email}",
-            user.Id, request.Email);
+            "User registered successfully. UserId: {UserId}, Email: {MaskedEmail}",
+            user.Id, MaskEmail(request.Email));
 
         return await GenerateAuthResponseAsync(user, roles, request.IpAddress, cancellationToken);
     }
@@ -121,7 +122,7 @@ public class RegisterCommandHandler(
 
     private async Task<string> GenerateJwtToken(UserEntity user)
     {
-        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new InvalidOperationException("JWT Key bulunamadı"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new ConfigurationException("JWT Key bulunamadı"));
 
         var roles = await userManager.GetRolesAsync(user);
         var claims = new List<Claim>(6 + roles.Count)

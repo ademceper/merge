@@ -4,20 +4,16 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Infrastructure.Data.Configurations.Ordering;
 
-/// <summary>
-/// InternationalShipping Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class InternationalShippingConfiguration : IEntityTypeConfiguration<InternationalShipping>
 {
     public void Configure(EntityTypeBuilder<InternationalShipping> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.OrderId);
         builder.HasIndex(e => e.TrackingNumber);
         builder.HasIndex(e => e.Status);
         builder.HasIndex(e => new { e.OriginCountry, e.DestinationCountry });
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
@@ -70,7 +66,6 @@ public class InternationalShippingConfiguration : IEntityTypeConfiguration<Inter
             .HasForeignKey(e => e.OrderId)
             .OnDelete(DeleteBehavior.Restrict);
         
-        // ✅ BOLUM 6.1: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_InternationalShipping_ShippingCost_NonNegative", "\"ShippingCost\" >= 0");

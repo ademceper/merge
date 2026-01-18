@@ -26,11 +26,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Catalog;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Inventory API endpoints.
+/// Envanter işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/catalog/inventory")]
 [Authorize(Roles = "Admin,Seller")]
+[Tags("Inventory")]
 public class InventoryController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -63,13 +67,12 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoryByIdQuery(id, userId);
         var inventory = await mediator.Send(query, cancellationToken);
         
         if (inventory == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(inventory);
@@ -102,7 +105,6 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoriesByProductIdQuery(productId, userId);
         var inventories = await mediator.Send(query, cancellationToken);
         
@@ -130,12 +132,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var validPageSize = pageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : pageSize;
         var validPage = page < 1 ? 1 : page;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var query = new GetInventoriesByWarehouseIdQuery(warehouseId, userId, validPage, validPageSize);
         var inventories = await mediator.Send(query, cancellationToken);
         
@@ -162,13 +161,12 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoryByProductAndWarehouseQuery(productId, warehouseId, userId);
         var inventory = await mediator.Send(query, cancellationToken);
         
         if (inventory == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(inventory);
@@ -195,12 +193,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var validPageSize = pageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : pageSize;
         var validPage = page < 1 ? 1 : page;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var query = new GetLowStockAlertsQuery(userId, warehouseId, validPage, validPageSize);
         var alerts = await mediator.Send(query, cancellationToken);
         
@@ -226,13 +221,12 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetStockReportByProductQuery(productId, userId);
         var report = await mediator.Send(query, cancellationToken);
         
         if (report == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(report);
@@ -257,11 +251,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAvailableStockQuery(productId, warehouseId, userId);
         var availableStock = await mediator.Send(query, cancellationToken);
         
-        // ✅ BOLUM 4.3: Over-Posting Koruması - Anonymous object YASAK, DTO kullan
         return Ok(availableStock);
     }
 
@@ -299,12 +291,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { PerformedBy = userId };
         var inventory = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (CreateInventoryCommandHandler)
 
         return CreatedAtAction(nameof(GetById), new { id = inventory.Id }, inventory);
     }
@@ -345,12 +334,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { Id = id, PerformedBy = userId };
         var updatedInventory = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateInventoryCommandHandler)
 
         return Ok(updatedInventory);
     }
@@ -405,16 +391,14 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteInventoryCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteInventoryCommandHandler)
 
         return NoContent();
     }
@@ -453,12 +437,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { PerformedBy = userId };
         var updatedInventory = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (AdjustStockCommandHandler)
 
         return Ok(updatedInventory);
     }
@@ -497,12 +478,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { PerformedBy = userId };
         var result = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (TransferStockCommandHandler)
 
         return NoContent();
     }
@@ -541,12 +519,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { PerformedBy = userId };
         var result = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (ReserveStockCommandHandler)
 
         return NoContent();
     }
@@ -585,12 +560,9 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
         var updatedCommand = command with { PerformedBy = userId };
         var result = await mediator.Send(updatedCommand, cancellationToken);
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (ReleaseStockCommandHandler)
 
         return NoContent();
     }
@@ -614,16 +586,14 @@ public class InventoryController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new UpdateLastCountDateCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateLastCountDateCommandHandler)
 
         return NoContent();
     }

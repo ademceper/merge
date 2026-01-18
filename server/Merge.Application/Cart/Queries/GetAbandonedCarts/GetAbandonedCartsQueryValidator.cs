@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCarts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAbandonedCartsQueryValidator : AbstractValidator<GetAbandonedCartsQuery>
 {
     public GetAbandonedCartsQueryValidator()

@@ -19,7 +19,6 @@ namespace Merge.Domain.SharedKernel;
 /// </summary>
 public class AuditLog : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // User who performed the action
     public string UserEmail { get; private set; } = string.Empty;
     public string Action { get; private set; } = string.Empty; // Create, Update, Delete, Login, etc.
@@ -32,24 +31,20 @@ public class AuditLog : BaseEntity, IAggregateRoot
     public string Changes { get; private set; } = string.Empty; // Summary of changes
     public string IpAddress { get; private set; } = string.Empty;
     public string UserAgent { get; private set; } = string.Empty;
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public AuditSeverity Severity { get; private set; } = AuditSeverity.Info;
     public string Module { get; private set; } = string.Empty; // Auth, Products, Orders, etc.
     public bool IsSuccessful { get; private set; } = true;
     public string? ErrorMessage { get; private set; }
     public string AdditionalData { get; private set; } = string.Empty; // JSON for extra context
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User? User { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private AuditLog() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static AuditLog Create(
         string action,
         string entityType,
@@ -99,7 +94,6 @@ public class AuditLog : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - AuditLogCreatedEvent yayınla
         log.AddDomainEvent(new AuditLogCreatedEvent(
             log.Id,
             action,
@@ -113,7 +107,6 @@ public class AuditLog : BaseEntity, IAggregateRoot
         return log;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as failed
     public void MarkAsFailed(string errorMessage)
     {
         Guard.AgainstNullOrEmpty(errorMessage, nameof(errorMessage));
@@ -122,7 +115,6 @@ public class AuditLog : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update severity
     public void UpdateSeverity(AuditSeverity severity)
     {
         Severity = severity;

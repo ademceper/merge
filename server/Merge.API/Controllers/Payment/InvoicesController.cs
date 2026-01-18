@@ -15,9 +15,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Payment;
 
+/// <summary>
+/// Invoices API endpoints.
+/// Faturaları yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/payments/invoices")]
 [Authorize]
+[Tags("Invoices")]
 public class InvoicesController(IMediator mediator) : BaseController
 {
     [HttpGet]
@@ -53,13 +59,13 @@ public class InvoicesController(IMediator mediator) : BaseController
         var invoice = await mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -85,7 +91,7 @@ public class InvoicesController(IMediator mediator) : BaseController
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -95,7 +101,7 @@ public class InvoicesController(IMediator mediator) : BaseController
         var invoice = await mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(invoice);
     }
@@ -129,14 +135,25 @@ public class InvoicesController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
 
+    /// <summary>
+    /// Faturanın PDF dosyasını getirir
+    /// </summary>
+    /// <param name="id">Fatura ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>PDF dosyası URL'i</returns>
+    /// <response code="200">PDF URL'i başarıyla getirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="404">Fatura bulunamadı</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("{id}/pdf")]
     [RateLimit(30, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -151,13 +168,13 @@ public class InvoicesController(IMediator mediator) : BaseController
         var invoice = await mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -165,6 +182,6 @@ public class InvoicesController(IMediator mediator) : BaseController
         }
         var command = new GenerateInvoicePdfCommand(id);
         var pdfUrl = await mediator.Send(command, cancellationToken);
-        return Ok(new { pdfUrl });
+        return Ok(pdfUrl);
     }
 }

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetInventoryOverview;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetInventoryOverviewQueryValidator : AbstractValidator<GetInventoryOverviewQuery>
 {
     public GetInventoryOverviewQueryValidator()

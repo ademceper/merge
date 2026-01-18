@@ -6,7 +6,6 @@ using Merge.Domain.Modules.Support;
 
 namespace Merge.Application.Support.Commands.UpdateFaq;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class UpdateFaqCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<UpdateFaqCommand>
 {
     private readonly SupportSettings config = settings.Value;

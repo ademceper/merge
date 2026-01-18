@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 
 namespace Merge.Application.Services;
 
-// ✅ BOLUM 10.2: Redis distributed cache implementation
 public class CacheService(IDistributedCache distributedCache, ILogger<CacheService> logger) : ICacheService
 {
 
@@ -15,11 +14,9 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    // ✅ PERFORMANCE FIX: Cache stampede protection - per-key semaphores
     // Note: For multi-instance deployments, use Redis-based distributed locks instead
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _keyLocks = new();
 
-    // ✅ PERFORMANCE FIX: ConfigureAwait(false) eklendi - thread pool starvation önleme
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class
     {
         try
@@ -77,14 +74,12 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
 
     public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default) where T : class
     {
-        // ✅ PERFORMANCE FIX: Cache stampede protection - double-check locking pattern
         var cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
         if (cached != null)
         {
             return cached;
         }
 
-        // ✅ PERFORMANCE FIX: Per-key semaphore to prevent cache stampede (thundering herd)
         // Only one request per key will execute the factory, others will wait and then check cache again
         var semaphore = _keyLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
         
@@ -120,14 +115,12 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
 
     public async Task<T?> GetOrCreateNullableAsync<T>(string key, Func<Task<T?>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default) where T : class
     {
-        // ✅ PERFORMANCE FIX: Cache stampede protection - double-check locking pattern
         var cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
         if (cached != null)
         {
             return cached;
         }
 
-        // ✅ PERFORMANCE FIX: Per-key semaphore to prevent cache stampede (thundering herd)
         var semaphore = _keyLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
         
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);

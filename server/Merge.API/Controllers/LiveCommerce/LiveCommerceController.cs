@@ -25,9 +25,14 @@ using Merge.Application.LiveCommerce.Commands.CancelStream;
 
 namespace Merge.API.Controllers.LiveCommerce;
 
+/// <summary>
+/// Live Commerce API endpoints.
+/// Canlı alışveriş yayınlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/live-commerce")]
+[Tags("LiveCommerce")]
 public class LiveCommerceController(IMediator mediator) : BaseController
 {
     [HttpPost("streams")]
@@ -86,7 +91,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var existingStream = await mediator.Send(streamQuery, cancellationToken);
         if (existingStream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && existingStream.SellerId != userId))
         {
@@ -132,7 +137,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var existingStream = await mediator.Send(streamQuery, cancellationToken);
         if (existingStream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (existingStream.SellerId != userId && !User.IsInRole("Admin"))
         {
@@ -163,7 +168,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -188,7 +193,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(query, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(stream);
     }
@@ -244,7 +249,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -275,7 +280,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -306,7 +311,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -337,7 +342,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -368,7 +373,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -402,7 +407,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -439,7 +444,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
@@ -522,7 +527,7 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {

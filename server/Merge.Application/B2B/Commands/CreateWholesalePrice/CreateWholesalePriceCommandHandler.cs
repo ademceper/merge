@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreateWholesalePrice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateWholesalePriceCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -31,9 +29,7 @@ public class CreateWholesalePriceCommandHandler(
         logger.LogInformation("Creating wholesale price. ProductId: {ProductId}, OrganizationId: {OrganizationId}",
             request.Dto.ProductId, request.Dto.OrganizationId);
 
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == request.Dto.ProductId, cancellationToken);
 
@@ -49,7 +45,6 @@ public class CreateWholesalePriceCommandHandler(
                 .FirstOrDefaultAsync(o => o.Id == request.Dto.OrganizationId.Value, cancellationToken);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var wholesalePrice = WholesalePrice.Create(
             request.Dto.ProductId,
             product,
@@ -73,7 +68,6 @@ public class CreateWholesalePriceCommandHandler(
 
         logger.LogInformation("Wholesale price created successfully. WholesalePriceId: {WholesalePriceId}", wholesalePrice!.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<WholesalePriceDto>(wholesalePrice);
     }
 }

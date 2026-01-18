@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.RejectReview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RejectReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RejectReviewCommandHandler> logger) : IRequestHandler<RejectReviewCommand, bool>
 {
 
@@ -32,13 +31,11 @@ public class RejectReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         var productId = review.ProductId;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         review.Reject(request.RejectedByUserId, request.Reason);
 
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(productId, cancellationToken);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review rejected successfully. ReviewId: {ReviewId}, Reason: {Reason}", 
@@ -48,7 +45,6 @@ public class RejectReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
         var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)

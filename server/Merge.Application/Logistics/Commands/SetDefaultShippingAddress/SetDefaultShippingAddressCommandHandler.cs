@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.SetDefaultShippingAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class SetDefaultShippingAddressCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +21,6 @@ public class SetDefaultShippingAddressCommandHandler(
     {
         logger.LogInformation("Setting default shipping address. UserId: {UserId}, AddressId: {AddressId}", request.UserId, request.AddressId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
 
@@ -44,11 +40,8 @@ public class SetDefaultShippingAddressCommandHandler(
             a.UnsetAsDefault();
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         address.SetAsDefault();
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Default shipping address set successfully. UserId: {UserId}, AddressId: {AddressId}", request.UserId, request.AddressId);

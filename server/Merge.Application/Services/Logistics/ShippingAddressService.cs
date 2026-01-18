@@ -17,16 +17,12 @@ namespace Merge.Application.Services.Logistics;
 public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger) : IShippingAddressService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<ShippingAddressDto> CreateShippingAddressAsync(Guid userId, CreateShippingAddressDto dto, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Kargo adresi olusturuluyor. UserId: {UserId}", userId);
 
         try
         {
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
             var user = await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
@@ -39,8 +35,6 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
             // If this is default, unset other default addresses
             if (dto.IsDefault)
             {
-                // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-                // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
                 var existingDefault = await context.Set<ShippingAddress>()
                     .Where(a => a.UserId == userId && a.IsDefault)
                     .ToListAsync(cancellationToken);
@@ -72,7 +66,6 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
 
             logger.LogInformation("Kargo adresi olusturuldu. AddressId: {AddressId}, UserId: {UserId}", address.Id, userId);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<ShippingAddressDto>(address);
         }
         catch (Exception ex)
@@ -82,22 +75,17 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         }
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ShippingAddressDto?> GetShippingAddressByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var address = await context.Set<ShippingAddress>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ShippingAddressDto>> GetUserShippingAddressesAsync(Guid userId, bool? isActive = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var query = context.Set<ShippingAddress>()
             .AsNoTracking()
             .Where(a => a.UserId == userId);
@@ -112,27 +100,20 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
             .ThenBy(a => a.Label)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<ShippingAddressDto>>(addresses);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ShippingAddressDto?> GetDefaultShippingAddressAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var address = await context.Set<ShippingAddress>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == userId && a.IsDefault && a.IsActive, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdateShippingAddressAsync(Guid id, UpdateShippingAddressDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
@@ -154,8 +135,6 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
 
         if (dto.IsDefault.HasValue && dto.IsDefault.Value)
         {
-            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             // Unset other default addresses
             var existingDefault = await context.Set<ShippingAddress>()
                 .Where(a => a.UserId == address.UserId && a.IsDefault && a.Id != id)
@@ -186,17 +165,13 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteShippingAddressAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (address == null) return false;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         // Check if address is used in any orders
         var hasOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
@@ -218,18 +193,13 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> SetDefaultShippingAddressAsync(Guid userId, Guid addressId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
 
         if (address == null) return false;
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         // Unset other default addresses
         var existingDefault = await context.Set<ShippingAddress>()
             .Where(a => a.UserId == userId && a.IsDefault && a.Id != addressId)

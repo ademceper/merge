@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetOrganizationCreditTermsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetOrganizationCreditTermsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

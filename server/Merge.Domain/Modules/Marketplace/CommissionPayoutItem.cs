@@ -9,7 +9,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class CommissionPayoutItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid PayoutId { get; private set; }
     public Guid CommissionId { get; private set; }
 
@@ -17,10 +16,8 @@ public class CommissionPayoutItem : BaseEntity
     public CommissionPayout Payout { get; private set; } = null!;
     public SellerCommission Commission { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CommissionPayoutItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CommissionPayoutItem Create(
         Guid payoutId,
         Guid commissionId)

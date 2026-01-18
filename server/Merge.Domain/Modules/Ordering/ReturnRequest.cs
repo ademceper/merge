@@ -23,15 +23,12 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class ReturnRequest : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public Guid UserId { get; private set; }
     public string Reason { get; private set; } = string.Empty; // Defective, WrongItem, NotAsDescribed, ChangedMind
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
     public ReturnRequestStatus Status { get; private set; } = ReturnRequestStatus.Pending;
     public string? RejectionReason { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing field
     private decimal _refundAmount;
     
     // Database column (EF Core mapping)
@@ -45,16 +42,14 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [NotMapped]
     public Money RefundAmountMoney => new Money(_refundAmount);
     
     public string? TrackingNumber { get; private set; } // İade kargo takip no
     public DateTime? ApprovedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
-    public List<Guid> OrderItemIds { get; private set; } = new List<Guid>(); // İade edilecek kalemler
+    public List<Guid> OrderItemIds { get; private set; } = []; // İade edilecek kalemler
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -66,7 +61,6 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -78,7 +72,6 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - Eşzamanlı güncellemeleri önlemek için
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -86,11 +79,8 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
     public Order Order { get; private set; } = null!;
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ReturnRequest() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public static ReturnRequest Create(
         Guid orderId,
         Guid userId,
@@ -126,7 +116,6 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Return Request Created
         returnRequest.AddDomainEvent(new ReturnRequestCreatedEvent(
             returnRequest.Id,
             orderId,
@@ -136,7 +125,6 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         return returnRequest;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Approve return request
     public void Approve()
     {
         if (Status != ReturnRequestStatus.Pending)
@@ -146,11 +134,9 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         ApprovedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Return Request Approved
         AddDomainEvent(new ReturnRequestApprovedEvent(Id, OrderId, UserId, ApprovedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Reject return request
     public void Reject(string? rejectionReason = null)
     {
         if (Status != ReturnRequestStatus.Pending)
@@ -160,11 +146,9 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         RejectionReason = rejectionReason;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Return Request Rejected
         AddDomainEvent(new ReturnRequestRejectedEvent(Id, OrderId, UserId, rejectionReason));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Complete return request
     public void Complete(string? trackingNumber = null)
     {
         if (Status != ReturnRequestStatus.Approved && Status != ReturnRequestStatus.Processing)
@@ -175,7 +159,6 @@ public class ReturnRequest : BaseEntity, IAggregateRoot
         TrackingNumber = trackingNumber;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Return Request Completed
         AddDomainEvent(new ReturnRequestCompletedEvent(Id, OrderId, UserId, trackingNumber, CompletedAt.Value));
     }
 }

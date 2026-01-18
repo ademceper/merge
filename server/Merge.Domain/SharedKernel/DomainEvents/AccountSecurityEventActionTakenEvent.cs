@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Account Security Event Action Taken Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record AccountSecurityEventActionTakenEvent(
     Guid EventId,
     Guid ActionTakenByUserId,

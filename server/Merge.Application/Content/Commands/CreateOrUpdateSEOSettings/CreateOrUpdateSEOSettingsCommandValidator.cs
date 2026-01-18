@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.CreateOrUpdateSEOSettings;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateOrUpdateSEOSettingsCommandValidator : AbstractValidator<CreateOrUpdateSEOSettingsCommand>
 {
     public CreateOrUpdateSEOSettingsCommandValidator()

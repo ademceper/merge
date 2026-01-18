@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Support.Commands.AssignTicket;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class AssignTicketCommandValidator : AbstractValidator<AssignTicketCommand>
 {
     public AssignTicketCommandValidator()

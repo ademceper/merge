@@ -22,7 +22,7 @@ public class BulkCreateStaticTranslationsCommandHandler(
             request.LanguageCode, request.Translations.Count);
 
         var language = await context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode), cancellationToken);
 
         if (language == null)
         {
@@ -32,7 +32,7 @@ public class BulkCreateStaticTranslationsCommandHandler(
 
         var existingKeys = await context.Set<StaticTranslation>()
             .AsNoTracking()
-            .Where(st => st.LanguageCode.ToLower() == request.LanguageCode.ToLower())
+            .Where(st => EF.Functions.ILike(st.LanguageCode, request.LanguageCode))
             .Select(st => st.Key)
             .ToListAsync(cancellationToken);
 

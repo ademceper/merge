@@ -1,8 +1,6 @@
 namespace Merge.Application.Configuration;
 
-/// <summary>
-/// B2B Settings - BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
-/// </summary>
+
 public class B2BSettings
 {
     public const string SectionName = "B2BSettings";

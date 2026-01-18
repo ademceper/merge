@@ -22,15 +22,12 @@ namespace Merge.Application.Services.Payment;
 public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentMethodService> logger) : IPaymentMethodService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PaymentMethodDto> CreatePaymentMethodAsync(CreatePaymentMethodDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Payment method oluşturuluyor. Name: {Name}, Code: {Code}, IsActive: {IsActive}",
             dto.Name, dto.Code, dto.IsActive);
 
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         // Check if code already exists
         var existing = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Code == dto.Code, cancellationToken);
@@ -40,7 +37,6 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             throw new BusinessException($"Bu kod ile ödeme yöntemi zaten mevcut: '{dto.Code}'");
         }
 
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         // If this is default, unset other default methods
         if (dto.IsDefault)
         {
@@ -48,14 +44,12 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
                 .Where(pm => pm.IsDefault)
                 .ToListAsync(cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             foreach (var method in existingDefault)
             {
                 method.UnsetAsDefault();
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
         
         var paymentMethod = PaymentMethod.Create(
@@ -77,43 +71,33 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         await context.Set<PaymentMethod>().AddAsync(paymentMethod, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Payment method oluşturuldu. PaymentMethodId: {PaymentMethodId}, Name: {Name}, Code: {Code}",
             paymentMethod.Id, dto.Name, dto.Code);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<PaymentMethodDto>(paymentMethod);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PaymentMethodDto?> GetPaymentMethodByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return paymentMethod != null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PaymentMethodDto?> GetPaymentMethodByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Code == code && pm.IsActive, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return paymentMethod != null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<PaymentMethodDto>> GetAllPaymentMethodsAsync(bool? isActive = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var query = context.Set<PaymentMethod>()
             .AsNoTracking()
             .AsQueryable();
@@ -128,15 +112,11 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             .ThenBy(pm => pm.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<PaymentMethodDto>> GetAvailablePaymentMethodsAsync(decimal orderAmount, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var methods = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .Where(pm => pm.IsActive &&
@@ -146,21 +126,16 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             .ThenBy(pm => pm.Name)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdatePaymentMethodAsync(Guid id, UpdatePaymentMethodDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
         
         paymentMethod.Update(
@@ -177,10 +152,8 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             settingsJson,
             dto.DisplayOrder);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (dto.IsDefault.HasValue && dto.IsDefault.Value)
         {
-            // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
             // Unset other default methods
             var existingDefault = await context.Set<PaymentMethod>()
                 .Where(pm => pm.IsDefault && pm.Id != id)
@@ -202,16 +175,13 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeletePaymentMethodAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         // Check if method is used in any orders
         var hasOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
@@ -219,7 +189,6 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
 
         if (hasOrders)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Soft delete - just mark as inactive
             paymentMethod.Deactivate();
         }
@@ -233,16 +202,13 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> SetDefaultPaymentMethodAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
-        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         // Unset other default methods
         var existingDefault = await context.Set<PaymentMethod>()
             .Where(pm => pm.IsDefault && pm.Id != id)
@@ -250,11 +216,9 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
 
         foreach (var method in existingDefault)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             method.UnsetAsDefault();
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         paymentMethod.SetAsDefault();
         // paymentMethod.UpdatedAt = DateTime.UtcNow; // Handled by SetAsDefault
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -262,10 +226,8 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<decimal> CalculateProcessingFeeAsync(Guid paymentMethodId, decimal amount, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == paymentMethodId && pm.IsActive, cancellationToken);

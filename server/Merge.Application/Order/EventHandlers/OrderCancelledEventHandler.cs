@@ -10,15 +10,9 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Order Cancelled Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class OrderCancelledEventHandler(ILogger<OrderCancelledEventHandler> logger, INotificationService? notificationService) : INotificationHandler<OrderCancelledEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(OrderCancelledEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation(
@@ -28,7 +22,7 @@ public class OrderCancelledEventHandler(ILogger<OrderCancelledEventHandler> logg
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -37,7 +31,7 @@ public class OrderCancelledEventHandler(ILogger<OrderCancelledEventHandler> logg
                     $"Siparişiniz iptal edildi. Sipariş No: {notification.OrderId}. Sebep: {notification.Reason ?? "Belirtilmedi"}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -45,7 +39,6 @@ public class OrderCancelledEventHandler(ILogger<OrderCancelledEventHandler> logg
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling OrderCancelledEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);

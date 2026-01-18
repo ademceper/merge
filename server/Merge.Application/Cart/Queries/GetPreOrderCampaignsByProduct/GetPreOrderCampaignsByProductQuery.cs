@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderCampaignsByProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetPreOrderCampaignsByProductQuery(
     Guid ProductId,
     int Page,

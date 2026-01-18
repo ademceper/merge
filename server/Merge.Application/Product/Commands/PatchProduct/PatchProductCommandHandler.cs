@@ -35,7 +35,6 @@ public class PatchProductCommandHandler(
                 throw new NotFoundException("Ürün", request.Id);
             }
 
-            // ✅ IDOR Protection - Seller sadece kendi ürünlerini güncelleyebilmeli
             if (request.PerformedBy.HasValue && product.SellerId.HasValue && product.SellerId.Value != request.PerformedBy.Value)
             {
                 logger.LogWarning("Unauthorized attempt to patch product {ProductId} by user {UserId}. Product belongs to {SellerId}",

@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.Get2FAStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class Get2FAStatsQueryHandler(
     IDbContext context,
     ILogger<Get2FAStatsQueryHandler> logger) : IRequestHandler<Get2FAStatsQuery, TwoFactorStatsDto>
@@ -22,9 +20,6 @@ public class Get2FAStatsQueryHandler(
     {
         logger.LogInformation("Fetching 2FA stats");
 
-        // ✅ PERFORMANCE: Database'de toplam hesapla (memory'de Sum YASAK)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted and !t.IsDeleted checks (Global Query Filter handles it)
         var totalUsers = await context.Users.AsNoTracking().CountAsync(cancellationToken);
         
         var twoFactorQuery = context.Set<TwoFactorAuth>()
@@ -35,7 +30,6 @@ public class Get2FAStatsQueryHandler(
         
         var usersWithTwoFactor = await twoFactorQuery
             .GroupBy(t => t.Method)
-            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
             .Select(g => new TwoFactorMethodCount(
                 g.Key.ToString(),
                 g.Count(),

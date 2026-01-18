@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class VirtualTryOn : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Guid UserId { get; private set; }
     public bool IsEnabled { get; private set; } = true;
@@ -151,7 +150,6 @@ public class VirtualTryOn : BaseEntity
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -159,10 +157,8 @@ public class VirtualTryOn : BaseEntity
     public Product Product { get; private set; } = null!;
     public User User { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private VirtualTryOn() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static VirtualTryOn Create(
         Guid productId,
         Guid userId,
@@ -207,13 +203,11 @@ public class VirtualTryOn : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         virtualTryOn.ValidateInvariants();
         
         return virtualTryOn;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update model URL
     public void UpdateModelUrl(string newModelUrl)
     {
         Guard.AgainstNullOrEmpty(newModelUrl, nameof(newModelUrl));
@@ -224,11 +218,9 @@ public class VirtualTryOn : BaseEntity
         _modelUrl = newModelUrl;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update preview image URL
     public void UpdatePreviewImageUrl(string? newPreviewImageUrl)
     {
         if (newPreviewImageUrl != null && newPreviewImageUrl.Length > 2000)
@@ -238,11 +230,9 @@ public class VirtualTryOn : BaseEntity
         _previewImageUrl = newPreviewImageUrl;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update viewer type
     public void UpdateViewerType(string newViewerType)
     {
         Guard.AgainstNullOrEmpty(newViewerType, nameof(newViewerType));
@@ -254,11 +244,9 @@ public class VirtualTryOn : BaseEntity
         _viewerType = newViewerType;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update configuration
     public void UpdateConfiguration(string? newConfiguration)
     {
         if (newConfiguration != null && newConfiguration.Length > 10000)
@@ -268,11 +256,9 @@ public class VirtualTryOn : BaseEntity
         _configuration = newConfiguration;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update measurements
     public void UpdateMeasurements(
         decimal? height = null,
         decimal? chest = null,
@@ -286,11 +272,9 @@ public class VirtualTryOn : BaseEntity
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Enable
     public void Enable()
     {
         if (IsEnabled) return;
@@ -298,11 +282,9 @@ public class VirtualTryOn : BaseEntity
         IsEnabled = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Disable
     public void Disable()
     {
         if (!IsEnabled) return;
@@ -310,11 +292,9 @@ public class VirtualTryOn : BaseEntity
         IsEnabled = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -322,11 +302,9 @@ public class VirtualTryOn : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ProductId)

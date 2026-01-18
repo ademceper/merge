@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.ReleaseStock;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ReleaseStockCommandValidator : AbstractValidator<ReleaseStockCommand>
 {
     public ReleaseStockCommandValidator()

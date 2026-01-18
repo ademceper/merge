@@ -140,7 +140,6 @@ public class Enable2FACommandHandler(
     private byte[] Base32Decode(string encoded)
     {
         const string base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - Base32: her 5 bit = 1 byte, yaklaşık encoded.Length * 5 / 8
         // TOTP secret'ları genelde 16-32 karakter, bu yüzden maksimum 20 byte yeterli
         var result = new List<byte>(Math.Max(16, encoded.Length * 5 / 8));
         int buffer = 0;

@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetSizeRecommendation;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSizeRecommendationQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings, IOptions<RecommendationSettings> recommendationSettings) : IRequestHandler<GetSizeRecommendationQuery, SizeRecommendationDto>
 {
     private readonly CacheSettings cacheConfig = cacheSettings.Value;
@@ -27,7 +25,6 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
         logger.LogInformation("Fetching size recommendation. ProductId: {ProductId}, Height: {Height}, Weight: {Weight}",
             request.ProductId, request.Height, request.Weight);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         // Note: Cache key includes measurements for accurate caching
         var cacheKey = $"{CACHE_KEY_SIZE_RECOMMENDATION}{request.ProductId}_{request.Height}_{request.Weight}_{request.Chest}_{request.Waist}";
         var cachedRecommendation = await cache.GetAsync<SizeRecommendationDto>(cacheKey, cancellationToken);
@@ -48,14 +45,12 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
         if (productSizeGuide == null)
         {
             logger.LogWarning("Product size guide not found. ProductId: {ProductId}", request.ProductId);
-            // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
             var noGuideResult = new SizeRecommendationDto(
                 RecommendedSize: "N/A",
                 Confidence: "Low",
                 AlternativeSizes: Array.Empty<string>(),
                 Reasoning: "No size guide available for this product"
             );
-            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
             // Cache negative result for a short time
             await cache.SetAsync(cacheKey, noGuideResult, TimeSpan.FromMinutes(cacheConfig.NoSizeGuideCacheExpirationMinutes), cancellationToken);
             return noGuideResult;
@@ -67,7 +62,7 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
 
         SizeGuideEntry? bestMatch = null;
         decimal bestScore = decimal.MaxValue;
-        var alternativeSizes = new List<SizeGuideEntry>();
+        List<SizeGuideEntry> alternativeSizes = [];
 
         foreach (var entry in entries)
         {
@@ -108,7 +103,6 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
                     bestMatch = entry;
                 }
                 
-                // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
                 // Add to alternatives if score is reasonable
                 if (score < recommendationConfig.AlternativeSizeScoreThreshold)
                 {
@@ -117,7 +111,6 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
             }
         }
 
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         // Sort alternatives by score and take top N
         alternativeSizes = alternativeSizes
             .OrderBy(e => e.DisplayOrder)
@@ -127,13 +120,11 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
         SizeRecommendationDto recommendation;
         if (bestMatch != null)
         {
-            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
             string confidence = bestScore < recommendationConfig.HighConfidenceScoreThreshold 
                 ? "High" 
                 : bestScore < recommendationConfig.MediumConfidenceScoreThreshold 
                     ? "Medium" 
                     : "Low";
-            // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
             recommendation = new SizeRecommendationDto(
                 RecommendedSize: bestMatch.SizeLabel,
                 Confidence: confidence,
@@ -143,7 +134,6 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
         }
         else
         {
-            // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
             recommendation = new SizeRecommendationDto(
                 RecommendedSize: "N/A",
                 Confidence: "Low",
@@ -152,8 +142,6 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
             );
         }
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, recommendation, TimeSpan.FromMinutes(cacheConfig.SizeRecommendationCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Size recommendation generated. ProductId: {ProductId}, RecommendedSize: {RecommendedSize}, Confidence: {Confidence}",

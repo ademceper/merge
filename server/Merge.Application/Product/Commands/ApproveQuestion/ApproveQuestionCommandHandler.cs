@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.ApproveQuestion;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ApproveQuestionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveQuestionCommandHandler> logger, ICacheService cache) : IRequestHandler<ApproveQuestionCommand, bool>
 {
 
@@ -35,12 +34,10 @@ public class ApproveQuestionCommandHandler(IDbContext context, IUnitOfWork unitO
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             question.Approve();
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (product_questions_*) pattern-based invalidation gerektirir.
             // Şimdilik cache expiration'a güveniyoruz (5 dakika TTL)
             await cache.RemoveAsync($"{CACHE_KEY_QUESTION_BY_ID}{request.QuestionId}", cancellationToken);

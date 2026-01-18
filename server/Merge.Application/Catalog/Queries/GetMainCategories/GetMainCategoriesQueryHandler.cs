@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetMainCategories;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetMainCategoriesQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -33,13 +31,11 @@ public class GetMainCategoriesQueryHandler(
         logger.LogInformation("Retrieving main categories. Page: {Page}, PageSize: {PageSize}",
             request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_MAIN_CATEGORIES_PAGED}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for frequently accessed, rarely changed data
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>

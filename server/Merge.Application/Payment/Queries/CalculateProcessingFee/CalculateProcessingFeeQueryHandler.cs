@@ -21,7 +21,6 @@ public class CalculateProcessingFeeQueryHandler(IDbContext context, ILogger<Calc
         logger.LogInformation("Calculating processing fee. PaymentMethodId: {PaymentMethodId}, Amount: {Amount}",
             request.PaymentMethodId, request.Amount);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var paymentMethod = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == request.PaymentMethodId && pm.IsActive, cancellationToken);
@@ -32,7 +31,6 @@ public class CalculateProcessingFeeQueryHandler(IDbContext context, ILogger<Calc
             throw new NotFoundException("Ödeme yöntemi", request.PaymentMethodId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         var fee = paymentMethod.CalculateProcessingFee(request.Amount);
 
         logger.LogInformation("Processing fee calculated. PaymentMethodId: {PaymentMethodId}, Amount: {Amount}, Fee: {Fee}",

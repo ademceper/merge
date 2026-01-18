@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetUserSubscriptionById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserSubscriptionByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserSubscriptionByIdQueryHandler> logger) : IRequestHandler<GetUserSubscriptionByIdQuery, UserSubscriptionDto?>
 {
 
     public async Task<UserSubscriptionDto?> Handle(GetUserSubscriptionByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var subscription = await context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.User)
@@ -32,13 +30,11 @@ public class GetUserSubscriptionByIdQueryHandler(IDbContext context, IMapper map
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = mapper.Map<UserSubscriptionDto>(subscription);
         dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
             ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
             : 0;
 
-        // ✅ PERFORMANCE: Batch load recent payments
         var recentPayments = await context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => p.UserSubscriptionId == subscription.Id)

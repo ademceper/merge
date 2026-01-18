@@ -9,15 +9,12 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.ML.Helpers;
 
-// ✅ BOLUM 1.1: Clean Architecture - Helper class for shared price optimization logic
 public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
 {
     private readonly MLSettings config = mlSettings.Value;
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 1.6: Invariant validation - Guard clauses
         Guard.AgainstNull(product, nameof(product));
 
         // Basit fiyat optimizasyon algoritması
@@ -26,7 +23,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
         var currentPrice = product.DiscountPrice ?? product.Price;
         var basePrice = product.Price;
 
-        // ✅ PERFORMANCE: Memory'de minimal işlem (business logic için gerekli)
         var competitorPrices = similarProducts?
             .Select(p => p.DiscountPrice ?? p.Price)
             .Where(p => p > 0)
@@ -37,8 +33,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
         var maxCompetitorPrice = competitorPrices.Any() ? competitorPrices.Max() : currentPrice;
 
         // Stok durumuna göre fiyatlandırma
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
         decimal stockFactor;
         if (product.StockQuantity <= 0)
             stockFactor = config.PriceOptimizationStockFactorZero;
@@ -48,8 +42,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
             stockFactor = config.PriceOptimizationStockFactorHigh;
 
         // Rating'e göre fiyatlandırma
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
         decimal ratingFactor;
         if (product.Rating >= config.RatingThresholdHigh)
             ratingFactor = config.PriceOptimizationRatingFactorHigh;
@@ -61,8 +53,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
             ratingFactor = config.PriceOptimizationRatingFactorLow;
 
         // Satış hacmine göre fiyatlandırma
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
         decimal salesFactor;
         if (product.ReviewCount >= config.ReviewCountThresholdHigh)
             salesFactor = config.PriceOptimizationSalesFactorHigh;
@@ -75,7 +65,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
         var optimalPrice = avgCompetitorPrice * stockFactor * ratingFactor * salesFactor;
         
         // Min ve Max fiyat aralığı
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var minPrice = Math.Max(basePrice * config.PriceOptimizationBasePriceMinFactor, minCompetitorPrice * config.PriceOptimizationCompetitorPriceMinFactor);
         var maxPrice = Math.Min(basePrice * config.PriceOptimizationBasePriceMaxFactor, maxCompetitorPrice * config.PriceOptimizationCompetitorPriceMaxFactor);
         
@@ -85,7 +74,6 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
         var priceChange = optimalPrice - currentPrice;
         var priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
         
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var expectedSalesChange = priceChangePercent switch
         {
             < -10 => config.PriceOptimizationSalesChangeDiscountHigh,
@@ -118,13 +106,11 @@ public class PriceOptimizationHelper(IOptions<MLSettings> mlSettings)
 
     private decimal CalculateConfidence(ProductEntity product, int competitorCount)
     {
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var confidence = config.PriceOptimizationBaseConfidence;
         if (competitorCount > config.PriceOptimizationCompetitorCountThreshold1) confidence += config.PriceOptimizationCompetitorCountIncrease1;
         if (competitorCount > config.PriceOptimizationCompetitorCountThreshold2) confidence += config.PriceOptimizationCompetitorCountIncrease2;
 
         // Rating varsa confidence artar
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         if (product.Rating > 0) confidence += config.PriceOptimizationBaseRatingConfidence;
         if (product.ReviewCount > config.HighConfidenceMinReviews) confidence += config.PriceOptimizationReviewCountConfidence;
 

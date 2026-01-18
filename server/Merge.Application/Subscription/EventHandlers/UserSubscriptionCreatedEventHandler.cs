@@ -11,18 +11,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// UserSubscription Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UserSubscriptionCreatedEventHandler(ILogger<UserSubscriptionCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionCreatedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(UserSubscriptionCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "User subscription created event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}, PlanId: {PlanId}, Status: {Status}, Price: {Price}",
             notification.SubscriptionId, notification.UserId, notification.PlanId, notification.Status, notification.Price);
@@ -30,9 +23,9 @@ public class UserSubscriptionCreatedEventHandler(ILogger<UserSubscriptionCreated
         try
         {
             // Email gönderimi
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Account,
                     "Abonelik Oluşturuldu",
@@ -50,7 +43,6 @@ public class UserSubscriptionCreatedEventHandler(ILogger<UserSubscriptionCreated
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling UserSubscriptionCreatedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);

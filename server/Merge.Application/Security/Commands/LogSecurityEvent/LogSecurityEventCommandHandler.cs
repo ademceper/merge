@@ -16,18 +16,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.LogSecurityEvent;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LogSecurityEventCommandHandler> logger) : IRequestHandler<LogSecurityEventCommand, AccountSecurityEventDto>
 {
 
     public async Task<AccountSecurityEventDto> Handle(LogSecurityEventCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Security event loglanıyor. UserId: {UserId}, EventType: {EventType}, Severity: {Severity}",
             request.UserId, request.EventType, request.Severity);
 
-        // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
@@ -45,7 +41,6 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
             ? parsedSeverity
             : SecurityEventSeverity.Info;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var securityEvent = AccountSecurityEvent.Create(
             userId: request.UserId,
             eventType: eventType,
@@ -63,12 +58,10 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
         // If suspicious, create alert
         if (request.IsSuspicious || request.RequiresAction)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var alertSeverity = severity == SecurityEventSeverity.Critical
                 ? AlertSeverity.Critical
                 : (severity == SecurityEventSeverity.Warning ? AlertSeverity.High : AlertSeverity.Medium);
 
-            // ✅ SECURITY FIX: Email'i loglama - PII exposure riski, sadece UserId kullan
             var alert = SecurityAlert.Create(
                 alertType: AlertType.Account,
                 title: $"Suspicious activity detected: {request.EventType}",
@@ -79,8 +72,6 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
             await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         securityEvent = await context.Set<AccountSecurityEvent>()
@@ -89,11 +80,9 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Security event loglandı. EventId: {EventId}, UserId: {UserId}, EventType: {EventType}",
             securityEvent!.Id, request.UserId, request.EventType);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<AccountSecurityEventDto>(securityEvent);
     }
 }

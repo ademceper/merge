@@ -54,7 +54,6 @@ public class CreatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
                 }
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var settingsJson = request.Settings != null ? JsonSerializer.Serialize(request.Settings) : null;
             var paymentMethod = PaymentMethod.Create(
                 request.Name,
@@ -81,7 +80,6 @@ public class CreatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
                 "Payment method created successfully. PaymentMethodId: {PaymentMethodId}, Name: {Name}, Code: {Code}",
                 paymentMethod.Id, request.Name, request.Code);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<PaymentMethodDto>(paymentMethod);
         }
         catch (Exception ex)

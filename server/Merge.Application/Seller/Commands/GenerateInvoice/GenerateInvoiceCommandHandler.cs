@@ -20,17 +20,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.GenerateInvoice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<GenerateInvoiceCommandHandler> logger) : IRequestHandler<GenerateInvoiceCommand, SellerInvoiceDto>
 {
 
     public async Task<SellerInvoiceDto> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Generating invoice. SellerId: {SellerId}, Period: {PeriodStart} - {PeriodEnd}",
             request.Dto.SellerId, request.Dto.PeriodStart, request.Dto.PeriodEnd);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var seller = await context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.Dto.SellerId, cancellationToken);
@@ -41,7 +38,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             throw new NotFoundException("Satıcı", request.Dto.SellerId);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Get commissions for the period
         var commissionStats = await context.Set<SellerCommission>()
             .AsNoTracking()
@@ -61,7 +57,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
         var platformFees = commissionStats?.PlatformFees ?? 0;
         var netCommissions = commissionStats?.NetCommissions ?? 0;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Get payouts for the period
         var totalPayouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
@@ -71,8 +66,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
                   p.Status == PayoutStatus.Completed)
             .SumAsync(p => p.NetAmount, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Get orders for the period (for total earnings calculation)
         var totalEarnings = await (
             from o in context.Set<OrderEntity>().AsNoTracking()
@@ -85,7 +78,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             select oi.TotalPrice
         ).SumAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load commissions for invoice items (N+1 fix)
         var commissions = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(c => c.Order)
@@ -96,8 +88,7 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
 
         var invoiceNumber = await GenerateInvoiceNumberAsync(request.Dto.PeriodStart, cancellationToken);
 
-        // ✅ FIX: ToListAsync() sonrası Select().ToList() YASAK - foreach ile DTO oluştur
-        var invoiceItems = new List<InvoiceItemDto>();
+        List<InvoiceItemDto> invoiceItems = [];
         foreach (var commission in commissions)
         {
             invoiceItems.Add(new InvoiceItemDto
@@ -112,7 +103,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             });
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var invoice = SellerInvoice.Create(
             sellerId: request.Dto.SellerId,
             invoiceNumber: invoiceNumber,
@@ -127,10 +117,8 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             invoiceData: JsonSerializer.Serialize(invoiceItems));
 
         await context.Set<SellerInvoice>().AddAsync(invoice, cancellationToken);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         invoice = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
@@ -139,7 +127,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
         logger.LogInformation("Invoice generated. InvoiceId: {InvoiceId}, InvoiceNumber: {InvoiceNumber}",
             invoice!.Id, invoiceNumber);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<SellerInvoiceDto>(invoice);
     }
 

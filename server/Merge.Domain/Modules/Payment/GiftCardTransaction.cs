@@ -16,11 +16,9 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class GiftCardTransaction : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid GiftCardId { get; private set; }
     public Guid? OrderId { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _amount;
     public decimal Amount 
     { 
@@ -35,7 +33,6 @@ public class GiftCardTransaction : BaseEntity
     public GiftCardTransactionType Type { get; private set; }
     public string? Notes { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -43,14 +40,11 @@ public class GiftCardTransaction : BaseEntity
     public GiftCard GiftCard { get; private set; } = null!;
     public Order? Order { get; private set; }
 
-    // ✅ BOLUM 1.3: Value Object properties
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money AmountMoney => new Money(_amount);
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private GiftCardTransaction() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static GiftCardTransaction Create(
         Guid giftCardId,
         Money amount,
@@ -73,7 +67,6 @@ public class GiftCardTransaction : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update notes
     public void UpdateNotes(string? notes)
     {
         Notes = notes;

@@ -15,8 +15,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Product.Commands.UpdateProductBundle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, IMapper mapper, ILogger<UpdateProductBundleCommandHandler> logger) : IRequestHandler<UpdateProductBundleCommand, ProductBundleDto>
 {
 
@@ -37,7 +35,6 @@ public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDb
                 throw new NotFoundException("Paket", request.Id);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             bundle.Update(
                 request.Name,
                 request.Description,
@@ -57,7 +54,6 @@ public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDb
             }
 
             await bundleRepository.UpdateAsync(bundle, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -73,7 +69,6 @@ public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDb
                 throw new NotFoundException("Paket", request.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);

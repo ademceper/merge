@@ -6,15 +6,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Notification.EventHandlers;
 
-/// <summary>
-/// Notification Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// </summary>
+
 public class NotificationCreatedEventHandler(ILogger<NotificationCreatedEventHandler> logger) : INotificationHandler<NotificationCreatedEvent>
 {
 
     public async Task Handle(NotificationCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Notification created event received. NotificationId: {NotificationId}, UserId: {UserId}, Type: {Type}, Title: {Title}",
             notification.NotificationId, notification.UserId, notification.Type, notification.Title);

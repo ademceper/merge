@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.AnswerQuestion;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AnswerQuestionCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -49,7 +48,6 @@ public class AnswerQuestionCommandHandler(
             // Check if user is seller
             var isSellerAnswer = question.Product.SellerId == request.UserId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var answer = ProductAnswer.Create(
                 request.QuestionId,
                 request.UserId,
@@ -60,10 +58,8 @@ public class AnswerQuestionCommandHandler(
 
             await context.Set<ProductAnswer>().AddAsync(answer, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             question.IncrementAnswerCount(isSellerAnswer);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -76,7 +72,6 @@ public class AnswerQuestionCommandHandler(
 
             logger.LogInformation("Product question answered successfully. AnswerId: {AnswerId}", answer!.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (product_questions_*) pattern-based invalidation gerektirir.
             // Şimdilik cache expiration'a güveniyoruz (5 dakika TTL)
             await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{request.QuestionId}", cancellationToken);

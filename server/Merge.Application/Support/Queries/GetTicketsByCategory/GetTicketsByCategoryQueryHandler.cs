@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetTicketsByCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTicketsByCategoryQueryHandler(IDbContext context) : IRequestHandler<GetTicketsByCategoryQuery, List<CategoryTicketCountDto>>
 {
 
     public async Task<List<CategoryTicketCountDto>> Handle(GetTicketsByCategoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
@@ -36,7 +34,6 @@ public class GetTicketsByCategoryQueryHandler(IDbContext context) : IRequestHand
             query = query.Where(t => t.CreatedAt <= request.EndDate.Value);
         }
 
-        // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
         var total = await query.CountAsync(cancellationToken);
 
         var grouped = await query

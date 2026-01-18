@@ -22,13 +22,11 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class CustomsDeclaration : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public string DeclarationNumber { get; private set; } = string.Empty;
     public string OriginCountry { get; private set; } = string.Empty;
     public string DestinationCountry { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _totalValue;
     private decimal? _customsDuty;
     private decimal? _importTax;
@@ -77,7 +75,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money TotalValueMoney => new Money(_totalValue);
     
@@ -102,7 +99,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public VerificationStatus Status { get; private set; } = VerificationStatus.Pending;
     
     public DateTime? SubmittedAt { get; private set; }
@@ -110,7 +106,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
     public string? RejectionReason { get; private set; }
     public string? Documents { get; private set; } // JSON array of document URLs
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -122,7 +117,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -134,17 +128,14 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Order Order { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CustomsDeclaration() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CustomsDeclaration Create(
         Guid orderId,
         string declarationNumber,
@@ -183,7 +174,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationCreatedEvent
         declaration.AddDomainEvent(new CustomsDeclarationCreatedEvent(
             declaration.Id,
             orderId,
@@ -194,7 +184,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         return declaration;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Submit declaration
     public void Submit()
     {
         if (Status != VerificationStatus.Pending)
@@ -205,11 +194,9 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         SubmittedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationSubmittedEvent
         AddDomainEvent(new CustomsDeclarationSubmittedEvent(Id, OrderId, DeclarationNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Approve declaration
     public void Approve()
     {
         if (Status != VerificationStatus.Pending)
@@ -219,11 +206,9 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         ApprovedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationApprovedEvent
         AddDomainEvent(new CustomsDeclarationApprovedEvent(Id, OrderId, DeclarationNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reject declaration
     public void Reject(string reason)
     {
         Guard.AgainstNullOrEmpty(reason, nameof(reason));
@@ -235,11 +220,9 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         RejectionReason = reason;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationRejectedEvent
         AddDomainEvent(new CustomsDeclarationRejectedEvent(Id, OrderId, DeclarationNumber, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update customs duty
     public void UpdateCustomsDuty(Money customsDuty)
     {
         Guard.AgainstNull(customsDuty, nameof(customsDuty));
@@ -247,11 +230,9 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         _customsDuty = customsDuty.Amount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationUpdatedEvent
         AddDomainEvent(new CustomsDeclarationUpdatedEvent(Id, OrderId, "CustomsDuty"));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update import tax
     public void UpdateImportTax(Money importTax)
     {
         Guard.AgainstNull(importTax, nameof(importTax));
@@ -259,11 +240,9 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         _importTax = importTax.Amount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationUpdatedEvent
         AddDomainEvent(new CustomsDeclarationUpdatedEvent(Id, OrderId, "ImportTax"));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update documents
     public void UpdateDocuments(string documents)
     {
         Guard.AgainstNullOrEmpty(documents, nameof(documents));
@@ -271,7 +250,6 @@ public class CustomsDeclaration : BaseEntity, IAggregateRoot
         Documents = documents;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CustomsDeclarationUpdatedEvent
         AddDomainEvent(new CustomsDeclarationUpdatedEvent(Id, OrderId, "Documents"));
     }
 }

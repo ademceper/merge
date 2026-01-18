@@ -17,7 +17,6 @@ public class SubscriptionMappingProfile : Profile
         .ForMember(dest => dest.SubscriberCount, opt => opt.Ignore()) // Will be set in QueryHandler after batch loading
         .AfterMap((src, dest) =>
         {
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Features = !string.IsNullOrEmpty(src.Features)
         ? JsonSerializer.Deserialize<SubscriptionPlanFeaturesDto>(src.Features)
         : null;
@@ -28,7 +27,6 @@ public class SubscriptionMappingProfile : Profile
         src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
         .ForMember(dest => dest.PlanName, opt => opt.MapFrom(src =>
         src.SubscriptionPlan != null ? src.SubscriptionPlan.Name : string.Empty))
-        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK) - Status enum'dan enum'a direkt map edilir
         .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
         .ForMember(dest => dest.IsTrial, opt => opt.MapFrom(src => src.Status == SubscriptionStatus.Trial))
         .ForMember(dest => dest.DaysRemaining, opt => opt.MapFrom(src =>
@@ -36,7 +34,6 @@ public class SubscriptionMappingProfile : Profile
         .ForMember(dest => dest.RecentPayments, opt => opt.Ignore()); // Will be set in QueryHandler after batch loading
 
         CreateMap<SubscriptionPayment, SubscriptionPaymentDto>()
-        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK) - PaymentStatus enum'dan enum'a direkt map edilir
         .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus));
 
         CreateMap<SubscriptionUsage, SubscriptionUsageDto>()

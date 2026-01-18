@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.Reorder;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class ReorderCommandValidator : AbstractValidator<ReorderCommand>
 {
     public ReorderCommandValidator()

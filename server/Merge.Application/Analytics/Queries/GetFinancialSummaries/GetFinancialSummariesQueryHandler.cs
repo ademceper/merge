@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetFinancialSummaries;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetFinancialSummariesQueryHandler(
     IDbContext context,
     ILogger<GetFinancialSummariesQueryHandler> logger,
@@ -28,9 +26,6 @@ public class GetFinancialSummariesQueryHandler(
         logger.LogInformation("Fetching financial summaries. StartDate: {StartDate}, EndDate: {EndDate}, Period: {Period}",
             request.StartDate, request.EndDate, request.Period);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         List<FinancialSummaryDto> summaries;
 
         if (request.Period == "daily")
@@ -41,7 +36,6 @@ public class GetFinancialSummariesQueryHandler(
                       o.CreatedAt >= request.StartDate &&
                       o.CreatedAt <= request.EndDate)
                 .GroupBy(o => o.CreatedAt.Date)
-                // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
                 .Select(g => new FinancialSummaryDto(
                     g.Key,
                     g.Sum(o => o.TotalAmount),
@@ -55,14 +49,11 @@ public class GetFinancialSummariesQueryHandler(
         }
         else if (request.Period == "weekly")
         {
-            // ✅ PERFORMANCE: PostgreSQL'de date_trunc kullanarak database'de grouping yap
             // ISOWeek.GetWeekOfYear client-side function olduğu için raw SQL kullanıyoruz
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
             var costPercentage = settings.Value.DefaultCostPercentage;
             var profitPercentage = settings.Value.DefaultProfitPercentage;
             var profitMargin = (int)(profitPercentage * 100);
             
-            // ✅ BOLUM 1.2: Enum kullanımı (string 'Paid' YASAK) - PaymentStatus.Completed kullan
             var paymentStatusValue = (int)PaymentStatus.Completed;
             summaries = await context.Database
                 .SqlQueryRaw<FinancialSummaryDto>(@"
@@ -103,7 +94,6 @@ public class GetFinancialSummariesQueryHandler(
         }
         else
         {
-            // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
             summaries = new List<FinancialSummaryDto>(0); // Pre-allocate with known capacity (0)
         }
 

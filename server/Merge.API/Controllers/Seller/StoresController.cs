@@ -20,9 +20,14 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Seller;
 
-[ApiController]
+/// <summary>
+/// Seller Stores API endpoints.
+/// Satıcı mağazalarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/seller/stores")]
+[Tags("SellerStores")]
 public class StoresController(IMediator mediator) : BaseController
 {
 
@@ -41,17 +46,9 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStore", new { version, id }, version);
-        links["stats"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{id}/stats", Method = "GET" };
-        if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Seller") || User.IsInRole("Admin")))
-        {
-            links["update"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{id}", Method = "PUT" };
-            links["delete"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{id}", Method = "DELETE" };
-        }
-        return Ok(new { store, _links = links });
+        return Ok(store);
     }
 
     [HttpGet("slug/{slug}")]
@@ -69,13 +66,9 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStoreBySlug", new { version, slug }, version);
-        links["store"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}", Method = "GET" };
-        links["stats"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}/stats", Method = "GET" };
-        return Ok(new { store, _links = links });
+        return Ok(store);
     }
 
     [HttpGet("seller/{sellerId}")]
@@ -92,9 +85,7 @@ public class StoresController(IMediator mediator) : BaseController
     {
         var query = new GetSellerStoresQuery(sellerId, status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetSellerStores", page, pageSize, result.TotalPages, new { version, sellerId, status }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpGet("seller/{sellerId}/primary")]
@@ -112,12 +103,9 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetPrimaryStore", new { version, sellerId }, version);
-        links["store"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}", Method = "GET" };
-        return Ok(new { store, _links = links });
+        return Ok(store);
     }
 
     [HttpGet("{id}/stats")]
@@ -134,10 +122,7 @@ public class StoresController(IMediator mediator) : BaseController
     {
         var query = new GetStoreStatsQuery(id, startDate, endDate);
         var stats = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStoreStats", new { version, id, startDate, endDate }, version);
-        links["store"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{id}", Method = "GET" };
-        return Ok(new { stats, _links = links });
+        return Ok(stats);
     }
 
     [HttpPost]
@@ -159,11 +144,7 @@ public class StoresController(IMediator mediator) : BaseController
         var command = new CreateStoreCommand(sellerId, dto);
         var store = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStore", new { version, id = store.Id }, version);
-        links["update"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}", Method = "PUT" };
-        links["delete"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}", Method = "DELETE" };
-        links["stats"] = new LinkDto { Href = $"/api/v{version}/seller/stores/{store.Id}/stats", Method = "GET" };
-        return CreatedAtAction(nameof(GetStore), new { version, id = store.Id }, new { store, _links = links });
+        return CreatedAtAction(nameof(GetStore), new { version, id = store.Id }, store);
     }
 
     [HttpGet("my-stores")]
@@ -182,10 +163,7 @@ public class StoresController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerStoresQuery(sellerId, status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetMyStores", page, pageSize, result.TotalPages, new { version, status }, version);
-        links["create"] = new LinkDto { Href = $"/api/v{version}/seller/stores", Method = "POST" };
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpPut("{id}")]
@@ -211,7 +189,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
@@ -222,7 +200,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -254,7 +232,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
@@ -280,7 +258,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -303,7 +281,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
@@ -314,7 +292,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -337,7 +315,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (store == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
@@ -348,7 +326,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -370,7 +348,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -396,7 +374,7 @@ public class StoresController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class SizeGuide : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _name = string.Empty;
     public string Name 
     { 
@@ -57,7 +56,6 @@ public class SizeGuide : BaseEntity, IAggregateRoot
     
     public bool IsActive { get; private set; } = true;
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -65,14 +63,11 @@ public class SizeGuide : BaseEntity, IAggregateRoot
     private readonly List<SizeGuideEntry> _entries = new();
     public IReadOnlyCollection<SizeGuideEntry> Entries => _entries.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<ProductSizeGuide> _productSizeGuides = new();
     public IReadOnlyCollection<ProductSizeGuide> ProductSizeGuides => _productSizeGuides.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SizeGuide() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SizeGuide Create(
         string name,
         string description,
@@ -107,16 +102,13 @@ public class SizeGuide : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         sizeGuide.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         sizeGuide.AddDomainEvent(new SizeGuideCreatedEvent(sizeGuide.Id, name, categoryId));
         
         return sizeGuide;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update
     public void Update(
         string name,
         string? description = null,
@@ -136,14 +128,11 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add entry
     public void AddEntry(SizeGuideEntry entry)
     {
         Guard.AgainstNull(entry, nameof(entry));
@@ -157,15 +146,12 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         _entries.Add(entry);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Entry ekleme önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove entry (collection manipulation)
     public void RemoveEntry(Guid entryId)
     {
         Guard.AgainstDefault(entryId, nameof(entryId));
@@ -179,15 +165,12 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         _entries.Remove(entry);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Entry çıkarma önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Activate
     public void Activate()
     {
         if (IsActive) return;
@@ -195,15 +178,12 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Aktif/pasif durumu önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -211,15 +191,12 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Aktif/pasif durumu önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add product size guide (collection manipulation)
     public void AddProductSizeGuide(ProductSizeGuide productSizeGuide)
     {
         Guard.AgainstNull(productSizeGuide, nameof(productSizeGuide));
@@ -234,11 +211,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         _productSizeGuides.Add(productSizeGuide);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove product size guide (collection manipulation)
     public void RemoveProductSizeGuide(Guid productSizeGuideId)
     {
         Guard.AgainstDefault(productSizeGuideId, nameof(productSizeGuideId));
@@ -250,11 +225,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         _productSizeGuides.Remove(productSizeGuide);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -262,14 +235,11 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SizeGuideDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_name))

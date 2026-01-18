@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Volume Discount Deleted Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record VolumeDiscountDeletedEvent(
     Guid VolumeDiscountId,
     Guid ProductId,

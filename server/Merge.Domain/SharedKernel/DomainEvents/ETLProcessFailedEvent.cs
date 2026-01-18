@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// ETLProcess Failed Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record ETLProcessFailedEvent(Guid ETLProcessId, int RecordsProcessed, int RecordsFailed, string ErrorMessage) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;

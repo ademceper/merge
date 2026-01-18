@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetSalesAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetSalesAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetSalesAnalyticsQueryHandler> logger,
@@ -29,9 +27,6 @@ public class GetSalesAnalyticsQueryHandler(
         logger.LogInformation("Fetching sales analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
         
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (basit aggregateler için)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate);
@@ -45,10 +40,8 @@ public class GetSalesAnalyticsQueryHandler(
         logger.LogInformation("Sales analytics calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
             totalRevenue, totalOrders);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         // Revenue over time - Helper method çağrısı
         var revenueOverTime = await GetRevenueOverTimeAsync(request.StartDate, request.EndDate, cancellationToken);
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var topProducts = await GetTopProductsAsync(request.StartDate, request.EndDate, settings.Value.DefaultLimit, cancellationToken);
         var salesByCategory = await GetSalesByCategoryAsync(request.StartDate, request.EndDate, cancellationToken);
         
@@ -71,7 +64,6 @@ public class GetSalesAnalyticsQueryHandler(
 
     private async Task<List<TimeSeriesDataPoint>> GetRevenueOverTimeAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil)
         return await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
@@ -88,7 +80,6 @@ public class GetSalesAnalyticsQueryHandler(
 
     private async Task<List<TopProductDto>> GetTopProductsAsync(DateTime startDate, DateTime endDate, int limit, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         return await context.Set<OrderItem>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -111,7 +102,6 @@ public class GetSalesAnalyticsQueryHandler(
 
     private async Task<List<CategorySalesDto>> GetSalesByCategoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         return await context.Set<OrderItem>()
             .AsNoTracking()
             .AsSplitQuery()

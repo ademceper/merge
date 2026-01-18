@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Queries.GetOrderStatistics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetOrderStatisticsQueryHandler(IDbContext context) : IRequestHandler<GetOrderStatisticsQuery, OrderStatisticsDto>
 {
 

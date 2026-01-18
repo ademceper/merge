@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Subscription.Commands.CancelUserSubscription;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class CancelUserSubscriptionCommandValidator : AbstractValidator<CancelUserSubscriptionCommand>
 {
     public CancelUserSubscriptionCommandValidator()

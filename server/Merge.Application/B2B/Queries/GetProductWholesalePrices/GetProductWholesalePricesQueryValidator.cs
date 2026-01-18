@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.B2B.Queries.GetProductWholesalePrices;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetProductWholesalePricesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetProductWholesalePricesQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

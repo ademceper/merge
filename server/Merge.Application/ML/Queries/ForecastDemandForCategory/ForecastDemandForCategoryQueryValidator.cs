@@ -5,8 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.ML.Queries.ForecastDemandForCategory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class ForecastDemandForCategoryQueryValidator(
     IOptions<MLSettings> mlSettings,
     IOptions<PaginationSettings> paginationSettings) : AbstractValidator<ForecastDemandForCategoryQuery>

@@ -4,8 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.ML.Queries.GetAllFraudDetectionRules;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class GetAllFraudDetectionRulesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllFraudDetectionRulesQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

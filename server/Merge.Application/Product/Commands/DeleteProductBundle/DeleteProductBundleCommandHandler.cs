@@ -12,8 +12,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Product.Commands.DeleteProductBundle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteProductBundleCommandHandler(IRepository bundleRepository, IUnitOfWork unitOfWork, ICacheService cache, ILogger<DeleteProductBundleCommandHandler> logger) : IRequestHandler<DeleteProductBundleCommand, bool>
 {
 
@@ -35,14 +33,11 @@ public class DeleteProductBundleCommandHandler(IRepository bundleRepository, IUn
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             bundle.MarkAsDeleted();
             await bundleRepository.UpdateAsync(bundle, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);

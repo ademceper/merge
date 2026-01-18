@@ -24,11 +24,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Pre-Orders API endpoints.
+/// Ön sipariş işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/pre-orders")]
 [Authorize]
+[Tags("PreOrders")]
 public class PreOrdersController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -93,10 +97,9 @@ public class PreOrdersController(
         var query = new GetPreOrderQuery(id);
         var preOrder = await mediator.Send(query, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -129,7 +132,6 @@ public class PreOrdersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -165,13 +167,11 @@ public class PreOrdersController(
     {
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(id);
         var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -183,7 +183,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -215,17 +215,13 @@ public class PreOrdersController(
         [FromBody] PayPreOrderDepositDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(dto.PreOrderId);
         var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -237,7 +233,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -272,7 +268,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -368,10 +364,9 @@ public class PreOrdersController(
         var query = new GetPreOrderCampaignQuery(id);
         var campaign = await mediator.Send(query, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (campaign is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(campaign);
@@ -397,7 +392,6 @@ public class PreOrdersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -428,7 +422,6 @@ public class PreOrdersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -480,7 +473,7 @@ public class PreOrdersController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -509,7 +502,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -542,7 +535,7 @@ public class PreOrdersController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();

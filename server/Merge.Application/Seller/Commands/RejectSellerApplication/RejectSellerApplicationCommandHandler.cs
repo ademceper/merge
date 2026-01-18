@@ -17,13 +17,11 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Seller.Commands.RejectSellerApplication;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RejectSellerApplicationCommandHandler(IRepository applicationRepository, IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, ILogger<RejectSellerApplicationCommandHandler> logger) : IRequestHandler<RejectSellerApplicationCommand, bool>
 {
 
     public async Task<bool> Handle(RejectSellerApplicationCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Rejecting seller application {ApplicationId} by reviewer {ReviewerId}, Reason: {Reason}",
             request.ApplicationId, request.ReviewerId, request.Reason);
 
@@ -34,11 +32,9 @@ public class RejectSellerApplicationCommandHandler(IRepository applicationReposi
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         application.Reject(request.ReviewerId, request.Reason);
 
         await applicationRepository.UpdateAsync(application);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send rejection email

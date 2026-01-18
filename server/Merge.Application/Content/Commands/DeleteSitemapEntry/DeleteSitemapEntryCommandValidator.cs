@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.DeleteSitemapEntry;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteSitemapEntryCommandValidator : AbstractValidator<DeleteSitemapEntryCommand>
 {
     public DeleteSitemapEntryCommandValidator()

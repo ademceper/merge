@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.GetShippingByOrderId;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetShippingByOrderIdQueryValidator : AbstractValidator<GetShippingByOrderIdQuery>
 {
     public GetShippingByOrderIdQueryValidator()

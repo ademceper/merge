@@ -3,5 +3,4 @@ using Merge.Application.DTOs.Support;
 
 namespace Merge.Application.Support.Queries.GetTicketStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetTicketStatsQuery() : IRequest<TicketStatsDto>;

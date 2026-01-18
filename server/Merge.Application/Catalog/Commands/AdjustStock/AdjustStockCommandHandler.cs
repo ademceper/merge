@@ -18,8 +18,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.AdjustStock;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class AdjustStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -36,7 +34,6 @@ public class AdjustStockCommandHandler(
         logger.LogInformation("Adjusting stock for InventoryId: {InventoryId}, QuantityChange: {QuantityChange}",
             request.InventoryId, request.QuantityChange);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
@@ -52,7 +49,6 @@ public class AdjustStockCommandHandler(
                 throw new NotFoundException("Envanter", request.InventoryId);
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini güncelleyebilmeli
             if (inventory.Product.SellerId.HasValue && inventory.Product.SellerId != request.PerformedBy)
             {
                 logger.LogWarning("IDOR attempt: User {UserId} tried to adjust stock for inventory {InventoryId} for product {ProductId} owned by {OwnerId}",
@@ -60,14 +56,12 @@ public class AdjustStockCommandHandler(
                 throw new BusinessException("Bu envanteri güncelleme yetkiniz yok.");
             }
 
-            // ✅ BOLUM 1.1: Domain Method kullanımı
             var quantityBefore = inventory.Quantity;
             inventory.AdjustQuantity(request.QuantityChange);
             var quantityAfter = inventory.Quantity;
 
             await inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var stockMovement = StockMovement.Create(
                 inventory.Id,
                 inventory.ProductId,
@@ -85,8 +79,6 @@ public class AdjustStockCommandHandler(
 
             await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -100,7 +92,6 @@ public class AdjustStockCommandHandler(
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{request.InventoryId}", cancellationToken);
             if (inventory != null)
             {
@@ -118,9 +109,7 @@ public class AdjustStockCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error adjusting stock for InventoryId: {InventoryId}", request.InventoryId);
-            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }

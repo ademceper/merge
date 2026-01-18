@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.UpdateLastCountDate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateLastCountDateCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -32,7 +30,6 @@ public class UpdateLastCountDateCommandHandler(
     {
         logger.LogInformation("Updating last count date for InventoryId: {InventoryId} by UserId: {UserId}", request.InventoryId, request.PerformedBy);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -46,7 +43,6 @@ public class UpdateLastCountDateCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini güncelleyebilmeli
             if (inventory.Product.SellerId.HasValue && inventory.Product.SellerId != request.PerformedBy)
             {
                 logger.LogWarning("IDOR attempt: User {UserId} tried to update last count date for inventory {InventoryId} for product {ProductId} owned by {OwnerId}",
@@ -58,18 +54,14 @@ public class UpdateLastCountDateCommandHandler(
             var productId = inventory.ProductId;
             var warehouseId = inventory.WarehouseId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             inventory.UpdateLastCountedDate();
             await inventoryRepository.UpdateAsync(inventory, cancellationToken);
             
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             logger.LogInformation("Successfully updated last count date for InventoryId: {InventoryId}", request.InventoryId);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{request.InventoryId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{productId}_{warehouseId}", cancellationToken);
             await cache.RemoveAsync($"inventories_by_product_{productId}", cancellationToken); // Invalidate product inventories list cache
@@ -84,7 +76,6 @@ public class UpdateLastCountDateCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error updating last count date for InventoryId: {InventoryId}", request.InventoryId);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

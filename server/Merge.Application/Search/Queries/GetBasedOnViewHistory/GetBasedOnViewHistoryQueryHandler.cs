@@ -16,14 +16,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetBasedOnViewHistory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mapper, ILogger<GetBasedOnViewHistoryQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetBasedOnViewHistoryQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetBasedOnViewHistoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Based on view history recommendations isteniyor. UserId: {UserId}, MaxResults: {MaxResults}",
             request.UserId, request.MaxResults);
@@ -32,7 +30,6 @@ public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mappe
             ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var recentlyViewed = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -48,7 +45,6 @@ public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mappe
             return Array.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: recentlyViewed zaten materialize edilmiş küçük liste (5 item), bu yüzden ID'leri almak kabul edilebilir
         // Ancak category'ler için subquery kullanıyoruz (ISSUE #3.1 fix)
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
         
@@ -74,7 +70,6 @@ public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mappe
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
@@ -90,7 +85,6 @@ public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mappe
             ))
             .ToList();
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Based on view history recommendations tamamlandı. UserId: {UserId}, Count: {Count}",
             request.UserId, recommendationDtos.Count);

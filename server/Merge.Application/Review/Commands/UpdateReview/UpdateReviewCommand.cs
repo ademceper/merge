@@ -5,8 +5,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Review.Commands.UpdateReview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ SECURITY: IDOR koruması için UserId eklendi
 public record UpdateReviewCommand(
     Guid ReviewId,
     Guid UserId, // IDOR protection

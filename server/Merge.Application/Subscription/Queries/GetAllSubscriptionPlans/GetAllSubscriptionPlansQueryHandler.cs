@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetAllSubscriptionPlans;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAllSubscriptionPlansQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllSubscriptionPlansQueryHandler> logger) : IRequestHandler<GetAllSubscriptionPlansQuery, IEnumerable<SubscriptionPlanDto>>
 {
 
     public async Task<IEnumerable<SubscriptionPlanDto>> Handle(GetAllSubscriptionPlansQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         IQueryable<SubscriptionPlan> query = context.Set<SubscriptionPlan>()
             .AsNoTracking();
 
@@ -38,7 +36,6 @@ public class GetAllSubscriptionPlansQueryHandler(IDbContext context, IMapper map
             return Enumerable.Empty<SubscriptionPlanDto>();
         }
 
-        // ✅ PERFORMANCE: Batch load subscriber counts for all plans (subquery ile)
         var planIdsSubquery = from p in query select p.Id;
         var subscriberCounts = await context.Set<UserSubscription>()
             .AsNoTracking()
@@ -48,7 +45,7 @@ public class GetAllSubscriptionPlansQueryHandler(IDbContext context, IMapper map
             .Select(g => new { PlanId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.PlanId, x => x.Count, cancellationToken);
 
-        var result = new List<SubscriptionPlanDto>();
+        List<SubscriptionPlanDto> result = [];
         foreach (var plan in plans)
         {
             var dto = mapper.Map<SubscriptionPlanDto>(plan);

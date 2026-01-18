@@ -16,10 +16,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing.EmailSubscribers;
 
+/// <summary>
+/// Email Subscribers API endpoints.
+/// E-posta abonelerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/email-subscribers")]
 [Authorize]
+[Tags("EmailSubscribers")]
 public class EmailSubscribersController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -64,7 +69,7 @@ public class EmailSubscribersController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -87,7 +92,7 @@ public class EmailSubscribersController(
 
         if (subscriber == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(subscriber);
@@ -110,7 +115,7 @@ public class EmailSubscribersController(
 
         if (subscriber == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(subscriber);

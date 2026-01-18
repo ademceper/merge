@@ -13,8 +13,6 @@ using IBundleItemRepository = Merge.Application.Interfaces.IRepository<Merge.Dom
 
 namespace Merge.Application.Product.Commands.RemoveProductFromBundle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepository, IBundleItemRepository bundleItemRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, ILogger<RemoveProductFromBundleCommandHandler> logger) : IRequestHandler<RemoveProductFromBundleCommand, bool>
 {
 
@@ -30,7 +28,6 @@ public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepos
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
             var bundleItem = await context.Set<BundleItem>()
                 .FirstOrDefaultAsync(bi => bi.BundleId == request.BundleId &&
                                      bi.ProductId == request.ProductId, cancellationToken);
@@ -49,26 +46,21 @@ public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepos
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             bundle.RemoveItem(request.ProductId);
 
-            // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
             var newTotal = await context.Set<BundleItem>()
                 .AsNoTracking()
                 .Include(bi => bi.Product)
                 .Where(bi => bi.BundleId == request.BundleId)
                 .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             bundle.UpdateTotalPrices(newTotal);
 
             await bundleRepository.UpdateAsync(bundle, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.BundleId}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);

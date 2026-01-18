@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Content.Commands.DeleteBanner;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteBannerCommandValidator : AbstractValidator<DeleteBannerCommand>
 {
     public DeleteBannerCommandValidator()

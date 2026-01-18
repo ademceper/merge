@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? ProductId { get; private set; } // Product-specific estimation
     public Guid? CategoryId { get; private set; } // Category-based estimation
     public Guid? WarehouseId { get; private set; } // Warehouse-specific estimation
@@ -61,7 +60,6 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Conditions { get; private set; } // JSON for conditions (e.g., stock availability, order time)
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -73,7 +71,6 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -90,10 +87,8 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
     public Category? Category { get; private set; }
     public Warehouse? Warehouse { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private DeliveryTimeEstimation() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static DeliveryTimeEstimation Create(
         int minDays,
         int maxDays,
@@ -134,7 +129,6 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationCreatedEvent
         estimation.AddDomainEvent(new DeliveryTimeEstimationCreatedEvent(
             estimation.Id,
             estimation.ProductId,
@@ -147,7 +141,6 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         return estimation;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update estimation days
     public void UpdateDays(int minDays, int maxDays, int averageDays)
     {
         Guard.AgainstNegative(minDays, nameof(minDays));
@@ -165,21 +158,17 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         _averageDays = averageDays;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationUpdatedEvent
         AddDomainEvent(new DeliveryTimeEstimationUpdatedEvent(Id, _minDays, _maxDays, _averageDays));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update conditions
     public void UpdateConditions(string? conditions)
     {
         Conditions = conditions;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationConditionsUpdatedEvent
         AddDomainEvent(new DeliveryTimeEstimationConditionsUpdatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate estimation
     public void Activate()
     {
         if (IsActive) return;
@@ -187,11 +176,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationActivatedEvent
         AddDomainEvent(new DeliveryTimeEstimationActivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate estimation
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -199,11 +186,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationDeactivatedEvent
         AddDomainEvent(new DeliveryTimeEstimationDeactivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -212,7 +197,6 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationDeletedEvent
         AddDomainEvent(new DeliveryTimeEstimationDeletedEvent(Id));
     }
 }

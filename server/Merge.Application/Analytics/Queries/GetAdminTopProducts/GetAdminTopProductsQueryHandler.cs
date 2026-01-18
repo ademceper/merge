@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetAdminTopProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAdminTopProductsQueryHandler(
     IDbContext context,
     ILogger<GetAdminTopProductsQueryHandler> logger,
@@ -26,12 +24,8 @@ public class GetAdminTopProductsQueryHandler(
     {
         logger.LogInformation("Fetching top products. Count: {Count}", request.Count);
         
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
         var count = request.Count == 10 ? settings.Value.TopProductsLimit : request.Count;
         
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !oi.IsDeleted check (Global Query Filter handles it)
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         var topProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)

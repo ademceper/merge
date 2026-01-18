@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class Referral : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ReferrerId { get; private set; } // User who referred
     public Guid ReferredUserId { get; private set; } // User who was referred
     public Guid ReferralCodeId { get; private set; }
@@ -26,7 +25,6 @@ public class Referral : BaseEntity, IAggregateRoot
     public ReferralStatus Status { get; private set; } = ReferralStatus.Pending;
     public DateTime? CompletedAt { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - PointsAwarded >= 0
     private int _pointsAwarded = 0;
     public int PointsAwarded 
     { 
@@ -46,14 +44,11 @@ public class Referral : BaseEntity, IAggregateRoot
     public ReferralCode ReferralCodeEntity { get; private set; } = null!;
     public Order? FirstOrder { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Referral() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Referral Create(
         Guid referrerId,
         Guid referredUserId,
@@ -79,13 +74,11 @@ public class Referral : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCreatedEvent
         referral.AddDomainEvent(new ReferralCreatedEvent(referral.Id, referrerId, referredUserId, referralCode));
 
         return referral;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Complete referral
     public void Complete(Guid firstOrderId, int pointsAwarded)
     {
         if (Status != ReferralStatus.Pending)
@@ -100,11 +93,9 @@ public class Referral : BaseEntity, IAggregateRoot
         PointsAwarded = pointsAwarded;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralCompletedEvent
         AddDomainEvent(new ReferralCompletedEvent(Id, ReferrerId, ReferredUserId, PointsAwarded, firstOrderId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Expire referral
     public void Expire()
     {
         if (Status != ReferralStatus.Pending)
@@ -113,11 +104,9 @@ public class Referral : BaseEntity, IAggregateRoot
         Status = ReferralStatus.Expired;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralExpiredEvent
         AddDomainEvent(new ReferralExpiredEvent(Id, ReferrerId, ReferredUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as rewarded
     public void MarkAsRewarded()
     {
         if (Status != ReferralStatus.Completed)
@@ -126,7 +115,6 @@ public class Referral : BaseEntity, IAggregateRoot
         Status = ReferralStatus.Rewarded;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReferralRewardedEvent
         AddDomainEvent(new ReferralRewardedEvent(Id, ReferrerId, PointsAwarded));
     }
 }

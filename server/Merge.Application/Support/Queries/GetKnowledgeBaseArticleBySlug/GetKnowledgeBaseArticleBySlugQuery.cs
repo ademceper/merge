@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseArticleBySlug;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetKnowledgeBaseArticleBySlugQuery(
     string Slug
 ) : IRequest<KnowledgeBaseArticleDto?>;

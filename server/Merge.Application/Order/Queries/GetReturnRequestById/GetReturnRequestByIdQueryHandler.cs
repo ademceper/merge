@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Queries.GetReturnRequestById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetReturnRequestByIdQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetReturnRequestByIdQuery, ReturnRequestDto?>
 {
 

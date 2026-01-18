@@ -27,9 +27,15 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Subscription;
 
+/// <summary>
+/// Subscription API endpoints.
+/// Abonelik planları ve kullanıcı aboneliklerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/subscriptions")]
+[Route("api/v{version:apiVersion}/subscriptions")]
 [Authorize]
+[Tags("Subscriptions")]
 public class SubscriptionsController(IMediator mediator) : BaseController
 {
     // Subscription Plans
@@ -61,7 +67,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var plan = await mediator.Send(query, cancellationToken);
         if (plan == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(plan);
     }
@@ -131,7 +137,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -173,7 +179,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -194,7 +200,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -232,7 +238,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var subscription = await mediator.Send(query, cancellationToken);
         if (subscription == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(subscription);
     }
@@ -282,7 +288,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var subscription = await mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -292,7 +298,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -321,7 +327,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var subscription = await mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -331,7 +337,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -359,7 +365,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var subscription = await mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -412,7 +418,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var subscription = await mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {

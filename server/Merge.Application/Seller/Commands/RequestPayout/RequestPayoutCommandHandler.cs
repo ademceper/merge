@@ -18,19 +18,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.RequestPayout;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IOptions<SellerSettings> sellerSettings, ILogger<RequestPayoutCommandHandler> logger) : IRequestHandler<RequestPayoutCommand, CommissionPayoutDto>
 {
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<CommissionPayoutDto> Handle(RequestPayoutCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Requesting payout. SellerId: {SellerId}, CommissionCount: {CommissionCount}",
             request.SellerId, request.CommissionIds.Count);
 
-        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        // ✅ FIX: Tracking gerekli çünkü commission'ları update edeceğiz
         var commissions = await context.Set<SellerCommission>()
             .Where(sc => request.CommissionIds.Contains(sc.Id) && sc.SellerId == request.SellerId)
             .Where(sc => sc.Status == CommissionStatus.Approved)
@@ -42,12 +38,10 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
             throw new BusinessException("Onaylanmış komisyon bulunamadı.");
         }
 
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await context.Set<SellerCommissionSettings>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == request.SellerId, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de sum yap (memory'de işlem YASAK)
         var totalAmount = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => request.CommissionIds.Contains(sc.Id) && sc.SellerId == request.SellerId && sc.Status == CommissionStatus.Approved)
@@ -60,14 +54,11 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
             throw new ValidationException($"Minimum ödeme tutarı {settings.MinimumPayoutAmount}.");
         }
 
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var transactionFee = totalAmount * (sellerConfig.PayoutTransactionFeeRate / 100);
         var netAmount = totalAmount - transactionFee;
 
         var payoutNumber = await GeneratePayoutNumberAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var payout = CommissionPayout.Create(
             sellerId: request.SellerId,
             payoutNumber: payoutNumber,
@@ -81,14 +72,11 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
 
         foreach (var commission in commissions)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             payout.AddItem(commission.Id);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             commission.MarkAsPaid(payoutNumber);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         payout = await context.Set<CommissionPayout>()
@@ -102,7 +90,6 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
         logger.LogInformation("Payout requested. PayoutId: {PayoutId}, PayoutNumber: {PayoutNumber}, Amount: {Amount}",
             payout!.Id, payoutNumber, netAmount);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<CommissionPayoutDto>(payout);
     }
 

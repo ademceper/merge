@@ -21,8 +21,6 @@ public class ReviewMappingProfile : Profile
         CreateMap<TrustBadge, TrustBadgeDto>()
         .AfterMap((src, dest) =>
         {
-        // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Criteria = !string.IsNullOrEmpty(src.Criteria)
         ? JsonSerializer.Deserialize<TrustBadgeSettingsDto>(src.Criteria)
         : null;

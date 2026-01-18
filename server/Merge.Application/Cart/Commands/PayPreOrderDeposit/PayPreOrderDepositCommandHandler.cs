@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.PayPreOrderDeposit;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class PayPreOrderDepositCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork) : IRequestHandler<PayPreOrderDepositCommand, bool>
@@ -23,7 +21,6 @@ public class PayPreOrderDepositCommandHandler(
         var preOrder = await context.Set<PreOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null) return false;
 
         if (preOrder.DepositPaid >= preOrder.DepositAmount)

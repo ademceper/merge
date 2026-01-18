@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.ImportProductsFromJson;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ImportProductsFromJsonCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -33,9 +32,8 @@ public class ImportProductsFromJsonCommandHandler(
     {
         logger.LogInformation("JSON bulk import başlatıldı");
 
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var errors = new List<string>();
-        var importedProducts = new List<ProductDto>();
+        List<string> errors = [];
+        List<ProductDto> importedProducts = [];
         int totalProcessed = 0;
         int successCount = 0;
         int failureCount = 0;
@@ -88,7 +86,6 @@ public class ImportProductsFromJsonCommandHandler(
 
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Bulk import sonrası tüm product cache'lerini invalidate et
             // Note: Pattern-based invalidation gerektirir. Şimdilik tüm product cache'lerini invalidate ediyoruz
             await cache.RemoveAsync(CACHE_KEY_ALL_PRODUCTS_PAGED, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_PRODUCTS_SEARCH, cancellationToken);
@@ -98,7 +95,6 @@ public class ImportProductsFromJsonCommandHandler(
                 "JSON bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
                 totalProcessed, successCount, failureCount);
 
-            // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
             return new BulkProductImportResultDto(
                 TotalProcessed: totalProcessed,
                 SuccessCount: successCount,

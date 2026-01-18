@@ -22,7 +22,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class PreOrder : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Product Product { get; private set; } = null!;
     public Guid UserId { get; private set; }
@@ -39,7 +38,6 @@ public class PreOrder : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing fields (EF Core compatibility)
     private decimal _price;
     public decimal Price
     {
@@ -75,7 +73,6 @@ public class PreOrder : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money PriceMoney => new Money(_price);
     
@@ -85,7 +82,6 @@ public class PreOrder : BaseEntity, IAggregateRoot
     [NotMapped]
     public Money DepositPaidMoney => new Money(_depositPaid);
     
-    // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
     public PreOrderStatus Status { get; private set; }
     
     public DateTime ExpectedAvailabilityDate { get; private set; }
@@ -98,7 +94,6 @@ public class PreOrder : BaseEntity, IAggregateRoot
     public string? Notes { get; private set; }
     public string? VariantOptions { get; private set; } // JSON for selected variant options
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -110,7 +105,6 @@ public class PreOrder : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -122,15 +116,11 @@ public class PreOrder : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PreOrder() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public static PreOrder Create(
         Guid userId,
         Guid productId,
@@ -180,14 +170,11 @@ public class PreOrder : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - PreOrderCreatedEvent yayınla
         preOrder.AddDomainEvent(new PreOrderCreatedEvent(preOrder.Id, userId, productId, quantity, price.Amount));
 
         return preOrder;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Pay deposit (State Transition)
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public void PayDeposit(Money amount)
     {
         Guard.AgainstNull(amount, nameof(amount));
@@ -208,14 +195,12 @@ public class PreOrder : BaseEntity, IAggregateRoot
         {
             Status = PreOrderStatus.DepositPaid;
             
-            // ✅ BOLUM 1.5: Domain Events - PreOrderDepositPaidEvent yayınla
             AddDomainEvent(new PreOrderDepositPaidEvent(Id, UserId, _depositAmount));
         }
 
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Confirm pre-order (State Transition)
     public void Confirm()
     {
         if (Status != PreOrderStatus.DepositPaid)
@@ -224,11 +209,9 @@ public class PreOrder : BaseEntity, IAggregateRoot
         Status = PreOrderStatus.Confirmed;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - PreOrderConfirmedEvent yayınla
         AddDomainEvent(new PreOrderConfirmedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as ready to ship (State Transition)
     public void MarkAsReadyToShip()
     {
         if (Status != PreOrderStatus.Confirmed)
@@ -238,11 +221,9 @@ public class PreOrder : BaseEntity, IAggregateRoot
         ActualAvailabilityDate = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - PreOrderReadyToShipEvent yayınla
         AddDomainEvent(new PreOrderReadyToShipEvent(Id, UserId, ActualAvailabilityDate.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Convert to order (State Transition)
     public void ConvertToOrder(Guid orderId)
     {
         if (Status != PreOrderStatus.ReadyToShip)
@@ -253,11 +234,9 @@ public class PreOrder : BaseEntity, IAggregateRoot
         ConvertedToOrderAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PreOrderConvertedEvent yayınla
         AddDomainEvent(new PreOrderConvertedEvent(Id, orderId, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Cancel pre-order (State Transition)
     public void Cancel()
     {
         if (Status == PreOrderStatus.Converted)
@@ -268,11 +247,9 @@ public class PreOrder : BaseEntity, IAggregateRoot
         Status = PreOrderStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PreOrderCancelledEvent yayınla
         AddDomainEvent(new PreOrderCancelledEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as expired
     public void MarkAsExpired()
     {
         if (Status == PreOrderStatus.Converted || Status == PreOrderStatus.Cancelled)
@@ -284,11 +261,9 @@ public class PreOrder : BaseEntity, IAggregateRoot
         Status = PreOrderStatus.Expired;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - PreOrderExpiredEvent yayınla
         AddDomainEvent(new PreOrderExpiredEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark notification as sent
     public void MarkNotificationAsSent()
     {
         if (NotificationSentAt.HasValue)

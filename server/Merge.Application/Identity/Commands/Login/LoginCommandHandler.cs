@@ -14,6 +14,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
+using static Merge.Application.Common.LogMasking;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Modules.Identity.User;
 using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
@@ -39,12 +40,12 @@ public class LoginCommandHandler(
 
     public async Task<AuthResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Login attempt. Email: {Email}", request.Email);
+        logger.LogInformation("Login attempt. Email: {MaskedEmail}", MaskEmail(request.Email));
 
         var user = await userManager.FindByEmailAsync(request.Email);
-        if (user == null)
+        if (user is null)
         {
-            logger.LogWarning("Failed login attempt - user not found. Email: {Email}", request.Email);
+            logger.LogWarning("Failed login attempt - user not found. Email: {MaskedEmail}", MaskEmail(request.Email));
             throw new BusinessException("Email veya şifre hatalı.");
         }
 
@@ -54,10 +55,10 @@ public class LoginCommandHandler(
         {
             if (result.IsLockedOut)
             {
-                logger.LogWarning("User account locked out. Email: {Email}", request.Email);
+                logger.LogWarning("User account locked out. Email: {MaskedEmail}", MaskEmail(request.Email));
                 throw new BusinessException("Hesabınız geçici olarak kilitlendi. Lütfen daha sonra tekrar deneyin.");
             }
-            logger.LogWarning("Failed login attempt. Email: {Email}", request.Email);
+            logger.LogWarning("Failed login attempt. Email: {MaskedEmail}", MaskEmail(request.Email));
             throw new BusinessException("Email veya şifre hatalı.");
         }
 
@@ -67,8 +68,8 @@ public class LoginCommandHandler(
         userEntry.State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
 
         logger.LogInformation(
-            "User logged in successfully. UserId: {UserId}, Email: {Email}",
-            user.Id, request.Email);
+            "User logged in successfully. UserId: {UserId}, Email: {MaskedEmail}",
+            user.Id, MaskEmail(request.Email));
 
         return await GenerateAuthResponseAsync(user, roles, request.IpAddress, cancellationToken);
     }
@@ -121,7 +122,7 @@ public class LoginCommandHandler(
 
     private async Task<string> GenerateJwtToken(UserEntity user)
     {
-        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new InvalidOperationException("JWT Key bulunamadı"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new ConfigurationException("JWT Key bulunamadı"));
 
         var roles = await userManager.GetRolesAsync(user);
         var claims = new List<Claim>(6 + roles.Count)

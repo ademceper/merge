@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.MarkQuestionHelpful;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class MarkQuestionHelpfulCommandValidator : AbstractValidator<MarkQuestionHelpfulCommand>
 {
     public MarkQuestionHelpfulCommandValidator()

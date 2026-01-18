@@ -21,9 +21,6 @@ public class PaymentMappingProfile : Profile
         .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
         CreateMap<CreatePaymentDto, Merge.Domain.Modules.Payment.Payment>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<Shipping, ShippingDto>()
         .ConstructUsing(src => new ShippingDto(
         src.Id,
@@ -62,7 +59,6 @@ public class PaymentMappingProfile : Profile
 
         // ProductBundle mappings
         // ProductBundle mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductBundle, ProductBundleDto>()
         .ConstructUsing(src => new ProductBundleDto(
         src.Id,
@@ -91,7 +87,6 @@ public class PaymentMappingProfile : Profile
         CreateMap<UpdateProductBundleDto, ProductBundle>();
 
         // BundleItem mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<BundleItem, BundleItemDto>()
         .ConstructUsing(src => new BundleItemDto(
         src.Id,
@@ -104,7 +99,6 @@ public class PaymentMappingProfile : Profile
         ));
 
         // ProductQuestion mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductQuestion, ProductQuestionDto>()
         .ConstructUsing(src => new ProductQuestionDto(
         src.Id,
@@ -138,7 +132,6 @@ public class PaymentMappingProfile : Profile
         CreateMap<CreateProductQuestionDto, ProductQuestion>();
 
         // ProductAnswer mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductAnswer, ProductAnswerDto>()
         .ConstructUsing(src => new ProductAnswerDto(
         src.Id,
@@ -156,7 +149,6 @@ public class PaymentMappingProfile : Profile
         CreateMap<CreateProductAnswerDto, ProductAnswer>();
 
         // ProductTemplate mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<ProductTemplate, ProductTemplateDto>()
         .ConvertUsing((src, context) => new ProductTemplateDto(
         src.Id,
@@ -183,7 +175,6 @@ public class PaymentMappingProfile : Profile
         CreateMap<UpdateProductTemplateDto, ProductTemplate>();
 
         // SizeGuide mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuide, SizeGuideDto>()
         .ConvertUsing((src, context) => new SizeGuideDto(
         src.Id,
@@ -218,7 +209,6 @@ public class PaymentMappingProfile : Profile
         ));
 
         // SizeGuideEntry mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuideEntry, SizeGuideEntryDto>()
         .ConvertUsing((src, context) => new SizeGuideEntryDto(
         src.Id,
@@ -240,7 +230,6 @@ public class PaymentMappingProfile : Profile
         ));
 
         // ProductComparison mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductComparison, ProductComparisonDto>()
         .ConstructUsing(src => new ProductComparisonDto(
         src.Id,
@@ -253,7 +242,6 @@ public class PaymentMappingProfile : Profile
         ));
 
         // Product → ComparisonProductDto mapping
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Modules.Catalog.Product, ComparisonProductDto>()
         .ConstructUsing(src => new ComparisonProductDto(
         src.Id, // ProductId
@@ -279,7 +267,6 @@ public class PaymentMappingProfile : Profile
         .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.DiscountPrice ?? src.Price));
 
         // Product → ProductRecommendationDto mapping
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Modules.Catalog.Product, ProductRecommendationDto>()
         .ConstructUsing(src => new ProductRecommendationDto(
         src.Id, // ProductId
@@ -301,15 +288,12 @@ public class PaymentMappingProfile : Profile
         .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Order != null && src.Order.OrderItems != null 
         ? src.Order.OrderItems.ToList() 
         : new List<OrderItem>()))
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK) - Status zaten enum, direkt map edilebilir
         .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status));
 
         // PaymentMethod mappings
         CreateMap<PaymentMethod, PaymentMethodDto>()
         .AfterMap((src, dest) =>
         {
-        // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Settings = !string.IsNullOrEmpty(src.Settings)
         ? JsonSerializer.Deserialize<PaymentMethodSettingsDto>(src.Settings)
         : null;

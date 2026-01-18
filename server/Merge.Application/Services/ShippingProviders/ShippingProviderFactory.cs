@@ -9,7 +9,6 @@ public class ShippingProviderFactory(IServiceProvider serviceProvider, IConfigur
 
     public IShippingProvider GetProvider(string providerName)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
         if (string.IsNullOrWhiteSpace(providerName))
         {
             throw new ArgumentNullException(nameof(providerName));

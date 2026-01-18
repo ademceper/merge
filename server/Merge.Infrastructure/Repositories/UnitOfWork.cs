@@ -8,14 +8,10 @@ using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
-// ✅ BOLUM 1.1: UnitOfWork Application katmanındaki IUnitOfWork interface'ini implement ediyor
 public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? domainEventDispatcher) : IUnitOfWork
 {
     private IDbContextTransaction? _transaction;
 
-    // ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
-    // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         // Get all domain events from tracked entities
@@ -46,13 +42,11 @@ public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? do
         return await context.SaveChangesAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         _transaction = await context.Database.BeginTransactionAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
     {
         if (_transaction != null)
@@ -63,7 +57,6 @@ public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? do
         }
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
         if (_transaction != null)

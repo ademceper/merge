@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Product Question Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ProductQuestionDeletedEventHandler(
     ILogger<ProductQuestionDeletedEventHandler> logger) : INotificationHandler<ProductQuestionDeletedEvent>
 {
 
     public async Task Handle(ProductQuestionDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Product question deleted event received. QuestionId: {QuestionId}, ProductId: {ProductId}, UserId: {UserId}",
             notification.QuestionId, notification.ProductId, notification.UserId);
@@ -33,7 +29,6 @@ public class ProductQuestionDeletedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ProductQuestionDeletedEvent. QuestionId: {QuestionId}, ProductId: {ProductId}, UserId: {UserId}",
                 notification.QuestionId, notification.ProductId, notification.UserId);

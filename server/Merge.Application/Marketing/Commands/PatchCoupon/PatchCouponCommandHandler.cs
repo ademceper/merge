@@ -38,11 +38,11 @@ public class PatchCouponCommandHandler(
         // Apply partial updates - only update fields that are provided
         if (request.PatchDto.Code != null)
         {
-            if (coupon.Code.ToUpper() != request.PatchDto.Code.ToUpper())
+            if (!string.Equals(coupon.Code, request.PatchDto.Code, StringComparison.OrdinalIgnoreCase))
             {
                 var existingCoupon = await context.Set<Coupon>()
                     .AsNoTracking()
-                    .AnyAsync(c => c.Code.ToUpper() == request.PatchDto.Code.ToUpper() && c.Id != request.Id, cancellationToken);
+                    .AnyAsync(c => EF.Functions.ILike(c.Code, request.PatchDto.Code) && c.Id != request.Id, cancellationToken);
 
                 if (existingCoupon)
                 {

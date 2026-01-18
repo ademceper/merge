@@ -87,7 +87,7 @@ public class GetAllLandingPagesQueryHandler(
         {
             return new PagedResult<LandingPageDto>
             {
-                Items = new List<LandingPageDto>(),
+                Items = [],
                 TotalCount = 0,
                 Page = page,
                 PageSize = pageSize

@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetRevenueOverTime;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetRevenueOverTimeQueryHandler(
     IDbContext context,
     ILogger<GetRevenueOverTimeQueryHandler> logger) : IRequestHandler<GetRevenueOverTimeQuery, List<TimeSeriesDataPoint>>
@@ -24,14 +22,10 @@ public class GetRevenueOverTimeQueryHandler(
         logger.LogInformation("Fetching revenue over time. StartDate: {StartDate}, EndDate: {EndDate}, Interval: {Interval}",
             request.StartDate, request.EndDate, request.Interval);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         return await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate)
             .GroupBy(o => o.CreatedAt.Date)
-            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
             .Select(g => new TimeSeriesDataPoint(
                 g.Key,
                 g.Sum(o => o.TotalAmount),

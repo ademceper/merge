@@ -3,6 +3,5 @@ using Merge.Application.DTOs.Logistics;
 
 namespace Merge.Application.Logistics.Queries.GetShippingById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetShippingByIdQuery(Guid Id) : IRequest<ShippingDto?>;
 

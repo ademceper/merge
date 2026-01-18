@@ -4,8 +4,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Queries.GetFilteredStockMovements;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
 public record GetFilteredStockMovementsQuery(
     Guid? ProductId,
     Guid? WarehouseId,

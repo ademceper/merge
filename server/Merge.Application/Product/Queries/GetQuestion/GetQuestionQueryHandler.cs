@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetQuestion;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetQuestionQueryHandler(
     IDbContext context,
     ILogger<GetQuestionQueryHandler> logger,
@@ -33,7 +31,6 @@ public class GetQuestionQueryHandler(
     {
         logger.LogInformation("Fetching question by Id: {QuestionId}, UserId: {UserId}", request.QuestionId, request.UserId);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern (UserId-specific cache key for user-specific data)
         var cacheKey = $"{CACHE_KEY_QUESTION_BY_ID}{request.QuestionId}";
         // Note: UserId-specific data (HasUserVoted) is not cached, only question data
         var cachedQuestion = await cache.GetAsync<ProductQuestionDto>(cacheKey, cancellationToken);
@@ -65,12 +62,9 @@ public class GetQuestionQueryHandler(
                 .AnyAsync(qh => qh.QuestionId == question.Id && qh.UserId == request.UserId.Value, cancellationToken)
             : false;
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
         var questionDto = mapper.Map<ProductQuestionDto>(question);
         questionDto = questionDto with { HasUserVoted = hasUserVoted };
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz (sadece UserId yoksa)
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         if (!request.UserId.HasValue)
         {
             await cache.SetAsync(cacheKey, questionDto, TimeSpan.FromMinutes(cacheConfig.QuestionCacheExpirationMinutes), cancellationToken);

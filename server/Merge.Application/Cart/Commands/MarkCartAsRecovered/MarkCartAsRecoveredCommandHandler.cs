@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.MarkCartAsRecovered;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class MarkCartAsRecoveredCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -21,12 +19,10 @@ public class MarkCartAsRecoveredCommandHandler(
 
     public async Task Handle(MarkCartAsRecoveredCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var emails = await context.Set<AbandonedCartEmail>()
             .Where(e => e.CartId == request.CartId)
             .ToListAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         foreach (var email in emails)
         {
             email.MarkAsResultedInPurchase();

@@ -14,13 +14,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.UpdateStore;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateStoreCommandHandler> logger) : IRequestHandler<UpdateStoreCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateStoreCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating store. StoreId: {StoreId}", request.StoreId);
 
         if (request.Dto == null)
@@ -28,7 +26,6 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             throw new ArgumentNullException(nameof(request.Dto));
         }
 
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
@@ -38,7 +35,6 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.UpdateDetails(
             storeName: request.Dto.StoreName,
             description: request.Dto.Description,
@@ -52,7 +48,6 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             postalCode: request.Dto.PostalCode,
             settings: request.Dto.Settings != null ? JsonSerializer.Serialize(request.Dto.Settings) : null);
 
-        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         if (request.Dto.Status.HasValue)
         {
             var status = request.Dto.Status.Value;
@@ -64,7 +59,6 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
 
         if (request.Dto.IsPrimary.HasValue && request.Dto.IsPrimary.Value)
         {
-            // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
             // Unset other primary stores
             var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == store.SellerId && s.IsPrimary && s.Id != request.StoreId)
@@ -72,19 +66,15 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
 
             foreach (var s in existingPrimary)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 s.RemovePrimaryStatus();
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             store.SetAsPrimary();
         }
         else if (request.Dto.IsPrimary.HasValue && !request.Dto.IsPrimary.Value)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             store.RemovePrimaryStatus();
         }
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Store updated. StoreId: {StoreId}", request.StoreId);

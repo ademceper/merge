@@ -17,10 +17,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
+/// <summary>
+/// Page Builders API endpoints.
+/// Sayfa builder işlemlerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/content/page-builders")]
 [Authorize]
+[Tags("PageBuilders")]
 public class PageBuildersController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -52,7 +57,6 @@ public class PageBuildersController(
         CancellationToken cancellationToken = default)
     {
         var authorId = GetUserId();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { AuthorId = authorId };
         var page = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPage), new { id = page.Id }, page);
@@ -80,12 +84,11 @@ public class PageBuildersController(
         [FromQuery] bool trackView = false,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPageBuilderByIdQuery(id, trackView);
         var page = await mediator.Send(query, cancellationToken);
         if (page == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(page);
     }
@@ -112,12 +115,11 @@ public class PageBuildersController(
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPageBuilderBySlugQuery(slug, trackView);
         var page = await mediator.Send(query, cancellationToken);
         if (page == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(page);
     }
@@ -149,7 +151,6 @@ public class PageBuildersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllPageBuildersQuery(status, page, pageSize);
         var pages = await mediator.Send(query, cancellationToken);
         return Ok(pages);
@@ -189,13 +190,11 @@ public class PageBuildersController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var updateCommand = command with { Id = id, PerformedBy = userId };
         var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -240,7 +239,7 @@ public class PageBuildersController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -275,13 +274,11 @@ public class PageBuildersController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new DeletePageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -316,13 +313,11 @@ public class PageBuildersController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new PublishPageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -357,13 +352,11 @@ public class PageBuildersController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new UnpublishPageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

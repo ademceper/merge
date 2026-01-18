@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Content;
 /// </summary>
 public class Language : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Code { get; private set; } = string.Empty; // en, tr, ar, de, fr
     public string Name { get; private set; } = string.Empty; // English, Türkçe, العربية
     public string NativeName { get; private set; } = string.Empty; // English, Türkçe, العربية
@@ -23,14 +22,11 @@ public class Language : BaseEntity, IAggregateRoot
     public bool IsRTL { get; private set; } = false; // Right-to-left (Arabic, Hebrew)
     public string FlagIcon { get; private set; } = string.Empty; // URL or emoji flag
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Language() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Language Create(
         string code,
         string name,
@@ -43,7 +39,6 @@ public class Language : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(code, nameof(code));
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(nativeName, nameof(nativeName));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MinLanguageCodeLength=2, MaxLanguageCodeLength=10, MaxLanguageNameLength=100
         Guard.AgainstOutOfRange(code.Length, 2, 10, nameof(code));
         Guard.AgainstLength(name, 100, nameof(name));
@@ -63,23 +58,19 @@ public class Language : BaseEntity, IAggregateRoot
             UpdatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageCreatedEvent
         language.AddDomainEvent(new LanguageCreatedEvent(language.Id, language.Code, language.Name));
 
         return language;
     }
 
-        // ✅ BOLUM 1.1: Domain Method - Update language details
     public void UpdateDetails(string name, string nativeName, bool isRTL, string flagIcon)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(nativeName, nameof(nativeName));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxLanguageNameLength=100
         Guard.AgainstLength(name, 100, nameof(name));
         Guard.AgainstLength(nativeName, 100, nameof(nativeName));
 
-        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu (FlagIcon URL veya emoji olabilir)
         // Eğer URL formatındaysa validasyon yapılır, emoji ise geçer
         if (!string.IsNullOrEmpty(flagIcon) && flagIcon.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !IsValidUrl(flagIcon))
         {
@@ -92,11 +83,9 @@ public class Language : BaseEntity, IAggregateRoot
         FlagIcon = flagIcon;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageUpdatedEvent
         AddDomainEvent(new LanguageUpdatedEvent(Id, Code, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set as default language
     public void SetAsDefault()
     {
         if (IsDefault)
@@ -105,11 +94,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsDefault = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageSetAsDefaultEvent
         AddDomainEvent(new LanguageSetAsDefaultEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Remove default language status
     public void RemoveDefaultStatus()
     {
         if (!IsDefault)
@@ -118,11 +105,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - LanguageUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new LanguageUpdatedEvent(Id, Code, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate language
     public void Activate()
     {
         if (IsActive)
@@ -131,11 +116,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageActivatedEvent
         AddDomainEvent(new LanguageActivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate language
     public void Deactivate()
     {
         if (!IsActive)
@@ -147,11 +130,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageDeactivatedEvent
         AddDomainEvent(new LanguageDeactivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -164,11 +145,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LanguageDeletedEvent
         AddDomainEvent(new LanguageDeletedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore language
     public void Restore()
     {
         if (!IsDeleted)
@@ -177,11 +156,9 @@ public class Language : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - LanguageRestoredEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new LanguageRestoredEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.3: URL Validation Helper Method
     private static bool IsValidUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))

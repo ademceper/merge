@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.BlockPayment;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class BlockPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<BlockPaymentCommandHandler> logger) : IRequestHandler<BlockPaymentCommand, bool>
 {
 
@@ -21,9 +20,7 @@ public class BlockPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         if (check == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         check.Block(request.Reason);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Payment blocked. CheckId: {CheckId}, Reason: {Reason}", request.CheckId, request.Reason);

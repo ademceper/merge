@@ -19,9 +19,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing;
 
+/// <summary>
+/// Flash Sales API endpoints.
+/// Fırsat ürünleri işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/flash-sales")]
+[Tags("FlashSales")]
 public class FlashSalesController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -79,7 +84,7 @@ public class FlashSalesController(
         
         if (sale == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return Ok(sale);
@@ -175,7 +180,7 @@ public class FlashSalesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return NoContent();
@@ -224,7 +229,7 @@ public class FlashSalesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return NoContent();

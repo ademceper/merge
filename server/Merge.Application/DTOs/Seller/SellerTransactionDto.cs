@@ -2,9 +2,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Seller;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
-// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
-// ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
 public record SellerTransactionDto
 {
     public Guid Id { get; init; }

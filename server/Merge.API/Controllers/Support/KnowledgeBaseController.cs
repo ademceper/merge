@@ -27,10 +27,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Support;
 
-[ApiVersion("1.0")]
+/// <summary>
+/// Knowledge Base API endpoints.
+/// Bilgi bankası makalelerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/knowledge-base")]
+[Tags("KnowledgeBase")]
 public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSettings> supportSettings) : BaseController
 {
     private readonly SupportSettings _supportSettings = supportSettings.Value;
@@ -88,7 +92,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var article = await mediator.Send(query, cancellationToken);
         if (article == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -110,7 +114,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var article = await mediator.Send(query, cancellationToken);
         if (article == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         // Record view
@@ -232,7 +236,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var article = await mediator.Send(command, cancellationToken);
         if (article == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -273,7 +277,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var article = await mediator.Send(command, cancellationToken);
         if (article == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -298,7 +302,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -318,7 +322,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -365,7 +369,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -399,7 +403,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -473,7 +477,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var category = await mediator.Send(command, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -512,7 +516,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var category = await mediator.Send(command, cancellationToken);
         if (category == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -537,7 +541,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -550,9 +554,9 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         [FromQuery] Guid? categoryId = null,
         CancellationToken cancellationToken = default)
     {
-                        var query = new GetKnowledgeBaseArticleCountQuery(categoryId);
+        var query = new GetKnowledgeBaseArticleCountQuery(categoryId);
         var count = await mediator.Send(query, cancellationToken);
-        return Ok(new { count });
+        return Ok(count);
     }
 
     [HttpGet("stats/views")]
@@ -562,8 +566,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         [FromQuery] Guid? articleId = null,
         CancellationToken cancellationToken = default)
     {
-                        var query = new GetKnowledgeBaseTotalViewsQuery(articleId);
+        var query = new GetKnowledgeBaseTotalViewsQuery(articleId);
         var views = await mediator.Send(query, cancellationToken);
-        return Ok(new { views });
+        return Ok(views);
     }
 }

@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.CreateCustomerCommunication;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateCustomerCommunicationCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateCustomerCommunicationCommand>
 {
     private readonly SupportSettings config = settings.Value;

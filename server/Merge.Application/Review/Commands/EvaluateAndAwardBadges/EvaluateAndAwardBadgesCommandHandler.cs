@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.EvaluateAndAwardBadges;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class EvaluateAndAwardBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateAndAwardBadgesCommandHandler> logger) : IRequestHandler<EvaluateAndAwardBadgesCommand>
 {
 
     public async Task Handle(EvaluateAndAwardBadgesCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Evaluating and awarding badges. SellerId: {SellerId}",
             request.SellerId);
@@ -31,7 +29,6 @@ public class EvaluateAndAwardBadgesCommandHandler(IDbContext context, IMediator 
         }
         else
         {
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !sp.IsDeleted (Global Query Filter)
             var sellers = await context.Set<SellerProfile>()
                 .AsNoTracking()
                 .Where(sp => sp.Status == SellerStatus.Approved)

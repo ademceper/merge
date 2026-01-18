@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.CreateSizeGuide;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateSizeGuideCommandValidator : AbstractValidator<CreateSizeGuideCommand>
 {
     public CreateSizeGuideCommandValidator()

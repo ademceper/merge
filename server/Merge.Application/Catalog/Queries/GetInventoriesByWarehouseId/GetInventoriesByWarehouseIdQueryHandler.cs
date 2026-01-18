@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetInventoriesByWarehouseId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetInventoriesByWarehouseIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -36,13 +34,11 @@ public class GetInventoriesByWarehouseIdQueryHandler(
         logger.LogInformation("Retrieving inventories for WarehouseId: {WarehouseId} by UserId: {UserId}. Page: {Page}, PageSize: {PageSize}",
             request.WarehouseId, request.PerformedBy, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_INVENTORIES_BY_WAREHOUSE}{request.WarehouseId}_{request.PerformedBy}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for paginated inventory queries
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
@@ -50,7 +46,6 @@ public class GetInventoriesByWarehouseIdQueryHandler(
                 logger.LogInformation("Cache miss for inventories by warehouse. WarehouseId: {WarehouseId}, UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
                     request.WarehouseId, request.PerformedBy, page, pageSize);
 
-                // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sine erişebilmeli
                 var query = context.Set<Inventory>()
                     .AsNoTracking()
             .AsSplitQuery()

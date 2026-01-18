@@ -9,7 +9,6 @@ namespace Merge.Domain.SharedKernel;
 /// </summary>
 public abstract class BaseAggregateRoot : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.4: IAggregateRoot interface'i BaseEntity'deki DomainEvents property'sini kullanır
     // BaseEntity'de zaten DomainEvents, AddDomainEvent(), ClearDomainEvents() var
     // Bu class sadece marker olarak kullanılıyor - IAggregateRoot implement ediyor
 }

@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.GetAllProducts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAllProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllProductsQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

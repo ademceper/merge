@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Queries.GetPickPackByPackNumber;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetPickPackByPackNumberQueryValidator : AbstractValidator<GetPickPackByPackNumberQuery>
 {
     public GetPickPackByPackNumberQueryValidator()

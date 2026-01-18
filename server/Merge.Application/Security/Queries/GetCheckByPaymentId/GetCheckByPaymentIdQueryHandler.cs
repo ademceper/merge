@@ -12,16 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Queries.GetCheckByPaymentId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetCheckByPaymentIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetCheckByPaymentIdQueryHandler> logger) : IRequestHandler<GetCheckByPaymentIdQuery, PaymentFraudPreventionDto?>
 {
 
     public async Task<PaymentFraudPreventionDto?> Handle(GetCheckByPaymentIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Payment fraud check sorgulanıyor. PaymentId: {PaymentId}", request.PaymentId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var check = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)

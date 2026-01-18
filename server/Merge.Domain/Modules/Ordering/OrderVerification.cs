@@ -20,13 +20,10 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class OrderVerification : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string VerificationType YASAK)
     public VerificationType VerificationType { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public VerificationStatus Status { get; private set; } = VerificationStatus.Pending;
     
     public Guid? VerifiedByUserId { get; private set; } // Admin/Staff who verified
@@ -35,7 +32,6 @@ public class OrderVerification : BaseEntity, IAggregateRoot
     public string? VerificationMethod { get; private set; } // Phone call, Email confirmation, ID check, etc.
     public bool RequiresManualReview { get; private set; } = false;
     
-    // ✅ BOLUM 1.6: Invariant validation - RiskScore 0-100 arası
     private int _riskScore = 0;
     public int RiskScore 
     { 
@@ -49,11 +45,9 @@ public class OrderVerification : BaseEntity, IAggregateRoot
     
     public string? RejectionReason { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -65,7 +59,6 @@ public class OrderVerification : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -81,10 +74,8 @@ public class OrderVerification : BaseEntity, IAggregateRoot
     public Order Order { get; private set; } = null!;
     public User? VerifiedBy { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private OrderVerification() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static OrderVerification Create(
         Guid orderId,
         VerificationType verificationType,
@@ -109,7 +100,6 @@ public class OrderVerification : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events
         verification.AddDomainEvent(new OrderVerificationCreatedEvent(
             verification.Id,
             orderId,
@@ -120,7 +110,6 @@ public class OrderVerification : BaseEntity, IAggregateRoot
         return verification;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify order
     public void Verify(Guid verifiedByUserId, string? notes = null)
     {
         Guard.AgainstDefault(verifiedByUserId, nameof(verifiedByUserId));
@@ -134,11 +123,9 @@ public class OrderVerification : BaseEntity, IAggregateRoot
         Status = VerificationStatus.Verified;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new OrderVerificationVerifiedEvent(Id, OrderId, verifiedByUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reject order
     public void Reject(Guid verifiedByUserId, string reason)
     {
         Guard.AgainstDefault(verifiedByUserId, nameof(verifiedByUserId));
@@ -153,12 +140,9 @@ public class OrderVerification : BaseEntity, IAggregateRoot
         Status = VerificationStatus.Rejected;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new OrderVerificationRejectedEvent(Id, OrderId, verifiedByUserId, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update risk score
-    // ✅ BOLUM 12.0: Magic number'lar handler'da belirlenir, Domain entity configuration'a bağımlı değil
     // RequiresManualReview handler'da belirlenmeli, bu method sadece risk score'u günceller
     public void UpdateRiskScore(int riskScore)
     {
@@ -167,7 +151,6 @@ public class OrderVerification : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update requires manual review
     public void SetRequiresManualReview(bool requiresManualReview)
     {
         RequiresManualReview = requiresManualReview;

@@ -20,10 +20,18 @@ using Merge.API.Middleware;
 using Merge.API.Extensions;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+
 namespace Merge.API.Controllers.Order;
+
+/// <summary>
+/// Order API endpoints.
+/// Tüm sipariş operasyonlarını yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/orders")]
+[Route("api/v{version:apiVersion}/orders")]
 [Authorize]
+[Tags("Orders")]
 public class OrdersController(
     IMediator mediator,
     IOptions<OrderSettings> orderSettings) : BaseController
@@ -62,14 +70,13 @@ public class OrdersController(
         var order = await mediator.Send(query, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
 
-        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
         var orderJson = System.Text.Json.JsonSerializer.Serialize(order);
         Response.SetETag(orderJson);
         Response.SetCacheControl(maxAgeSeconds: 60, isPublic: false); // Cache for 1 minute (private)
@@ -167,7 +174,7 @@ public class OrdersController(
         var order = await mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -177,7 +184,7 @@ public class OrdersController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -196,7 +203,7 @@ public class OrdersController(
         var originalOrder = await mediator.Send(getOrderQuery, cancellationToken);
         if (originalOrder == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (originalOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {

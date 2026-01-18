@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetSizeGuide;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetSizeGuideQueryHandler(
     IDbContext context,
     ILogger<GetSizeGuideQueryHandler> logger,
@@ -31,7 +29,6 @@ public class GetSizeGuideQueryHandler(
     {
         logger.LogInformation("Fetching size guide by Id: {SizeGuideId}", request.Id);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_SIZE_GUIDE_BY_ID}{request.Id}";
         var cachedSizeGuide = await cache.GetAsync<SizeGuideDto>(cacheKey, cancellationToken);
         if (cachedSizeGuide != null)
@@ -56,8 +53,6 @@ public class GetSizeGuideQueryHandler(
 
         var sizeGuideDto = mapper.Map<SizeGuideDto>(sizeGuide);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, sizeGuideDto, TimeSpan.FromMinutes(cacheConfig.SizeGuideCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Size guide retrieved successfully. SizeGuideId: {SizeGuideId}", request.Id);

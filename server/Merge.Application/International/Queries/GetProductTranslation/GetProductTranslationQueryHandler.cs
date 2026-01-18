@@ -25,7 +25,7 @@ public class GetProductTranslationQueryHandler(
         var translation = await context.Set<ProductTranslation>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pt => pt.ProductId == request.ProductId &&
-                                      pt.LanguageCode.ToLower() == request.LanguageCode.ToLower(), cancellationToken);
+                                      EF.Functions.ILike(pt.LanguageCode, request.LanguageCode), cancellationToken);
 
         return translation != null ? mapper.Map<ProductTranslationDto>(translation) : null;
     }

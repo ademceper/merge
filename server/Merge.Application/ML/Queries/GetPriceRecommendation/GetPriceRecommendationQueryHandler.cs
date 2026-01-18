@@ -15,17 +15,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Queries.GetPriceRecommendation;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPriceRecommendationQueryHandler(IDbContext context, ILogger<GetPriceRecommendationQueryHandler> logger, PriceOptimizationHelper helper) : IRequestHandler<GetPriceRecommendationQuery, PriceRecommendationDto>
 {
 
     public async Task<PriceRecommendationDto> Handle(GetPriceRecommendationQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting price recommendation. ProductId: {ProductId}", request.ProductId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -37,7 +33,6 @@ public class GetPriceRecommendationQueryHandler(IDbContext context, ILogger<GetP
             throw new NotFoundException("Ürün", request.ProductId);
         }
 
-        // ✅ PERFORMANCE: Batch load similar products (N+1 fix)
         var similarProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == product.CategoryId && 
@@ -45,7 +40,6 @@ public class GetPriceRecommendationQueryHandler(IDbContext context, ILogger<GetP
                        p.IsActive)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: Helper kullan (business logic helper'da)
         var recommendation = await helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
 
         logger.LogInformation("Price recommendation retrieved. ProductId: {ProductId}, OptimalPrice: {OptimalPrice}, Confidence: {Confidence}",

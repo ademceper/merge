@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetPurchaseOrderByPONumber;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPurchaseOrderByPONumberQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -37,7 +35,6 @@ public class GetPurchaseOrderByPONumberQueryHandler(
                 .ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(po => po.PONumber == request.PONumber, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return po != null ? mapper.Map<PurchaseOrderDto>(po) : null;
     }
 }

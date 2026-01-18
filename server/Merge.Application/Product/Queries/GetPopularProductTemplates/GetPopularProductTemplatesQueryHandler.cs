@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetPopularProductTemplates;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPopularProductTemplatesQueryHandler(
     IDbContext context,
     ILogger<GetPopularProductTemplatesQueryHandler> logger,
@@ -31,8 +29,6 @@ public class GetPopularProductTemplatesQueryHandler(
 
     public async Task<IEnumerable<ProductTemplateDto>> Handle(GetPopularProductTemplatesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var limit = request.Limit > paginationConfig.MaxPageSize
             ? paginationConfig.MaxPageSize
             : request.Limit;
@@ -40,7 +36,6 @@ public class GetPopularProductTemplatesQueryHandler(
 
         logger.LogInformation("Fetching popular product templates. Limit: {Limit}", limit);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_POPULAR_TEMPLATES}{limit}";
         var cachedTemplates = await cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
         if (cachedTemplates != null)
@@ -51,7 +46,6 @@ public class GetPopularProductTemplatesQueryHandler(
 
         logger.LogInformation("Cache miss for popular product templates. Fetching from database.");
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var templates = await context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category)
@@ -63,8 +57,6 @@ public class GetPopularProductTemplatesQueryHandler(
 
         var templateDtos = mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(cacheConfig.PopularTemplatesCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Retrieved popular product templates. Count: {Count}, Limit: {Limit}", templates.Count, limit);

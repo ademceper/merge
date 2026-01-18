@@ -81,7 +81,7 @@ public class GetAllPageBuildersQueryHandler(
         {
             return new PagedResult<PageBuilderDto>
             {
-                Items = new List<PageBuilderDto>(),
+                Items = [],
                 TotalCount = 0,
                 Page = page,
                 PageSize = pageSize

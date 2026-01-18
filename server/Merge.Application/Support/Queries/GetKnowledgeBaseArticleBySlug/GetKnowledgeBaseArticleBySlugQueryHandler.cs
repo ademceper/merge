@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseArticleBySlug;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetKnowledgeBaseArticleBySlugQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetKnowledgeBaseArticleBySlugQuery, KnowledgeBaseArticleDto?>
 {
 
@@ -22,6 +21,7 @@ public class GetKnowledgeBaseArticleBySlugQueryHandler(IDbContext context, IMapp
     {
         var article = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Slug == request.Slug && a.Status == ContentStatus.Published, cancellationToken);

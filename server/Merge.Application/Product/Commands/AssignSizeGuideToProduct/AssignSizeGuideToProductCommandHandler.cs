@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.AssignSizeGuideToProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AssignSizeGuideToProductCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<AssignSizeGuideToProductCommandHandler> logger, ICacheService cache) : IRequestHandler<AssignSizeGuideToProductCommand>
 {
 
@@ -31,7 +30,6 @@ public class AssignSizeGuideToProductCommandHandler(IDbContext context, IUnitOfW
 
             if (existing != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 existing.Update(
                     request.SizeGuideId,
                     request.CustomNotes,
@@ -40,7 +38,6 @@ public class AssignSizeGuideToProductCommandHandler(IDbContext context, IUnitOfW
             }
             else
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                 var productSizeGuide = ProductSizeGuide.Create(
                     request.ProductId,
                     request.SizeGuideId,
@@ -54,7 +51,6 @@ public class AssignSizeGuideToProductCommandHandler(IDbContext context, IUnitOfW
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_PRODUCT_SIZE_GUIDE}{request.ProductId}", cancellationToken);
             // Note: Size recommendation cache includes measurements, so we can't invalidate all.
             // Cache expiration (30 min) will handle stale recommendations.

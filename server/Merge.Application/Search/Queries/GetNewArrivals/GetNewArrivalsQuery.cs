@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Search.Queries.GetNewArrivals;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetNewArrivalsQuery(
     int Days = 30,
     int MaxResults = 10

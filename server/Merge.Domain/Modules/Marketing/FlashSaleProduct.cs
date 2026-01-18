@@ -17,11 +17,9 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class FlashSaleProduct : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid FlashSaleId { get; private set; }
     public Guid ProductId { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _salePrice;
     public decimal SalePrice 
     { 
@@ -33,7 +31,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - StockLimit >= 0
     private int _stockLimit;
     public int StockLimit 
     { 
@@ -45,7 +42,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - SoldQuantity >= 0 && SoldQuantity <= StockLimit
     private int _soldQuantity = 0;
     public int SoldQuantity 
     { 
@@ -65,18 +61,14 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
     public FlashSale FlashSale { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
 
-    // ✅ BOLUM 1.3: Value Object properties
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money SalePriceMoney => new Money(_salePrice);
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private FlashSaleProduct() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static FlashSaleProduct Create(
         Guid flashSaleId,
         Guid productId,
@@ -101,7 +93,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductCreatedEvent
         flashSaleProduct.AddDomainEvent(new FlashSaleProductCreatedEvent(
             flashSaleProduct.Id,
             flashSaleId,
@@ -112,7 +103,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         return flashSaleProduct;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record sale
     public void RecordSale(int quantity)
     {
         Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
@@ -123,7 +113,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         _soldQuantity += quantity;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductSaleRecordedEvent
         AddDomainEvent(new FlashSaleProductSaleRecordedEvent(
             Id,
             FlashSaleId,
@@ -133,13 +122,11 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
             GetRemainingStock()));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if available
     public bool IsAvailable()
     {
         return _stockLimit == 0 || _soldQuantity < _stockLimit;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Get remaining stock
     public int GetRemainingStock()
     {
         if (_stockLimit == 0)
@@ -148,18 +135,15 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         return _stockLimit - _soldQuantity;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update sale price
     public void UpdateSalePrice(Money salePrice)
     {
         Guard.AgainstNull(salePrice, nameof(salePrice));
         _salePrice = salePrice.Amount;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
         AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "SalePrice"));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update stock limit
     public void UpdateStockLimit(int stockLimit)
     {
         Guard.AgainstNegative(stockLimit, nameof(stockLimit));
@@ -170,21 +154,17 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         _stockLimit = stockLimit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
         AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "StockLimit"));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update sort order
     public void UpdateSortOrder(int sortOrder)
     {
         SortOrder = sortOrder;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
         AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "SortOrder"));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -192,7 +172,6 @@ public class FlashSaleProduct : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductDeletedEvent
         AddDomainEvent(new FlashSaleProductDeletedEvent(Id, FlashSaleId, ProductId));
     }
 }

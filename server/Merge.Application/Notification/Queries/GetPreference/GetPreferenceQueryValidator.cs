@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetPreference;
 
-/// <summary>
-/// Get Preference Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class GetPreferenceQueryValidator : AbstractValidator<GetPreferenceQuery>
 {
     public GetPreferenceQueryValidator()

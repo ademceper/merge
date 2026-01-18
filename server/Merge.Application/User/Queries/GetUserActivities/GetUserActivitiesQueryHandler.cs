@@ -13,19 +13,15 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.GetUserActivities;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserActivitiesQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetUserActivitiesQuery, IEnumerable<UserActivityLogDto>>
 {
-    private readonly UserSettings config = userSettings.Value;
-
     public async Task<IEnumerable<UserActivityLogDto>> Handle(GetUserActivitiesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", request.UserId, request.Days);
         var days = request.Days;
-        if (days > config.Activity.MaxDays) days = config.Activity.MaxDays;
-        if (days < 1) days = config.Activity.DefaultDays;
+        if (days > userSettings.Value.Activity.MaxDays) days = userSettings.Value.Activity.MaxDays;
+        if (days < 1) days = userSettings.Value.Activity.DefaultDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 

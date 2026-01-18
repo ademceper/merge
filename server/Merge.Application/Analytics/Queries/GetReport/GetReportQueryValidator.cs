@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetReport;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetReportQueryValidator : AbstractValidator<GetReportQuery>
 {
     public GetReportQueryValidator()

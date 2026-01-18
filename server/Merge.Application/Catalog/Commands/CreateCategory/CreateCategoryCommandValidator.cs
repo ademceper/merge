@@ -3,7 +3,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Catalog.Commands.CreateCategory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateCategoryCommandValidator : AbstractValidator<CreateCategoryCommand>
 {
     public CreateCategoryCommandValidator()

@@ -15,26 +15,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetMostHelpfulReviews;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetMostHelpfulReviewsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetMostHelpfulReviewsQueryHandler> logger, IOptions<ReviewSettings> reviewSettings) : IRequestHandler<GetMostHelpfulReviewsQuery, IEnumerable<ReviewHelpfulnessStatsDto>>
 {
     private readonly ReviewSettings reviewConfig = reviewSettings.Value;
 
     public async Task<IEnumerable<ReviewHelpfulnessStatsDto>> Handle(GetMostHelpfulReviewsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var limit = request.Limit > reviewConfig.MaxHelpfulReviewsLimit
             ? reviewConfig.MaxHelpfulReviewsLimit
             : request.Limit;
         if (limit < 1) limit = reviewConfig.DefaultHelpfulReviewsLimit;
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Fetching most helpful reviews. ProductId: {ProductId}, Limit: {Limit}",
             request.ProductId, limit);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == request.ProductId && r.IsApproved)
@@ -47,7 +42,6 @@ public class GetMostHelpfulReviewsQueryHandler(IDbContext context, IMapper mappe
             "Retrieved {Count} most helpful reviews for product {ProductId}",
             reviews.Count, request.ProductId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var stats = mapper.Map<IEnumerable<ReviewHelpfulnessStatsDto>>(reviews).ToList();
         foreach (var stat in stats)
         {

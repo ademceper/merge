@@ -15,9 +15,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Product Templates API endpoints.
+/// Ürün şablonlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/templates")]
+[Tags("ProductTemplates")]
 public class ProductTemplatesController(IMediator mediator) : BaseController
 {
             [HttpGet]
@@ -32,9 +37,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
     {
         var query = new GetAllProductTemplatesQuery(categoryId, isActive);
         var templates = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = templates.Select(t => HateoasHelper.CreateProductTemplateLinks(Url, t.Id, version)).ToList();
-        return Ok(new { templates, _links = links });
+        return Ok(templates);
     }
 
     [HttpGet("popular")]
@@ -50,9 +53,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         if (limit < 1) limit = 10;
         var query = new GetPopularProductTemplatesQuery(limit);
         var templates = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = templates.Select(t => HateoasHelper.CreateProductTemplateLinks(Url, t.Id, version)).ToList();
-        return Ok(new { templates, _links = links });
+        return Ok(templates);
     }
 
     [HttpGet("{id}")]
@@ -67,11 +68,9 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         var template = await mediator.Send(query, cancellationToken);
         if (template == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductTemplateLinks(Url, template.Id, version);
-        return Ok(new { template, _links = links });
+        return Ok(template);
     }
 
     [HttpPost]
@@ -101,9 +100,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
             dto.Attributes?.ToDictionary(kv => kv.Key, kv => kv.Value),
             dto.IsActive);
         var template = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductTemplateLinks(Url, template.Id, version);
-        return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, new { template, _links = links });
+        return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, template);
     }
 
     [HttpPut("{id}")]
@@ -138,7 +135,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -179,7 +176,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -198,7 +195,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

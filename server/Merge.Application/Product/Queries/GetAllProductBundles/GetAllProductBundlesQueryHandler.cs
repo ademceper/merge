@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetAllProductBundles;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAllProductBundlesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllProductBundlesQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetAllProductBundlesQuery, IEnumerable<ProductBundleDto>>
 {
     private readonly CacheSettings cacheConfig = cacheSettings.Value;
@@ -28,7 +26,6 @@ public class GetAllProductBundlesQueryHandler(IDbContext context, IMapper mapper
     {
         logger.LogInformation("Fetching all product bundles. ActiveOnly: {ActiveOnly}", request.ActiveOnly);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = request.ActiveOnly ? CACHE_KEY_ACTIVE_BUNDLES : CACHE_KEY_ALL_BUNDLES;
         var cachedBundles = await cache.GetAsync<IEnumerable<ProductBundleDto>>(cacheKey, cancellationToken);
         if (cachedBundles != null)
@@ -37,8 +34,6 @@ public class GetAllProductBundlesQueryHandler(IDbContext context, IMapper mapper
             return cachedBundles;
         }
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         IQueryable<ProductBundle> query = context.Set<ProductBundle>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -59,8 +54,6 @@ public class GetAllProductBundlesQueryHandler(IDbContext context, IMapper mapper
 
         var bundleDtos = mapper.Map<IEnumerable<ProductBundleDto>>(bundles).ToList();
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, bundleDtos, TimeSpan.FromMinutes(cacheConfig.ProductBundleCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Retrieved all product bundles. Count: {Count}, ActiveOnly: {ActiveOnly}",

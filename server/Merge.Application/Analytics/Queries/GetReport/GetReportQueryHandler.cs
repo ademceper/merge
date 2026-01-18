@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetReport;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetReportQueryHandler(
     IDbContext context,
     ILogger<GetReportQueryHandler> logger,
@@ -24,8 +22,6 @@ public class GetReportQueryHandler(
     {
         logger.LogInformation("Fetching report. ReportId: {ReportId}, UserId: {UserId}", request.Id, request.UserId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var report = await context.Set<Report>()
             .AsNoTracking()
             .Include(r => r.GeneratedByUser)
@@ -37,10 +33,8 @@ public class GetReportQueryHandler(
             return null;
         }
 
-        // ✅ SECURITY: Authorization check - Users can only view their own reports unless Admin
         // Bu kontrol controller'da yapılıyor, burada sadece data getiriyoruz
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<ReportDto>(report);
     }
 }

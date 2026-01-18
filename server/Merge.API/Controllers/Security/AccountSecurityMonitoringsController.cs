@@ -18,10 +18,15 @@ using Merge.Application.Security.Queries.GetSecuritySummary;
 
 namespace Merge.API.Controllers.Security;
 
+/// <summary>
+/// Account Security Monitoring API endpoints.
+/// Hesap güvenlik izleme işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/security/account-monitoring")]
 [Authorize]
+[Tags("AccountSecurityMonitoring")]
 public class AccountSecurityMonitoringsController(IMediator mediator, IOptions<PaginationSettings> paginationSettings) : BaseController
 {
     private readonly PaginationSettings _paginationSettings = paginationSettings.Value;
@@ -122,7 +127,7 @@ public class AccountSecurityMonitoringsController(IMediator mediator, IOptions<P
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -190,7 +195,7 @@ public class AccountSecurityMonitoringsController(IMediator mediator, IOptions<P
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -214,7 +219,7 @@ public class AccountSecurityMonitoringsController(IMediator mediator, IOptions<P
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

@@ -4,15 +4,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Notification.EventHandlers;
 
-/// <summary>
-/// EmailTemplate Deactivated Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// </summary>
+
 public class EmailTemplateDeactivatedEventHandler(ILogger<EmailTemplateDeactivatedEventHandler> logger) : INotificationHandler<EmailTemplateDeactivatedEvent>
 {
 
     public async Task Handle(EmailTemplateDeactivatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "EmailTemplate deactivated event received. TemplateId: {TemplateId}, Name: {Name}",
             notification.TemplateId, notification.Name);

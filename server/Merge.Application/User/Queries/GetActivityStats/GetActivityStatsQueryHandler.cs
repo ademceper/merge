@@ -18,19 +18,15 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.GetActivityStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivityStatsQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetActivityStatsQuery, ActivityStatsDto>
 {
-    private readonly UserSettings config = userSettings.Value;
-
     public async Task<ActivityStatsDto> Handle(GetActivityStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Generating activity statistics for last {Days} days", request.Days);
         var days = request.Days;
-        if (days > config.Activity.MaxDays) days = config.Activity.MaxDays;
-        if (days < 1) days = config.Activity.DefaultDays;
+        if (days > userSettings.Value.Activity.MaxDays) days = userSettings.Value.Activity.MaxDays;
+        if (days < 1) days = userSettings.Value.Activity.DefaultDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
@@ -69,7 +65,7 @@ public class GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivit
                 ActivityCount = g.Count()
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(config.Activity.DefaultTopN)
+            .Take(userSettings.Value.Activity.DefaultTopN)
             .Select(u => u.UserId)
             .ToListAsync(cancellationToken);
         var userEmails = await context.Users
@@ -88,7 +84,7 @@ public class GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivit
                 LastActivity = g.Max(a => a.CreatedAt)
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(config.Activity.DefaultTopN)
+            .Take(userSettings.Value.Activity.DefaultTopN)
             .ToListAsync(cancellationToken);
 
         foreach (var user in topUsersData)
@@ -98,7 +94,7 @@ public class GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivit
                 user.UserEmail = email;
             }
         }
-        var mostViewedProducts = await GetMostViewedProductsAsync(days, config.Activity.DefaultTopN, cancellationToken);
+        var mostViewedProducts = await GetMostViewedProductsAsync(days, userSettings.Value.Activity.DefaultTopN, cancellationToken);
 
         var avgSessionDuration = await query
             .Where(a => a.DurationMs > 0)

@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.UnmarkAnswerHelpful;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UnmarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UnmarkAnswerHelpfulCommandHandler> logger, ICacheService cache) : IRequestHandler<UnmarkAnswerHelpfulCommand>
 {
 
@@ -40,14 +39,12 @@ public class UnmarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork u
 
             if (answer != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 answer.DecrementHelpfulCount();
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation (helpful count değişti)
             if (answer != null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{answer.QuestionId}", cancellationToken);

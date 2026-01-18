@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Seller.Commands.UpdateCommissionTier;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateCommissionTierCommandValidator : AbstractValidator<UpdateCommissionTierCommand>
 {
     public UpdateCommissionTierCommandValidator()

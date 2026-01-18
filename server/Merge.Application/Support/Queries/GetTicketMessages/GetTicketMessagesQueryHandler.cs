@@ -12,14 +12,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetTicketMessages;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTicketMessagesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetTicketMessagesQuery, IEnumerable<TicketMessageDto>>
 {
 
     public async Task<IEnumerable<TicketMessageDto>> Handle(GetTicketMessagesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<TicketMessage> query = context.Set<TicketMessage>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -36,7 +33,6 @@ public class GetTicketMessagesQueryHandler(IDbContext context, IMapper mapper) :
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<TicketMessageDto>>(messages);
     }
 }

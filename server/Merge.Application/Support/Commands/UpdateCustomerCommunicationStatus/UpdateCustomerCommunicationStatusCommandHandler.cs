@@ -12,13 +12,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.UpdateCustomerCommunicationStatus;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateCustomerCommunicationStatusCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateCustomerCommunicationStatusCommandHandler> logger) : IRequestHandler<UpdateCustomerCommunicationStatusCommand, bool>
 {
 
     public async Task<bool> Handle(UpdateCustomerCommunicationStatusCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating customer communication status. CommunicationId: {CommunicationId}, NewStatus: {Status}",
             request.CommunicationId, request.Status);
 
@@ -31,11 +29,9 @@ public class UpdateCustomerCommunicationStatusCommandHandler(IDbContext context,
             throw new NotFoundException("Müşteri iletişimi", request.CommunicationId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         var newStatus = Enum.Parse<CommunicationStatus>(request.Status, true);
         communication.UpdateStatus(newStatus, request.DeliveredAt, request.ReadAt);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Customer communication {CommunicationId} status updated to {Status} successfully",

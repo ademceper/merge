@@ -20,8 +20,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetDashboardStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetDashboardStatsQueryHandler(
     IDbContext context,
     ILogger<GetDashboardStatsQueryHandler> logger,
@@ -32,8 +30,6 @@ public class GetDashboardStatsQueryHandler(
     {
         logger.LogInformation("Fetching dashboard statistics");
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !IsDeleted checks (Global Query Filter handles it)
         var stats = new DashboardStatsDto(
             TotalUsers: await context.Users.AsNoTracking().CountAsync(cancellationToken),
             ActiveUsers: await context.Users.AsNoTracking().CountAsync(u => u.EmailConfirmed, cancellationToken),

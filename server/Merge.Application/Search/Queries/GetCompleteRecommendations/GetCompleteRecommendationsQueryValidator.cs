@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Search.Queries.GetCompleteRecommendations;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetCompleteRecommendationsQueryValidator : AbstractValidator<GetCompleteRecommendationsQuery>
 {
     public GetCompleteRecommendationsQueryValidator()

@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class Team : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrganizationId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
@@ -26,15 +25,10 @@ public class Team : BaseEntity, IAggregateRoot
     public Organization Organization { get; private set; } = null!;
     public User? TeamLead { get; private set; }
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Encapsulated collections with backing fields
-    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
     private readonly List<TeamMember> _members = [];
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties (read-only collections)
-    // ✅ BOLUM 1.4: Aggregate Root Pattern - TeamMember'lara sadece Team üzerinden erişim
     public IReadOnlyCollection<TeamMember> Members => _members.AsReadOnly();
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı (User entity'sinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -46,7 +40,6 @@ public class Team : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -55,10 +48,8 @@ public class Team : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Team() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Team Create(
         Guid organizationId,
         string name,
@@ -92,32 +83,27 @@ public class Team : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         team.AddDomainEvent(new TeamCreatedEvent(team.Id, organizationId, team.Name));
 
         return team;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update team
     public void Update(
         string? name = null,
         string? description = null,
         Guid? teamLeadId = null,
         string? settings = null)
     {
-        // ✅ BOLUM 1.1: Business Invariants - Silinmiş takım güncellenemez
         if (IsDeleted)
             throw new DomainException("Silinmiş takım güncellenemez");
 
-        var changedFields = new List<string>();
+        List<string> changedFields = [];
 
-        // ✅ BOLUM 1.1: Name validation - null check, empty check ve minimum length kontrolü
         if (name != null && name != Name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("Takım adı boş olamaz");
             
-            // ✅ BOLUM 1.1: Name validation - Minimum length kontrolü (Create ile uyumlu)
             Guard.AgainstOutOfRange(name.Length, 1, 200, nameof(name));
             Name = name;
             changedFields.Add(nameof(Name));
@@ -153,7 +139,6 @@ public class Team : BaseEntity, IAggregateRoot
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             
-            // ✅ BOLUM 1.1: JSON validation - Settings JSON format kontrolü
             if (!string.IsNullOrEmpty(settings))
             {
                 try
@@ -175,12 +160,10 @@ public class Team : BaseEntity, IAggregateRoot
         {
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events - Add domain event with changed fields
             AddDomainEvent(new TeamUpdatedEvent(Id, OrganizationId, Name));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate team
     public void Activate()
     {
         if (IsActive)
@@ -189,11 +172,9 @@ public class Team : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new TeamActivatedEvent(Id, OrganizationId, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate team
     public void Deactivate()
     {
         if (!IsActive)
@@ -202,11 +183,9 @@ public class Team : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new TeamDeactivatedEvent(Id, OrganizationId, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete team (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -216,7 +195,6 @@ public class Team : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new TeamDeletedEvent(Id, OrganizationId, Name));
     }
 }

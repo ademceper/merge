@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class BundleItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid BundleId { get; private set; }
     public Guid ProductId { get; private set; }
     
@@ -37,7 +36,6 @@ public class BundleItem : BaseEntity
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -45,10 +43,8 @@ public class BundleItem : BaseEntity
     public ProductBundle Bundle { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private BundleItem() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static BundleItem Create(
         Guid bundleId,
         Guid productId,
@@ -70,35 +66,29 @@ public class BundleItem : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         item.ValidateInvariants();
         
         return item;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity
     public void UpdateQuantity(int newQuantity)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
         _quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update sort order
     public void UpdateSortOrder(int newSortOrder)
     {
         Guard.AgainstNegative(newSortOrder, nameof(newSortOrder));
         _sortOrder = newSortOrder;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -106,11 +96,9 @@ public class BundleItem : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == BundleId)

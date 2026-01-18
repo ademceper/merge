@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Security.Commands.CreatePaymentFraudCheck;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class CreatePaymentFraudCheckCommandValidator : AbstractValidator<CreatePaymentFraudCheckCommand>
 {
     public CreatePaymentFraudCheckCommandValidator()

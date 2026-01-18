@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// TaxRule Deleted Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record TaxRuleDeletedEvent(
     Guid TaxRuleId,
     string Country,

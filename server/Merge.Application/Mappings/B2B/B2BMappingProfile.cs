@@ -24,7 +24,6 @@ public class B2BMappingProfile : Profile
         : (decimal?)null))
         .AfterMap((src, dest) => 
         {
-        // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
         // Typed DTO kullanılıyor
         dest.Settings = !string.IsNullOrEmpty(src.Settings) 
         ? JsonSerializer.Deserialize<B2BUserSettingsDto>(src.Settings!) 

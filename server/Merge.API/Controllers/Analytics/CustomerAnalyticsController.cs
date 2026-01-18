@@ -13,10 +13,15 @@ using Merge.Application.Analytics.Queries.GetTopCustomers;
 
 namespace Merge.API.Controllers.Analytics.Customer;
 
+/// <summary>
+/// Customer Analytics API endpoints.
+/// Müşteri analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/customers")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("CustomerAnalytics")]
 public class CustomerAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -37,8 +42,6 @@ public class CustomerAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetCustomerAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
@@ -58,12 +61,9 @@ public class CustomerAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopCustomersQuery(limit);
         var customers = await mediator.Send(query, cancellationToken);
         return Ok(customers);
@@ -81,7 +81,6 @@ public class CustomerAnalyticsController(
     public async Task<ActionResult<List<CustomerSegmentDto>>> GetCustomerSegments(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCustomerSegmentsQuery();
         var segments = await mediator.Send(query, cancellationToken);
         return Ok(segments);
@@ -101,8 +100,6 @@ public class CustomerAnalyticsController(
         Guid customerId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ SECURITY: IDOR Protection - Kullanıcı sadece kendi verilerine erişebilir (Manager/Admin hariç)
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             var currentUserId = GetUserId();

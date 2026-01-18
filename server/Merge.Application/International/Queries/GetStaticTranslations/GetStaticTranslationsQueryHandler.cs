@@ -22,7 +22,7 @@ public class GetStaticTranslationsQueryHandler(
 
         var query = context.Set<StaticTranslation>()
             .AsNoTracking()
-            .Where(st => st.LanguageCode.ToLower() == request.LanguageCode.ToLower());
+            .Where(st => EF.Functions.ILike(st.LanguageCode, request.LanguageCode));
 
         if (!string.IsNullOrEmpty(request.Category))
         {

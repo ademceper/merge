@@ -15,8 +15,6 @@ using AutoMapper;
 
 namespace Merge.Application.Product.Queries.GetUnansweredQuestions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetUnansweredQuestionsQueryHandler(
     IDbContext context,
     ILogger<GetUnansweredQuestionsQueryHandler> logger,
@@ -32,8 +30,6 @@ public class GetUnansweredQuestionsQueryHandler(
 
     public async Task<IEnumerable<ProductQuestionDto>> Handle(GetUnansweredQuestionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var limit = request.Limit > paginationConfig.MaxPageSize
             ? paginationConfig.MaxPageSize
             : request.Limit;
@@ -42,7 +38,6 @@ public class GetUnansweredQuestionsQueryHandler(
         logger.LogInformation("Fetching unanswered questions. ProductId: {ProductId}, Limit: {Limit}", 
             request.ProductId, limit);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_UNANSWERED_QUESTIONS}{request.ProductId ?? Guid.Empty}_{limit}";
         var cachedQuestions = await cache.GetAsync<IEnumerable<ProductQuestionDto>>(cacheKey, cancellationToken);
         if (cachedQuestions != null)
@@ -54,7 +49,6 @@ public class GetUnansweredQuestionsQueryHandler(
 
         logger.LogInformation("Cache miss for unanswered questions. Fetching from database.");
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var query = context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -74,8 +68,6 @@ public class GetUnansweredQuestionsQueryHandler(
 
         var questionDtos = questions.Select(q => mapper.Map<ProductQuestionDto>(q)).ToList();
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, questionDtos, TimeSpan.FromMinutes(cacheConfig.UnansweredQuestionsCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Retrieved unanswered questions. ProductId: {ProductId}, Count: {Count}, Limit: {Limit}",

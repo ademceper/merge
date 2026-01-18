@@ -25,7 +25,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ CRITICAL-LOG-001 FIX: OpenTelemetry tracing + metrics - Aktif edildi
 // OpenTelemetry paket versiyonları .NET 9.0 ile uyumlu hale getirildi
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
@@ -38,7 +37,6 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation());
 
-// ✅ CONFIGURATION: Business settings (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
 builder.Services.Configure<OrderSettings>(
     builder.Configuration.GetSection(OrderSettings.SectionName));
 builder.Services.Configure<PaymentSettings>(
@@ -91,8 +89,6 @@ builder.Services.Configure<RecommendationSettings>(
     builder.Configuration.GetSection(RecommendationSettings.SectionName));
 
 // Add services to the container
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
-// ✅ BOLUM 4.1.5: Content Negotiation - JSON, XML, CSV format desteği (ZORUNLU)
 builder.Services.AddControllers()
     .AddXmlSerializerFormatters()
     .AddJsonOptions(options =>
@@ -103,7 +99,6 @@ builder.Services.AddControllers()
     })
     .ConfigureApiBehaviorOptions(options =>
     {
-        // ✅ BOLUM 4.1.4: RFC 7807 Problem Details (ZORUNLU)
         options.InvalidModelStateResponseFactory = context =>
         {
             var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
@@ -136,7 +131,6 @@ builder.Services.AddApiVersioning(options =>
 });
 builder.Services.AddVersionedApiExplorer(options =>
 {
-    // ✅ GroupNameFormat "'v'V" - sadece major version (v1, v2, vb.)
     // Bu, Swagger endpoint'lerinin /swagger/v1/swagger.json formatında olmasını sağlar
     options.GroupNameFormat = "'v'V";
     options.SubstituteApiVersionInUrl = true;
@@ -144,10 +138,8 @@ builder.Services.AddVersionedApiExplorer(options =>
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger configuration
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 builder.Services.AddSwaggerGen(options =>
 {
-    // ✅ API Versioning ile uyumlu Swagger yapılandırması
     // IApiVersionDescriptionProvider kullanarak her versiyon için dinamik SwaggerDoc oluştur
     // Bu, "No operations defined in spec!" hatasını çözer
     // GroupNameFormat "'v'V" olduğu için "v1" formatı kullanılır
@@ -161,7 +153,6 @@ builder.Services.AddSwaggerGen(options =>
     // API versioning için Swagger yapılandırması
     options.AddServer(new OpenApiServer { Url = "https://api.mergecommerce.com" });
 
-    // ✅ XML documentation için (BOLUM 4.1)
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -194,10 +185,8 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
     
-    // ✅ API Versioning için: ResolveConflictingActions kullanarak çakışmaları çöz
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
     
-    // ✅ API Versioning için: VersionedApiExplorer ile entegrasyon
     // Bu, Swagger'ın versioned API'leri bulmasını sağlar
     // GroupNameFormat "'v'V" olduğu için "v1" formatı kullanılır
     options.DocInclusionPredicate((docName, apiDesc) =>
@@ -209,18 +198,15 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// ✅ CRITICAL-ERR-001 FIX: HttpClient Resilience - Microsoft.Extensions.Http.Resilience kullanımı
 // External service call'lar için retry, circuit breaker ve timeout policy'leri ekleniyor
 // Note: AddStandardResilienceHandler extension method requires IHttpClientBuilder
 // The method chain AddHttpClient().AddStandardResilienceHandler() should work
 // If it doesn't, we may need to configure resilience per named/typed client
 builder.Services.AddHttpClient();
 
-// ✅ BOLUM 1.1: Clean Architecture - Dependency Injection (ZORUNLU)
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// ✅ BOLUM 10.2: Redis distributed cache (ZORUNLU)
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -228,13 +214,11 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "Merge:";
 });
 
-// ✅ BOLUM 10.2: Cache service registration
 builder.Services.AddScoped<ICacheService, CacheService>();
 
 // Identity configuration
 builder.Services.AddIdentity<UserEntity, RoleEntity>(options =>
 {
-    // ✅ SECURITY: Güçlü password policy (BOLUM 5.3)
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
@@ -254,7 +238,6 @@ builder.Services.AddIdentity<UserEntity, RoleEntity>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // JWT Authentication
-// ✅ SECURITY: JWT Secret önce environment variable'dan al, yoksa appsettings'ten
 var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
     ?? builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT Key bulunamadı. JWT_SECRET_KEY environment variable veya appsettings Jwt:Key tanımlayın.");
@@ -265,7 +248,6 @@ var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
     ?? builder.Configuration["Jwt:Audience"]
     ?? throw new InvalidOperationException("JWT Audience bulunamadı");
 
-// ✅ SECURITY: Production'da hardcoded key kullanımını engelle
 if (!builder.Environment.IsDevelopment() && jwtKey == "YourSuperSecretKeyThatIsAtLeast32CharactersLong!")
 {
     throw new InvalidOperationException("CRITICAL SECURITY ERROR: Production'da varsayılan JWT key kullanılamaz! JWT_SECRET_KEY environment variable tanımlayın.");
@@ -293,7 +275,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// ✅ SECURITY FIX: CSRF Protection (Antiforgery)
 // Note: For API-only applications, CSRF protection is typically handled via token validation
 // For web applications with forms, use AddAntiforgery() and ValidateAntiForgeryToken attribute
 builder.Services.AddAntiforgery(options =>
@@ -307,7 +288,6 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
-// ✅ SECURITY: Rate Limiting (BOLUM 3.3)
 // Note: Rate limiting is handled by custom RateLimitingMiddleware
 // Configuration is done via RateLimitAttribute on controllers
 
@@ -321,7 +301,6 @@ builder.Services.AddSession(options =>
 });
 
 // CORS
-// ✅ SECURITY: Production için güvenli CORS yapılandırması
 builder.Services.AddCors(options =>
 {
     // Development için gevşek policy
@@ -332,7 +311,6 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 
-    // ✅ SECURITY: Production için güvenli CORS policy
     options.AddPolicy("Production", policy =>
     {
         var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -353,7 +331,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     
-    // ✅ API Versioning ile uyumlu Swagger UI yapılandırması
     // IApiVersionDescriptionProvider kullanarak her versiyon için dinamik endpoint oluştur
     var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
     
@@ -376,10 +353,8 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseHttpsRedirection();
 
-// ✅ BOLUM 7.1: Response Compression (ZORUNLU)
 app.UseResponseCompression();
 
-// ✅ SECURITY: Security Headers (BOLUM 5.2)
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -395,7 +370,6 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// ✅ SECURITY: Development'ta AllowAll, Production'da güvenli CORS policy kullan
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("AllowAll");
@@ -407,20 +381,17 @@ else
 
 app.UseStaticFiles(); // wwwroot için
 
-// ✅ SECURITY FIX: CSRF Protection - Session gerekli
 app.UseSession();
 
 // Security middlewares
 app.UseRateLimiting();
 app.UseIpWhitelist();
 
-// ✅ HIGH-API-002: Idempotency Key Middleware - Prevents duplicate processing
 app.UseMiddleware<Merge.API.Middleware.IdempotencyKeyMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ✅ BOLUM 5.0: Health Checks (ZORUNLU - Gerçek health check)
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -433,7 +404,6 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 
 app.MapControllers();
 
-// ✅ CRITICAL FIX: Database migration strategy
 // BEFORE: EnsureCreated() bypasses migrations (causes data loss, no rollback)
 // AFTER: Migrate() runs pending migrations properly
 if (app.Environment.IsDevelopment())
@@ -445,7 +415,6 @@ if (app.Environment.IsDevelopment())
 
         try
         {
-            // ✅ Use Migrate() instead of EnsureCreated()
             // This runs pending migrations and maintains migration history
             dbContext.Database.Migrate();
 
@@ -456,7 +425,6 @@ if (app.Environment.IsDevelopment())
             logger.LogWarning(ex, "Database migration failed. This is expected if PostgreSQL is not running. Error: {ErrorMessage}", ex.Message);
             logger.LogWarning("To start PostgreSQL, run: docker-compose up -d");
             logger.LogWarning("Or start PostgreSQL manually and ensure connection string is correct in appsettings.json");
-            // ✅ Development'ta migration hatası uygulamayı crash etmesin
             // Production'da migration'lar CI/CD pipeline'da çalıştırılmalı (BOLUM 6.0)
         }
     }

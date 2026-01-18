@@ -16,13 +16,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.SendLiveChatMessage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SendLiveChatMessageCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<SendLiveChatMessageCommand, LiveChatMessageDto>
 {
 
     public async Task<LiveChatMessageDto> Handle(SendLiveChatMessageCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Sending live chat message. SessionId: {SessionId}, SenderId: {SenderId}, MessageType: {MessageType}",
             request.SessionId, request.SenderId, request.MessageType);
 
@@ -35,7 +33,6 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
             throw new NotFoundException("Oturum", request.SessionId);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         string senderType = "User";
         if (request.SenderId.HasValue)
         {
@@ -45,7 +42,6 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
 
             if (user != null)
             {
-                // ✅ PERFORMANCE: Database'de role check yap, memory'de işlem YASAK
                 var isAgent = await context.UserRoles
                     .AsNoTracking()
                     .Where(ur => ur.UserId == user.Id)
@@ -59,7 +55,6 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var message = LiveChatMessage.Create(
             request.SessionId,
             session.SessionId,
@@ -73,22 +68,18 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
 
         await context.Set<LiveChatMessage>().AddAsync(message, cancellationToken);
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         session.AddMessage(senderType);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Live chat message sent successfully. SessionId: {SessionId}, MessageId: {MessageId}, SenderType: {SenderType}",
             request.SessionId, message.Id, senderType);
 
-        // ✅ PERFORMANCE: Reload with includes for mapping
         message = await context.Set<LiveChatMessage>()
             .AsNoTracking()
             .Include(m => m.Sender)
             .FirstOrDefaultAsync(m => m.Id == message.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<LiveChatMessageDto>(message!);
     }
 }

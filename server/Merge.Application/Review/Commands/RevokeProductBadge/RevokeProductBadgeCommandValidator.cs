@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.RevokeProductBadge;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RevokeProductBadgeCommandValidator : AbstractValidator<RevokeProductBadgeCommand>
 {
     public RevokeProductBadgeCommandValidator()

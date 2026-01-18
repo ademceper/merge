@@ -11,9 +11,7 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerDocument : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerApplicationId { get; private set; }
-    // ✅ ARCHITECTURE: Enum kullanımı (string DocumentType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public SellerDocumentType DocumentType { get; private set; }
     public string DocumentUrl { get; private set; } = string.Empty;
     public string FileName { get; private set; } = string.Empty;
@@ -25,10 +23,8 @@ public class SellerDocument : BaseEntity
     // Navigation properties
     public SellerApplication SellerApplication { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerDocument() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerDocument Create(
         Guid sellerApplicationId,
         SellerDocumentType documentType,
@@ -54,7 +50,6 @@ public class SellerDocument : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify document
     public void Verify(Guid verifiedBy)
     {
         Guard.AgainstDefault(verifiedBy, nameof(verifiedBy));
@@ -68,7 +63,6 @@ public class SellerDocument : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update document URL
     public void UpdateDocumentUrl(string documentUrl)
     {
         Guard.AgainstNullOrEmpty(documentUrl, nameof(documentUrl));
@@ -80,7 +74,6 @@ public class SellerDocument : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if verified
     public bool IsDocumentVerified() => IsVerified;
 }
 

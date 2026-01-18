@@ -4,19 +4,15 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Infrastructure.Data.Configurations.Identity;
 
-/// <summary>
-/// UserLanguagePreference Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class UserLanguagePreferenceConfiguration : IEntityTypeConfiguration<UserLanguagePreference>
 {
     public void Configure(EntityTypeBuilder<UserLanguagePreference> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy - Unique constraint for UserId (one preference per user)
         builder.HasIndex(e => e.UserId).IsUnique();
         builder.HasIndex(e => e.LanguageId);
         builder.HasIndex(e => e.LanguageCode);
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);

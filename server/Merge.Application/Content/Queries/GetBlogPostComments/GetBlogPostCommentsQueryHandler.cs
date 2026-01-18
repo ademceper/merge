@@ -66,7 +66,7 @@ public class GetBlogPostCommentsQueryHandler(
 
                 logger.LogInformation("Retrieved {Count} blog post comments (page {Page})", comments.Count, page);
 
-                var commentDtos = new List<BlogCommentDto>();
+                List<BlogCommentDto> commentDtos = [];
                 foreach (var comment in comments)
                 {
                     var commentDto = mapper.Map<BlogCommentDto>(comment);

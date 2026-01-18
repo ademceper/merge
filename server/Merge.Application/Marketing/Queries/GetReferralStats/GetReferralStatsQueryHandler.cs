@@ -11,13 +11,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetReferralStats;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetReferralStatsQueryHandler(IDbContext context) : IRequestHandler<GetReferralStatsQuery, ReferralStatsDto>
 {
     public async Task<ReferralStatsDto> Handle(GetReferralStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var totalReferrals = await context.Set<Referral>()
             .AsNoTracking()
             .CountAsync(r => r.ReferrerId == request.UserId, cancellationToken);

@@ -13,9 +13,7 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Commands.BulkUpdatePreferences;
 
-/// <summary>
-/// Bulk Update Preferences Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<BulkUpdatePreferencesCommandHandler> logger) : IRequestHandler<BulkUpdatePreferencesCommand, bool>
 {
 
@@ -26,7 +24,6 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
             return true;
         }
 
-        // ✅ PERFORMANCE: Batch load existing preferences (N+1 fix)
         var notificationTypes = request.Dto.Preferences.Select(p => p.NotificationType).Distinct().ToList();
         var channels = request.Dto.Preferences.Select(p => p.Channel).Distinct().ToList();
         
@@ -39,21 +36,19 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
         var existingPreferences = existingPreferencesList
             .ToDictionary(np => new { np.NotificationType, np.Channel }, np => np);
 
-        var preferencesToAdd = new List<NotificationPreference>();
+        List<NotificationPreference> preferencesToAdd = [];
 
         foreach (var prefDto in request.Dto.Preferences)
         {
             var key = new { prefDto.NotificationType, prefDto.Channel };
             if (existingPreferences.TryGetValue(key, out var existing))
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 existing.Update(
                     prefDto.IsEnabled,
                     prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
             }
             else
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                 var preference = NotificationPreference.Create(
                     request.UserId,
                     prefDto.NotificationType,
@@ -64,16 +59,13 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
             }
         }
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
         if (preferencesToAdd.Count > 0)
         {
             await context.Set<NotificationPreference>().AddRangeAsync(preferencesToAdd, cancellationToken);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Toplu notification preference güncellendi. UserId: {UserId}, Count: {Count}",
             request.UserId, request.Dto.Preferences.Count);

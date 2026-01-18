@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.DeleteReport;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteReportCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,7 +20,6 @@ public class DeleteReportCommandHandler(
     {
         logger.LogInformation("Deleting report. ReportId: {ReportId}, UserId: {UserId}", request.Id, request.UserId);
         
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var report = await context.Set<Report>()
             .AsNoTracking()
             .Include(r => r.GeneratedByUser)
@@ -34,7 +31,6 @@ public class DeleteReportCommandHandler(
             return false;
         }
 
-        // ✅ SECURITY: Authorization check - Users can only delete their own reports unless Admin
         if (report.GeneratedBy != request.UserId)
         {
             logger.LogWarning("Unauthorized report deletion attempt. ReportId: {ReportId}, UserId: {UserId}, ReportOwner: {ReportOwner}",
@@ -48,7 +44,6 @@ public class DeleteReportCommandHandler(
 
         if (report == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         report.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

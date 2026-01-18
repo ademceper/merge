@@ -11,10 +11,15 @@ using Merge.Application.Analytics.Queries.GetFinancialMetrics;
 
 namespace Merge.API.Controllers.Analytics.Financial;
 
+/// <summary>
+/// Financial Analytics API endpoints.
+/// Finansal analitikleri yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/financial")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("FinancialAnalytics")]
 public class FinancialAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -35,8 +40,6 @@ public class FinancialAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);

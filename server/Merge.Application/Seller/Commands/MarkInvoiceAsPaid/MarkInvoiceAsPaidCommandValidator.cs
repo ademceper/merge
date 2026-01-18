@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Seller.Commands.MarkInvoiceAsPaid;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class MarkInvoiceAsPaidCommandValidator : AbstractValidator<MarkInvoiceAsPaidCommand>
 {
     public MarkInvoiceAsPaidCommandValidator()

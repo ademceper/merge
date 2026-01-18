@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.UpdateBlogCategory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateBlogCategoryCommandValidator : AbstractValidator<UpdateBlogCategoryCommand>
 {
     public UpdateBlogCategoryCommandValidator()

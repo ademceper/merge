@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Seller.Commands.ReviewSellerApplication;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ReviewSellerApplicationCommandValidator : AbstractValidator<ReviewSellerApplicationCommand>
 {
     public ReviewSellerApplicationCommandValidator()

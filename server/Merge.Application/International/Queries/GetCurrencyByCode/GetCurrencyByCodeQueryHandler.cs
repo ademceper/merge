@@ -23,7 +23,7 @@ public class GetCurrencyByCodeQueryHandler(
 
         var currency = await context.Set<Currency>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
         return currency != null ? mapper.Map<CurrencyDto>(currency) : null;
     }

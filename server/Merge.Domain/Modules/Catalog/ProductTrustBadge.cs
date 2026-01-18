@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductTrustBadge : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Guid TrustBadgeId { get; private set; }
     public DateTime AwardedAt { get; private set; }
@@ -27,7 +26,6 @@ public class ProductTrustBadge : BaseEntity
         private set => _isActive = value; 
     }
     
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MaxAwardReasonLength = 500;
@@ -47,7 +45,6 @@ public class ProductTrustBadge : BaseEntity
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -55,10 +52,8 @@ public class ProductTrustBadge : BaseEntity
     public Product Product { get; private set; } = null!;
     public TrustBadge TrustBadge { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductTrustBadge() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductTrustBadge Create(
         Guid productId,
         Guid trustBadgeId,
@@ -91,13 +86,11 @@ public class ProductTrustBadge : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         badge.ValidateInvariants();
         
         return badge;
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Activate badge
     public void Activate()
     {
         if (_isActive) return;
@@ -105,11 +98,9 @@ public class ProductTrustBadge : BaseEntity
         _isActive = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Deactivate badge
     public void Deactivate()
     {
         if (!_isActive) return;
@@ -117,11 +108,9 @@ public class ProductTrustBadge : BaseEntity
         _isActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update expiry date
     public void UpdateExpiryDate(DateTime? newExpiryDate)
     {
         if (newExpiryDate.HasValue && newExpiryDate.Value <= AwardedAt)
@@ -132,11 +121,9 @@ public class ProductTrustBadge : BaseEntity
         ExpiresAt = newExpiryDate;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update award reason
     public void UpdateAwardReason(string? newReason)
     {
         if (!string.IsNullOrEmpty(newReason))
@@ -146,11 +133,9 @@ public class ProductTrustBadge : BaseEntity
         AwardReason = newReason;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update awarded date
     public void UpdateAwardedAt(DateTime newAwardedAt)
     {
         if (ExpiresAt.HasValue && ExpiresAt.Value <= newAwardedAt)
@@ -160,17 +145,14 @@ public class ProductTrustBadge : BaseEntity
         AwardedAt = newAwardedAt;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Check if expired
     public bool IsExpired()
     {
         return ExpiresAt.HasValue && ExpiresAt.Value < DateTime.UtcNow;
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -178,11 +160,9 @@ public class ProductTrustBadge : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ProductId)

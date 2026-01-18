@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.RecordEmailOpen;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class RecordEmailOpenCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +22,6 @@ public class RecordEmailOpenCommandHandler(
 {
     public async Task<Unit> Handle(RecordEmailOpenCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Email açılması kaydediliyor. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
             request.CampaignId, request.SubscriberId);
@@ -41,12 +38,10 @@ public class RecordEmailOpenCommandHandler(
 
         var wasFirstOpen = recipient.OpenedAt == null;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         recipient.RecordEmailOpened();
 
         if (wasFirstOpen)
         {
-            // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
             var campaign = await context.Set<EmailCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
@@ -54,7 +49,6 @@ public class RecordEmailOpenCommandHandler(
             {
                 var newOpenedCount = campaign.OpenedCount + 1;
                 var deliveredCount = campaign.DeliveredCount > 0 ? campaign.DeliveredCount : campaign.SentCount;
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 campaign.UpdateStatistics(
                     deliveredCount,
                     newOpenedCount,
@@ -69,15 +63,12 @@ public class RecordEmailOpenCommandHandler(
 
             if (subscriber != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 subscriber.RecordEmailOpened();
             }
         }
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Email açılması kaydedildi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}, OpenCount: {OpenCount}",
             request.CampaignId, request.SubscriberId, recipient.OpenCount);

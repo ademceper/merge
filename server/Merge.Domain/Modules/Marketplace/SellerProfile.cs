@@ -14,13 +14,11 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerProfile : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string StoreName { get; private set; } = string.Empty;
     public string? StoreDescription { get; private set; }
     public string? LogoUrl { get; private set; }
     public string? BannerUrl { get; private set; }
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public SellerStatus Status { get; private set; } = SellerStatus.Pending;
     public decimal CommissionRate { get; private set; } = 0; // Yüzde olarak
     public decimal TotalEarnings { get; private set; } = 0;
@@ -35,7 +33,6 @@ public class SellerProfile : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -44,10 +41,8 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerProfile() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerProfile Create(
         Guid userId,
         string storeName,
@@ -79,13 +74,11 @@ public class SellerProfile : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - SellerProfile Created
         profile.AddDomainEvent(new SellerProfileCreatedEvent(profile.Id, userId, storeName));
 
         return profile;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update store details
     public void UpdateStoreDetails(
         string? storeName = null,
         string? storeDescription = null,
@@ -110,7 +103,6 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update commission rate
     public void UpdateCommissionRate(decimal commissionRate)
     {
         Guard.AgainstNegative(commissionRate, nameof(commissionRate));
@@ -119,7 +111,6 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify seller
     public void Verify(string? verificationNotes = null)
     {
         if (IsVerified())
@@ -130,11 +121,9 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         Status = SellerStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerProfile Verified
         AddDomainEvent(new SellerProfileVerifiedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate seller
     public void Activate()
     {
         if (Status == SellerStatus.Active)
@@ -143,11 +132,9 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         Status = SellerStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerProfile Activated
         AddDomainEvent(new SellerProfileActivatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Suspend seller
     public void Suspend()
     {
         if (Status == SellerStatus.Suspended)
@@ -156,11 +143,9 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         Status = SellerStatus.Suspended;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerProfile Suspended
         AddDomainEvent(new SellerProfileSuspendedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add earnings
     public void AddEarnings(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
@@ -170,7 +155,6 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Move balance from pending to available
     public void MoveBalanceToAvailable(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
@@ -183,7 +167,6 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deduct from available balance
     public void DeductFromAvailableBalance(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
@@ -195,21 +178,18 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment order count
     public void IncrementOrderCount()
     {
         TotalOrders++;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment product count
     public void IncrementProductCount()
     {
         TotalProducts++;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update average rating
     public void UpdateAverageRating(decimal averageRating)
     {
         Guard.AgainstOutOfRange(averageRating, 0, 5, nameof(averageRating));
@@ -218,6 +198,5 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if verified
     public bool IsVerified() => VerifiedAt.HasValue;
 }

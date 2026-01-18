@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Search.Commands.RecordSearch;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RecordSearchCommandValidator : AbstractValidator<RecordSearchCommand>
 {
     public RecordSearchCommandValidator()

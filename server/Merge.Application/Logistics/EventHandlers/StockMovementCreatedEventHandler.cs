@@ -4,18 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Logistics.EventHandlers;
 
-/// <summary>
-/// StockMovement Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
-/// </summary>
+
 public class StockMovementCreatedEventHandler(
     ILogger<StockMovementCreatedEventHandler> logger) : INotificationHandler<StockMovementCreatedEvent>
 {
 
     public async Task Handle(StockMovementCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "StockMovement created event received. StockMovementId: {StockMovementId}, ProductId: {ProductId}, WarehouseId: {WarehouseId}, MovementType: {MovementType}, Quantity: {Quantity}, QuantityBefore: {QuantityBefore}, QuantityAfter: {QuantityAfter}",
             notification.StockMovementId, notification.ProductId, notification.WarehouseId, notification.MovementType, notification.Quantity, notification.QuantityBefore, notification.QuantityAfter);
@@ -33,7 +28,6 @@ public class StockMovementCreatedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling StockMovementCreatedEvent. StockMovementId: {StockMovementId}, ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 notification.StockMovementId, notification.ProductId, notification.WarehouseId);

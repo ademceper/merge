@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class PopularSearch : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _searchTerm = string.Empty;
     public string SearchTerm 
     { 
@@ -28,7 +27,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - SearchCount >= 0
     private int _searchCount = 0;
     public int SearchCount 
     { 
@@ -40,7 +38,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - ClickThroughCount >= 0
     private int _clickThroughCount = 0;
     public int ClickThroughCount 
     { 
@@ -52,7 +49,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - ClickThroughRate >= 0 && <= 100
     private decimal _clickThroughRate = 0;
     public decimal ClickThroughRate 
     { 
@@ -66,14 +62,11 @@ public class PopularSearch : BaseEntity, IAggregateRoot
     
     public DateTime LastSearchedAt { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PopularSearch() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PopularSearch Create(string searchTerm)
     {
         Guard.AgainstNullOrEmpty(searchTerm, nameof(searchTerm));
@@ -89,10 +82,8 @@ public class PopularSearch : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         popularSearch.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - PopularSearchCreatedEvent
         popularSearch.AddDomainEvent(new PopularSearchCreatedEvent(
             popularSearch.Id,
             popularSearch.SearchTerm));
@@ -100,7 +91,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         return popularSearch;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment search count
     public void IncrementSearchCount()
     {
         SearchCount++;
@@ -108,10 +98,8 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         RecalculateClickThroughRate();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - PopularSearchUpdatedEvent
         AddDomainEvent(new PopularSearchUpdatedEvent(
             Id,
             SearchTerm,
@@ -120,17 +108,14 @@ public class PopularSearch : BaseEntity, IAggregateRoot
             ClickThroughRate));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment click through count
     public void IncrementClickThroughCount()
     {
         ClickThroughCount++;
         RecalculateClickThroughRate();
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - PopularSearchUpdatedEvent
         AddDomainEvent(new PopularSearchUpdatedEvent(
             Id,
             SearchTerm,
@@ -139,7 +124,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
             ClickThroughRate));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Recalculate click through rate
     private void RecalculateClickThroughRate()
     {
         if (SearchCount > 0)
@@ -152,7 +136,6 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         }
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_searchTerm))

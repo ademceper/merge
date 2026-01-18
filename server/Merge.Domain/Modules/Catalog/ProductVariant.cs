@@ -12,7 +12,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductVariant : BaseEntity
 {
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MaxNameLength = 100;
@@ -20,7 +19,6 @@ public class ProductVariant : BaseEntity
         public const int MaxImageUrlLength = 2000;
     }
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     
     private string _name = string.Empty;
@@ -81,11 +79,9 @@ public class ProductVariant : BaseEntity
     
     public string? ImageUrl { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from nullable types)
     [NotMapped]
     public SKU? SKUValueObject => _sku != null ? new SKU(_sku) : null;
     
@@ -95,10 +91,8 @@ public class ProductVariant : BaseEntity
     // Navigation properties
     public Product Product { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductVariant() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductVariant Create(
         Guid productId,
         string name,
@@ -115,7 +109,6 @@ public class ProductVariant : BaseEntity
         if (!string.IsNullOrEmpty(imageUrl))
         {
             Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(imageUrl);
@@ -139,13 +132,11 @@ public class ProductVariant : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         variant.ValidateInvariants();
         
         return variant;
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update variant details
     public void Update(
         string name,
         string value,
@@ -161,7 +152,6 @@ public class ProductVariant : BaseEntity
         if (!string.IsNullOrEmpty(imageUrl))
         {
             Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(imageUrl);
@@ -179,22 +169,18 @@ public class ProductVariant : BaseEntity
         ImageUrl = imageUrl;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update stock quantity
     public void UpdateStockQuantity(int newStockQuantity)
     {
         Guard.AgainstNegative(newStockQuantity, nameof(newStockQuantity));
         _stockQuantity = newStockQuantity;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update price
     public void UpdatePrice(decimal? newPrice)
     {
         if (newPrice.HasValue)
@@ -204,11 +190,9 @@ public class ProductVariant : BaseEntity
         _price = newPrice;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -216,11 +200,9 @@ public class ProductVariant : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ProductId)
@@ -239,7 +221,6 @@ public class ProductVariant : BaseEntity
         if (!string.IsNullOrEmpty(ImageUrl))
         {
             Guard.AgainstLength(ImageUrl, ValidationConstants.MaxImageUrlLength, nameof(ImageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(ImageUrl);

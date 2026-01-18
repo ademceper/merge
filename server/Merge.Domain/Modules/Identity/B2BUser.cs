@@ -15,21 +15,18 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class B2BUser : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public Guid OrganizationId { get; private set; }
     public string? EmployeeId { get; private set; } // Company employee ID
     public string? Department { get; private set; }
     public string? JobTitle { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public EntityStatus Status { get; private set; } = EntityStatus.Active;
     
     public bool IsApproved { get; private set; } = false;
     public DateTime? ApprovedAt { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal? _creditLimit;
     private decimal? _usedCredit;
     
@@ -60,7 +57,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money? CreditLimitMoney => _creditLimit.HasValue ? new Money(_creditLimit.Value) : null;
     
@@ -69,7 +65,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
     
     public string? Settings { get; private set; } // JSON for B2B-specific settings
     
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     // Kredi limiti kullanımı için concurrency control gerekli
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
@@ -78,9 +73,8 @@ public class B2BUser : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public Organization Organization { get; private set; } = null!;
     public User? ApprovedBy { get; private set; }
-    public ICollection<PurchaseOrder> PurchaseOrders { get; private set; } = new List<PurchaseOrder>();
+    public ICollection<PurchaseOrder> PurchaseOrders { get; private set; } = [];
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -89,7 +83,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -98,10 +91,8 @@ public class B2BUser : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private B2BUser() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static B2BUser Create(
         Guid userId,
         Guid organizationId,
@@ -150,7 +141,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
         // Settings JSON olarak saklanıyor, bu yüzden length validation eklenebilir
         // Ancak Create metodunda Settings parametresi yok, bu yüzden şimdilik atlıyoruz
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Created
         b2bUser.AddDomainEvent(new B2BUserCreatedEvent(
             b2bUser.Id,
             userId,
@@ -163,7 +153,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
         return b2bUser;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Approve B2B user
     public void Approve(Guid approvedByUserId)
     {
         Guard.AgainstDefault(approvedByUserId, nameof(approvedByUserId));
@@ -177,18 +166,15 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Status = EntityStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Approved
         AddDomainEvent(new B2BUserApprovedEvent(Id, UserId, OrganizationId, approvedByUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update credit limit
     public void UpdateCreditLimit(decimal? creditLimit)
     {
         if (creditLimit.HasValue)
         {
             Guard.AgainstNegative(creditLimit.Value, nameof(creditLimit));
             
-            // ✅ BOLUM 1.6: Invariant validation
             if (UsedCredit.HasValue && UsedCredit.Value > creditLimit.Value)
                 throw new DomainException("Kullanılan kredi, kredi limitinden büyük olamaz");
         }
@@ -196,11 +182,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
         CreditLimit = creditLimit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
         AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Use credit
     public void UseCredit(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
@@ -210,36 +194,30 @@ public class B2BUser : BaseEntity, IAggregateRoot
 
         var newUsedCredit = (UsedCredit ?? 0) + amount;
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (newUsedCredit > CreditLimit.Value)
             throw new DomainException("Kredi limiti aşıldı");
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Credit Used
         AddDomainEvent(new B2BUserCreditUsedEvent(Id, UserId, OrganizationId, amount, newUsedCredit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Release credit
     public void ReleaseCredit(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
 
         var newUsedCredit = (UsedCredit ?? 0) - amount;
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (newUsedCredit < 0)
             throw new DomainException("Kullanılan kredi negatif olamaz");
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Credit Released
         AddDomainEvent(new B2BUserCreditReleasedEvent(Id, UserId, OrganizationId, amount, newUsedCredit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update profile
     public void UpdateProfile(string? employeeId, string? department, string? jobTitle)
     {
         if (!string.IsNullOrEmpty(employeeId))
@@ -262,11 +240,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
         JobTitle = jobTitle;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
         AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update status
     public void UpdateStatus(EntityStatus status)
     {
         if (Status == status)
@@ -275,11 +251,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Status = status;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
         AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update settings
     public void UpdateSettings(string? settingsJson)
     {
         if (!string.IsNullOrEmpty(settingsJson))
@@ -290,11 +264,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Settings = settingsJson;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
         AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -304,7 +276,6 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Status = EntityStatus.Deleted;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - B2B User Deleted
         AddDomainEvent(new B2BUserDeletedEvent(Id, UserId, OrganizationId));
     }
 }

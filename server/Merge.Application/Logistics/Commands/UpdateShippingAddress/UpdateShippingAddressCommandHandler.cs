@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingAddress;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class UpdateShippingAddressCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -24,7 +21,6 @@ public class UpdateShippingAddressCommandHandler(
     {
         logger.LogInformation("Updating shipping address. AddressId: {AddressId}", request.Id);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
@@ -34,7 +30,6 @@ public class UpdateShippingAddressCommandHandler(
             throw new NotFoundException("Kargo adresi", request.Id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(request.Label) ||
             !string.IsNullOrEmpty(request.FirstName) ||
             !string.IsNullOrEmpty(request.LastName) ||
@@ -57,7 +52,6 @@ public class UpdateShippingAddressCommandHandler(
                 request.Instructions ?? address.Instructions);
         }
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsDefault.HasValue)
         {
             if (request.IsDefault.Value)
@@ -70,7 +64,6 @@ public class UpdateShippingAddressCommandHandler(
             }
         }
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsActive.HasValue)
         {
             if (request.IsActive.Value)
@@ -83,8 +76,6 @@ public class UpdateShippingAddressCommandHandler(
             }
         }
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Shipping address updated successfully. AddressId: {AddressId}", request.Id);

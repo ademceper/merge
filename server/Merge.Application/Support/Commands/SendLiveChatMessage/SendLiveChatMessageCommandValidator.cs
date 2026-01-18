@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.SendLiveChatMessage;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class SendLiveChatMessageCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<SendLiveChatMessageCommand>
 {
     private readonly SupportSettings config = settings.Value;

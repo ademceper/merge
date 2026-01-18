@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class QuestionHelpfulness : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid QuestionId { get; private set; }
     public Guid UserId { get; private set; }
 
@@ -24,10 +23,8 @@ public class QuestionHelpfulness : BaseEntity
     public ProductQuestion Question { get; private set; } = null!;
     public User User { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private QuestionHelpfulness() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static QuestionHelpfulness Create(
         Guid questionId,
         Guid userId)
@@ -43,7 +40,6 @@ public class QuestionHelpfulness : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.5: Domain Events - QuestionHelpfulnessMarkedEvent
         questionHelpfulness.AddDomainEvent(new QuestionHelpfulnessMarkedEvent(
             questionHelpfulness.QuestionId,
             questionHelpfulness.UserId));
@@ -51,7 +47,6 @@ public class QuestionHelpfulness : BaseEntity
         return questionHelpfulness;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;

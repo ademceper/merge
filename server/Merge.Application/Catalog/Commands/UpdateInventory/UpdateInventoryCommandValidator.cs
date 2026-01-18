@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.UpdateInventory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateInventoryCommandValidator : AbstractValidator<UpdateInventoryCommand>
 {
     public UpdateInventoryCommandValidator()

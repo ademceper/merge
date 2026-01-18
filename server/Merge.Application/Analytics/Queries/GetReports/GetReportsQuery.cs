@@ -4,7 +4,6 @@ using Merge.Application.DTOs.Analytics;
 
 namespace Merge.Application.Analytics.Queries.GetReports;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetReportsQuery(
     Guid? UserId = null,
     string? Type = null,

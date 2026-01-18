@@ -14,14 +14,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(e => e.IsActive);
         builder.HasIndex(e => new { e.CategoryId, e.IsActive });
         
-        // ✅ HIGH-DB-004 FIX: Foreign key index for better query performance
         builder.HasIndex(e => e.StoreId);
         
         builder.Property(e => e.Price).HasPrecision(18, 2);
         builder.Property(e => e.DiscountPrice).HasPrecision(18, 2);
         builder.Property(e => e.Rating).HasPrecision(3, 2); // 0.00-5.00 arası rating
         
-        // ✅ CRITICAL-DB-002 FIX: RowVersion configuration for optimistic concurrency
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
@@ -47,7 +45,6 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
               .HasForeignKey(e => e.StoreId)
               .OnDelete(DeleteBehavior.SetNull);
         
-        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
         // EF Core automatically discovers backing fields by convention (_fieldName)
         // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
         builder.HasMany(e => e.Reviews)
@@ -75,7 +72,6 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
               .HasForeignKey(e => e.ProductId)
               .OnDelete(DeleteBehavior.Cascade);
         
-        // ✅ BOLUM 1.1: ImageUrls collection backing field mapping
         // EF Core automatically discovers backing fields by convention (_fieldName)
         // Collection backing fields don't need conversion - EF Core handles them automatically
         // If conversion is needed, use ValueConverter:

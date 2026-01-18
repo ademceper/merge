@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Commands.CreatePurchaseOrder;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreatePurchaseOrderCommandValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
     public CreatePurchaseOrderCommandValidator()

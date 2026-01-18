@@ -11,18 +11,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// UserSubscription Cancelled Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UserSubscriptionCancelledEventHandler(ILogger<UserSubscriptionCancelledEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionCancelledEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(UserSubscriptionCancelledEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "User subscription cancelled event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}, Reason: {Reason}",
             notification.SubscriptionId, notification.UserId, notification.Reason);
@@ -30,9 +23,9 @@ public class UserSubscriptionCancelledEventHandler(ILogger<UserSubscriptionCance
         try
         {
             // Email gönderimi
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Account,
                     "Abonelik İptal Edildi",
@@ -50,7 +43,6 @@ public class UserSubscriptionCancelledEventHandler(ILogger<UserSubscriptionCance
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling UserSubscriptionCancelledEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);

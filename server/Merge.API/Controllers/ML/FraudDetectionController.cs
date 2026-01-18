@@ -21,10 +21,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.ML;
 
+/// <summary>
+/// Fraud Detection API endpoints.
+/// Dolandırıcılık tespiti işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/ml/fraud-detection")]
 [Authorize]
+[Tags("FraudDetection")]
 public class FraudDetectionController(IMediator mediator) : BaseController
 {
     [HttpPost("rules")]
@@ -68,7 +73,7 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         var rule = await mediator.Send(query, cancellationToken);
         if (rule == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(rule);
     }
@@ -119,7 +124,7 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -148,7 +153,7 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -169,7 +174,7 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -265,7 +270,7 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

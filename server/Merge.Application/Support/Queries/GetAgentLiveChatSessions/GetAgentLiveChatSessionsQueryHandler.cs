@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetAgentLiveChatSessions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAgentLiveChatSessionsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAgentLiveChatSessionsQuery, IEnumerable<LiveChatSessionDto>>
 {
 
     public async Task<IEnumerable<LiveChatSessionDto>> Handle(GetAgentLiveChatSessionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<LiveChatSession> query = context.Set<LiveChatSession>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -27,7 +25,6 @@ public class GetAgentLiveChatSessionsQueryHandler(IDbContext context, IMapper ma
             .Include(s => s.Agent)
             .Where(s => s.AgentId == request.AgentId);
 
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(request.Status))
         {
             if (Enum.TryParse<ChatSessionStatus>(request.Status, true, out var statusEnum))
@@ -40,7 +37,6 @@ public class GetAgentLiveChatSessionsQueryHandler(IDbContext context, IMapper ma
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<LiveChatSessionDto>>(sessions);
     }
 }

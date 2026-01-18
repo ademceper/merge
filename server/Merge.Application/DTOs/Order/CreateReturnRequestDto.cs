@@ -17,5 +17,5 @@ public class CreateReturnRequestDto
     
     [Required]
     [MinLength(1, ErrorMessage = "En az bir ürün seçilmelidir.")]
-    public List<Guid> OrderItemIds { get; set; } = new List<Guid>();
+    public List<Guid> OrderItemIds { get; set; } = [];
 }

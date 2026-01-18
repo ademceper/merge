@@ -17,10 +17,8 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerApplication : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string BusinessName { get; private set; } = string.Empty;
-    // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public BusinessType BusinessType { get; private set; }
     public string TaxNumber { get; private set; } = string.Empty;
     public string Address { get; private set; } = string.Empty;
@@ -53,7 +51,6 @@ public class SellerApplication : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public User? Reviewer { get; private set; }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -62,11 +59,8 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerApplication() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Email, PhoneNumber, IBAN, Address validation
     public static SellerApplication Create(
         Guid userId,
         string businessName,
@@ -99,7 +93,6 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(postalCode, nameof(postalCode));
         Guard.AgainstNegative(estimatedMonthlyRevenue, nameof(estimatedMonthlyRevenue));
 
-        // ✅ BOLUM 1.3: Value Objects - Validation using Value Objects
         var emailValueObject = new Email(email);
         var phoneNumberValueObject = new PhoneNumber(phoneNumber);
         var ibanValueObject = new IBAN(iban);
@@ -133,13 +126,11 @@ public class SellerApplication : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - SellerApplication Created
         application.AddDomainEvent(new SellerApplicationCreatedEvent(application.Id, userId, businessName));
 
         return application;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Submit application
     public void Submit()
     {
         if (Status != SellerApplicationStatus.Pending)
@@ -148,11 +139,9 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         Status = SellerApplicationStatus.Submitted;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerApplication Submitted
         AddDomainEvent(new SellerApplicationSubmittedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Review application
     public void Review(Guid reviewedBy, string? additionalNotes = null)
     {
         Guard.AgainstDefault(reviewedBy, nameof(reviewedBy));
@@ -166,11 +155,9 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         Status = SellerApplicationStatus.UnderReview;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerApplication Reviewed
         AddDomainEvent(new SellerApplicationReviewedEvent(Id, UserId, reviewedBy));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Approve application
     public void Approve(Guid approvedBy)
     {
         Guard.AgainstDefault(approvedBy, nameof(approvedBy));
@@ -187,11 +174,9 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         ReviewedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerApplication Approved
         AddDomainEvent(new SellerApplicationApprovedEvent(Id, UserId, approvedBy));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reject application
     public void Reject(Guid rejectedBy, string rejectionReason)
     {
         Guard.AgainstDefault(rejectedBy, nameof(rejectedBy));
@@ -209,11 +194,9 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         ReviewedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerApplication Rejected
         AddDomainEvent(new SellerApplicationRejectedEvent(Id, UserId, rejectedBy, rejectionReason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update documents
     public void UpdateDocuments(
         string? identityDocumentUrl = null,
         string? taxCertificateUrl = null,

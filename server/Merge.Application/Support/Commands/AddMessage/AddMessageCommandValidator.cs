@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.AddMessage;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class AddMessageCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<AddMessageCommand>
 {
     private readonly SupportSettings config = settings.Value;

@@ -28,10 +28,8 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
 {
     private readonly ReferralSettings referralConfig = referralSettings.Value;
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReferralCodeDto> GetMyReferralCodeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var code = await context.Set<ReferralCode>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
@@ -41,23 +39,18 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             return await CreateReferralCodeAsync(userId, cancellationToken);
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReferralCodeDto>(code);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReferralCodeDto> CreateReferralCodeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Referans kodu oluşturuluyor. UserId: {UserId}",
             userId);
 
-        // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
         var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         var referralCode = GenerateCode(user?.Email ?? "USER");
         var code = ReferralCode.Create(
             userId,
@@ -71,25 +64,19 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
         await context.Set<ReferralCode>().AddAsync(code, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var createdCode = await context.Set<ReferralCode>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == code.Id, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Referans kodu oluşturuldu. ReferralCodeId: {ReferralCodeId}, Code: {Code}, UserId: {UserId}",
             code.Id, referralCode, userId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReferralCodeDto>(createdCode!);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ReferralDto>> GetMyReferralsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var referrals = await context.Set<Referral>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -98,19 +85,14 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<ReferralDto>>(referrals);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ReferralDto>> GetMyReferralsAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var query = context.Set<Referral>()
             .AsNoTracking()
             .Include(r => r.ReferredUser)
@@ -123,7 +105,6 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<ReferralDto>
         {
             Items = mapper.Map<List<ReferralDto>>(referrals),
@@ -133,10 +114,8 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> ApplyReferralCodeAsync(Guid newUserId, string code, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var referralCode = await context.Set<ReferralCode>()
             .FirstOrDefaultAsync(c => c.Code == code && c.IsActive, cancellationToken);
 
@@ -163,7 +142,6 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task ProcessReferralRewardAsync(Guid referredUserId, Guid orderId, CancellationToken cancellationToken = default)
     {
         var referral = await context.Set<Referral>()
@@ -175,7 +153,6 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
 
         referral.Complete(orderId, referral.ReferralCodeEntity.PointsReward);
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var addPointsCommand = new AddPointsCommand(
             referral.ReferrerId,
             referral.PointsAwarded,
@@ -188,11 +165,8 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReferralStatsDto> GetReferralStatsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var totalReferrals = await context.Set<Referral>()
             .CountAsync(r => r.ReferrerId == userId, cancellationToken);
 
@@ -210,7 +184,6 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             ? (decimal)(totalReferrals - pendingReferrals) / totalReferrals * 100 
             : 0;
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new ReferralStatsDto(
             totalReferrals,
             completedReferrals,
@@ -222,7 +195,6 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
     private string GenerateCode(string email)
     {
         var prefix = email.Split('@')[0].ToUpper().Substring(0, Math.Min(4, email.Length));
-        // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
         var random = Random.Shared.Next(1000, 9999);
         return $"{prefix}{random}";
     }

@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.DeleteReview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteReviewCommandHandler> logger) : IRequestHandler<DeleteReviewCommand, bool>
 {
 
@@ -30,7 +29,6 @@ public class DeleteReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             return false;
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi review'lerini silebilmeli
         // Not: Admin kontrolü controller'da yapılıyor, burada sadece UserId kontrolü yapılıyor
         if (review.UserId != request.UserId)
         {
@@ -39,13 +37,11 @@ public class DeleteReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         var productId = review.ProductId;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         review.MarkAsDeleted();
 
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(productId, cancellationToken);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review deleted successfully. ReviewId: {ReviewId}, ProductId: {ProductId}", 
@@ -55,7 +51,6 @@ public class DeleteReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
         var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)

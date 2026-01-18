@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetStockByWarehouse;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetStockByWarehouseQueryValidator : AbstractValidator<GetStockByWarehouseQuery>
 {
     public GetStockByWarehouseQueryValidator()

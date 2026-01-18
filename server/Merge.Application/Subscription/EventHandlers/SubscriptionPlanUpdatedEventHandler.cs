@@ -6,16 +6,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// SubscriptionPlan Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class SubscriptionPlanUpdatedEventHandler(ILogger<SubscriptionPlanUpdatedEventHandler> logger) : INotificationHandler<SubscriptionPlanUpdatedEvent>
 {
 
     public async Task Handle(SubscriptionPlanUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Subscription plan updated event received. PlanId: {PlanId}, Name: {Name}",
             notification.PlanId, notification.Name);
@@ -31,7 +27,6 @@ public class SubscriptionPlanUpdatedEventHandler(ILogger<SubscriptionPlanUpdated
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling SubscriptionPlanUpdatedEvent. PlanId: {PlanId}",
                 notification.PlanId);

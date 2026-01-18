@@ -16,9 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetAllDeliveryTimeEstimations;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetAllDeliveryTimeEstimationsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -32,9 +29,6 @@ public class GetAllDeliveryTimeEstimationsQueryHandler(
         logger.LogInformation("Getting all delivery time estimations. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}, IsActive: {IsActive}",
             request.ProductId, request.CategoryId, request.WarehouseId, request.IsActive);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
         IQueryable<DeliveryTimeEstimation> query = context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
@@ -62,14 +56,11 @@ public class GetAllDeliveryTimeEstimationsQueryHandler(
             query = query.Where(e => e.IsActive == request.IsActive.Value);
         }
 
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var estimations = await query
             .OrderBy(e => e.AverageDays)
             .Take(_shippingSettings.QueryLimits.MaxDeliveryTimeEstimations)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
         return mapper.Map<IEnumerable<DeliveryTimeEstimationDto>>(estimations);
     }
 }

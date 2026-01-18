@@ -13,17 +13,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerPayouts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerPayoutsQueryHandler> logger) : IRequestHandler<GetSellerPayoutsQuery, IEnumerable<CommissionPayoutDto>>
 {
 
     public async Task<IEnumerable<CommissionPayoutDto>> Handle(GetSellerPayoutsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller payouts. SellerId: {SellerId}", request.SellerId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var payouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -35,7 +31,6 @@ public class GetSellerPayoutsQueryHandler(IDbContext context, IMapper mapper, IL
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
     }
 }

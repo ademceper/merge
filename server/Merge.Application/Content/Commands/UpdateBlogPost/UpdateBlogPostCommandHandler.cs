@@ -15,8 +15,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.UpdateBlogPost;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateBlogPostCommandHandler(
     IRepository postRepository,
     IDbContext context,
@@ -32,7 +30,6 @@ public class UpdateBlogPostCommandHandler(
     {
         logger.LogInformation("Updating blog post. PostId: {PostId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -43,7 +40,6 @@ public class UpdateBlogPostCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Writer sadece kendi post'larını güncelleyebilmeli (Admin/Manager hariç)
             if (request.PerformedBy.HasValue && post.AuthorId != request.PerformedBy.Value)
             {
                 logger.LogWarning("Unauthorized attempt to update blog post {PostId} by user {UserId}. Post belongs to {AuthorId}",
@@ -51,7 +47,6 @@ public class UpdateBlogPostCommandHandler(
                 throw new BusinessException("Bu blog post'unu güncelleme yetkiniz bulunmamaktadır.");
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (request.CategoryId.HasValue && request.CategoryId.Value != Guid.Empty)
             {
                 // Category validation
@@ -78,7 +73,6 @@ public class UpdateBlogPostCommandHandler(
                 post.UpdateFeaturedImage(request.FeaturedImageUrl);
             if (!string.IsNullOrEmpty(request.Status))
             {
-                // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
                 if (Enum.TryParse<ContentStatus>(request.Status, true, out var newStatus))
                 {
                     post.UpdateStatus(newStatus);
@@ -105,7 +99,6 @@ public class UpdateBlogPostCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_POSTS, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_FEATURED_POSTS, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_RECENT_POSTS, cancellationToken);
@@ -129,7 +122,6 @@ public class UpdateBlogPostCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error updating blog post Id: {PostId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

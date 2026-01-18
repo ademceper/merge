@@ -14,7 +14,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(e => e.CreatedAt);
         builder.HasIndex(e => new { e.UserId, e.Status });
         
-        // ✅ HIGH-DB-004 FIX: Foreign key indexes for better query performance
         builder.HasIndex(e => e.AddressId);
         builder.HasIndex(e => e.ParentOrderId);
         
@@ -23,7 +22,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(e => e.Tax).HasPrecision(18, 2);
         builder.Property(e => e.TotalAmount).HasPrecision(18, 2);
         
-        // ✅ CRITICAL-DB-002 FIX: RowVersion configuration for optimistic concurrency
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);

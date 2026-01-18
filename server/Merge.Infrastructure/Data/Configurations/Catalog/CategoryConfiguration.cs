@@ -15,7 +15,6 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
               .HasForeignKey(e => e.ParentCategoryId)
               .OnDelete(DeleteBehavior.Restrict);
         
-        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
         // EF Core automatically discovers backing fields by convention (_fieldName)
         // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
         builder.HasMany(e => e.SubCategories)

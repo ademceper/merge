@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.UpdateWholesalePrice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateWholesalePriceCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -23,9 +21,7 @@ public class UpdateWholesalePriceCommandHandler(
     {
         logger.LogInformation("Updating wholesale price. WholesalePriceId: {WholesalePriceId}", request.Id);
 
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var price = await context.Set<WholesalePrice>()
             .FirstOrDefaultAsync(wp => wp.Id == request.Id, cancellationToken);
 
@@ -35,7 +31,6 @@ public class UpdateWholesalePriceCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         price.UpdateQuantityRange(request.Dto.MinQuantity, request.Dto.MaxQuantity);
         price.UpdatePrice(request.Dto.Price);
         price.UpdateDates(request.Dto.StartDate, request.Dto.EndDate);

@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Support Ticket Closed Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record SupportTicketClosedEvent(
     Guid TicketId,
     string TicketNumber,

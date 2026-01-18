@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.DeleteReviewMedia;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteReviewMediaCommandHandler> logger) : IRequestHandler<DeleteReviewMediaCommand>
 {
 
@@ -18,13 +17,11 @@ public class DeleteReviewMediaCommandHandler(IDbContext context, IUnitOfWork uni
     {
         logger.LogInformation("Deleting review media. MediaId: {MediaId}", request.MediaId);
 
-        // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
         var media = await context.Set<ReviewMedia>()
             .FirstOrDefaultAsync(m => m.Id == request.MediaId, cancellationToken);
 
         if (media != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             media.MarkAsDeleted();
             await unitOfWork.SaveChangesAsync(cancellationToken);
 

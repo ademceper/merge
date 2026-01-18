@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetSalesByCategory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSalesByCategoryQueryValidator : AbstractValidator<GetSalesByCategoryQuery>
 {
     public GetSalesByCategoryQueryValidator()

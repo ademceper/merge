@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetVolumeDiscounts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetVolumeDiscountsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -29,13 +27,9 @@ public class GetVolumeDiscountsQueryHandler(
 
     public async Task<PagedResult<VolumeDiscountDto>> Handle(GetVolumeDiscountsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
-        // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<VolumeDiscount>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
@@ -59,7 +53,6 @@ public class GetVolumeDiscountsQueryHandler(
             query = query.Where(vd => vd.OrganizationId == request.OrganizationId.Value || vd.OrganizationId == null);
         }
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
 
         var discounts = await query
@@ -68,10 +61,8 @@ public class GetVolumeDiscountsQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = mapper.Map<List<VolumeDiscountDto>>(discounts);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<VolumeDiscountDto>
         {
             Items = items,

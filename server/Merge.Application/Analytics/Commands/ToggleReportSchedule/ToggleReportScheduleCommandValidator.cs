@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Commands.ToggleReportSchedule;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ToggleReportScheduleCommandValidator : AbstractValidator<ToggleReportScheduleCommand>
 {
     public ToggleReportScheduleCommandValidator()

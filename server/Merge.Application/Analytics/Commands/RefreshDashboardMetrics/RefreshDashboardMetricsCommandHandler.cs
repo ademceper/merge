@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.RefreshDashboardMetrics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RefreshDashboardMetricsCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -28,11 +26,9 @@ public class RefreshDashboardMetricsCommandHandler(
         logger.LogInformation("Refreshing dashboard metrics");
         
         var now = DateTime.UtcNow;
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var last30Days = now.AddDays(-settings.Value.DefaultPeriodDays);
 
         // Calculate and store metrics
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var totalRevenue = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= last30Days)
@@ -52,10 +48,8 @@ public class RefreshDashboardMetricsCommandHandler(
         logger.LogInformation("Dashboard metrics refreshed successfully");
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task SaveMetricAsync(string key, string name, string category, decimal value, DateTime start, DateTime end, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var metric = DashboardMetric.Create(key, name, category, value, start, end);
 
         await context.Set<DashboardMetric>().AddAsync(metric, cancellationToken);

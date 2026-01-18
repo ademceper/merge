@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.RemoveReviewHelpfulness;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RemoveReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RemoveReviewHelpfulnessCommandHandler> logger) : IRequestHandler<RemoveReviewHelpfulnessCommand>
 {
 
@@ -31,14 +30,12 @@ public class RemoveReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWo
 
         if (review != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             if (vote.IsHelpful)
                 review.UnmarkAsHelpful();
             else
                 review.UnmarkAsUnhelpful();
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         vote.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

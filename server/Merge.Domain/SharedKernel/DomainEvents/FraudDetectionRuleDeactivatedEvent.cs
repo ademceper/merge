@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Fraud Detection Rule Deactivated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record FraudDetectionRuleDeactivatedEvent(
     Guid RuleId,
     string Name) : IDomainEvent

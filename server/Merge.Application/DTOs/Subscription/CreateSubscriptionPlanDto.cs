@@ -13,7 +13,6 @@ public class CreateSubscriptionPlanDto
     [StringLength(1000)]
     public string Description { get; set; } = string.Empty;
 
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     [Required(ErrorMessage = "Plan tipi zorunludur.")]
     public SubscriptionPlanType PlanType { get; set; } = SubscriptionPlanType.Monthly;
 
@@ -36,7 +35,6 @@ public class CreateSubscriptionPlanDto
     [Range(0, int.MaxValue)]
     public int DisplayOrder { get; set; } = 0;
 
-    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
     public BillingCycle BillingCycle { get; set; } = BillingCycle.Monthly;
 
     [Range(1, int.MaxValue, ErrorMessage = "Maksimum kullanıcı sayısı en az 1 olmalıdır.")]

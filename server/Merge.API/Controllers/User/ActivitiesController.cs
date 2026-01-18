@@ -16,22 +16,30 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.User;
 
+/// <summary>
+/// User Activities API endpoints.
+/// Kullanıcı aktivitelerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/user/activities")]
+[Authorize]
+[Tags("UserActivities")]
 public class ActivitiesController(IMediator mediator, IOptions<UserSettings> userSettings) : BaseController
 {
     private readonly UserSettings _userSettings = userSettings.Value;
 
     [HttpPost("log")]
     [AllowAnonymous]
-    [RateLimit(100, 60)]     [ProducesResponseType(StatusCodes.Status200OK)]
+    [RateLimit(100, 60)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> LogActivity(
         [FromBody] CreateActivityLogDto activityDto,
         CancellationToken cancellationToken = default)
     {
-                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         var userAgent = Request.Headers["User-Agent"].ToString();
 
         if (User.Identity?.IsAuthenticated == true)
@@ -43,25 +51,26 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
             }
         }
 
-                var command = new LogActivityCommand(
-            activityDto.UserId,
-            activityDto.ActivityType,
-            activityDto.EntityType,
-            activityDto.EntityId,
-            activityDto.Description,
-            ipAddress,
-            userAgent,
-            activityDto.Metadata,
-            activityDto.DurationMs,
-            activityDto.WasSuccessful,
-            activityDto.ErrorMessage);
+        var command = new LogActivityCommand(
+    activityDto.UserId,
+    activityDto.ActivityType,
+    activityDto.EntityType,
+    activityDto.EntityId,
+    activityDto.Description,
+    ipAddress,
+    userAgent,
+    activityDto.Metadata,
+    activityDto.DurationMs,
+    activityDto.WasSuccessful,
+    activityDto.ErrorMessage);
         await mediator.Send(command, cancellationToken);
         return Ok();
     }
 
     [HttpGet("{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(UserActivityLogDto), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(UserActivityLogDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -70,36 +79,38 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         Guid id,
         CancellationToken cancellationToken = default)
     {
-                        var query = new GetActivityByIdQuery(id);
+        var query = new GetActivityByIdQuery(id);
         var activity = await mediator.Send(query, cancellationToken);
         if (activity == null)
         {
-            return NotFound();
+            return Problem("Activity not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(activity);
     }
 
     [HttpGet("my-activities")]
     [Authorize]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<UserActivityLogDto>>> GetMyActivities(
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-                                if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
+        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
         if (days < 1) days = _userSettings.Activity.DefaultDays;
 
         var userId = GetUserId();
-                var query = new GetUserActivitiesQuery(userId, days);
+        var query = new GetUserActivitiesQuery(userId, days);
         var activities = await mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
     [HttpGet("user/{userId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -108,17 +119,18 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-                                if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
+        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
         if (days < 1) days = _userSettings.Activity.DefaultDays;
 
-                var query = new GetUserActivitiesQuery(userId, days);
+        var query = new GetUserActivitiesQuery(userId, days);
         var activities = await mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
     [HttpPost("search")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(IEnumerable<UserActivityLogDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -127,16 +139,15 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromBody] ActivityFilterDto filter,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation QueryHandler içinde yapılıyor
-
-                var query = new SearchActivitiesQuery(filter);
+        var query = new SearchActivitiesQuery(filter);
         var activities = await mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)]     [ProducesResponseType(typeof(ActivityStatsDto), StatusCodes.Status200OK)]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(ActivityStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -144,16 +155,15 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation QueryHandler içinde yapılıyor
-
-                var query = new GetActivityStatsQuery(days);
+        var query = new GetActivityStatsQuery(days);
         var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
     [HttpGet("sessions/{userId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(IEnumerable<UserSessionDto>), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(IEnumerable<UserSessionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -162,33 +172,31 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromQuery] int days = 7,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation QueryHandler içinde yapılıyor
-
-                var query = new GetUserSessionsQuery(userId, days);
+        var query = new GetUserSessionsQuery(userId, days);
         var sessions = await mediator.Send(query, cancellationToken);
         return Ok(sessions);
     }
 
     [HttpGet("my-sessions")]
     [Authorize]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(IEnumerable<UserSessionDto>), StatusCodes.Status200OK)]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(IEnumerable<UserSessionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<UserSessionDto>>> GetMySessions(
         [FromQuery] int days = 7,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation QueryHandler içinde yapılıyor
-
         var userId = GetUserId();
-                var query = new GetUserSessionsQuery(userId, days);
+        var query = new GetUserSessionsQuery(userId, days);
         var sessions = await mediator.Send(query, cancellationToken);
         return Ok(sessions);
     }
 
     [HttpGet("popular-products")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)]     [ProducesResponseType(typeof(IEnumerable<PopularProductDto>), StatusCodes.Status200OK)]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(IEnumerable<PopularProductDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -197,16 +205,15 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromQuery] int topN = 10,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation QueryHandler içinde yapılıyor
-
-                var query = new GetMostViewedProductsQuery(days, topN);
+        var query = new GetMostViewedProductsQuery(days, topN);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
     [HttpDelete("cleanup")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(5, 3600)]     [ProducesResponseType(StatusCodes.Status200OK)]
+    [RateLimit(5, 3600)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -214,10 +221,8 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         [FromQuery] int daysToKeep = 90,
         CancellationToken cancellationToken = default)
     {
-                                // Note: Validation CommandHandler içinde yapılıyor
-
-                var command = new DeleteOldActivitiesCommand(daysToKeep);
+        var command = new DeleteOldActivitiesCommand(daysToKeep);
         await mediator.Send(command, cancellationToken);
-        return Ok(new { message = $"Activities older than {daysToKeep} days deleted successfully" });
+        return NoContent();
     }
 }

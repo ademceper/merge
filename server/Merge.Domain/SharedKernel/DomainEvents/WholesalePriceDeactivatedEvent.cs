@@ -2,9 +2,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Wholesale Price Deactivated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record WholesalePriceDeactivatedEvent(
     Guid WholesalePriceId,
     Guid ProductId,

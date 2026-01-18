@@ -18,10 +18,8 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class LoyaltyAccount : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - PointsBalance >= 0
     private int _pointsBalance = 0;
     public int PointsBalance 
     { 
@@ -33,7 +31,6 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - LifetimePoints >= 0
     private int _lifetimePoints = 0;
     public int LifetimePoints 
     { 
@@ -49,7 +46,6 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
     public DateTime? TierAchievedAt { get; private set; }
     public DateTime? TierExpiresAt { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -57,10 +53,8 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public LoyaltyTier? Tier { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LoyaltyAccount() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LoyaltyAccount Create(Guid userId)
     {
         Guard.AgainstDefault(userId, nameof(userId));
@@ -74,13 +68,11 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - LoyaltyAccountCreatedEvent
         account.AddDomainEvent(new LoyaltyAccountCreatedEvent(account.Id, userId));
 
         return account;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add points
     public void AddPoints(int points, string? reason = null)
     {
         Guard.AgainstNegativeOrZero(points, nameof(points));
@@ -89,11 +81,9 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
         _lifetimePoints += points;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PointsAddedEvent
         AddDomainEvent(new PointsAddedEvent(Id, UserId, points, _pointsBalance, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deduct points
     public void DeductPoints(int points, string? reason = null)
     {
         Guard.AgainstNegativeOrZero(points, nameof(points));
@@ -104,11 +94,9 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
         _pointsBalance -= points;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PointsDeductedEvent
         AddDomainEvent(new PointsDeductedEvent(Id, UserId, points, _pointsBalance, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update tier
     public void UpdateTier(Guid tierId, DateTime? tierExpiresAt = null)
     {
         Guard.AgainstDefault(tierId, nameof(tierId));
@@ -119,11 +107,9 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
         TierExpiresAt = tierExpiresAt;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TierUpdatedEvent
         AddDomainEvent(new TierUpdatedEvent(Id, UserId, oldTierId, tierId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Clear tier
     public void ClearTier()
     {
         if (TierId == null) return;
@@ -134,7 +120,6 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
         TierExpiresAt = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - TierClearedEvent
         AddDomainEvent(new TierClearedEvent(Id, UserId, oldTierId.Value));
     }
 }

@@ -4,15 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Marketing.EventHandlers;
 
-/// <summary>
-/// Coupon Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-/// </summary>
+
 public class CouponDeletedEventHandler(ILogger<CouponDeletedEventHandler> logger) : INotificationHandler<CouponDeletedEvent>
 {
     public async Task Handle(CouponDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Coupon deleted event received. CouponId: {CouponId}, Code: {Code}",
             notification.CouponId, notification.Code);

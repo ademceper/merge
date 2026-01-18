@@ -47,9 +47,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<Coupon, CouponDto>();
         CreateMap<CouponDto, Coupon>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
-        // ✅ FIX: Notification namespace conflict - using alias
         CreateMap<Merge.Domain.Modules.Notifications.Notification, NotificationDto>()
         .ConstructUsing(src => new NotificationDto(
         src.Id,
@@ -75,8 +72,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<TrustBadge, TrustBadgeDto>()
         .AfterMap((src, dest) =>
         {
-        // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Criteria = !string.IsNullOrEmpty(src.Criteria)
         ? JsonSerializer.Deserialize<TrustBadgeSettingsDto>(src.Criteria)
         : null;
@@ -111,9 +106,6 @@ public class MarketingMappingProfile : Profile
         .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
         CreateMap<CreatePaymentDto, Merge.Domain.Modules.Payment.Payment>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<Shipping, ShippingDto>()
         .ConstructUsing(src => new ShippingDto(
         src.Id,
@@ -152,7 +144,6 @@ public class MarketingMappingProfile : Profile
 
         // ProductBundle mappings
         // ProductBundle mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductBundle, ProductBundleDto>()
         .ConstructUsing(src => new ProductBundleDto(
         src.Id,
@@ -181,7 +172,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<UpdateProductBundleDto, ProductBundle>();
 
         // BundleItem mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<BundleItem, BundleItemDto>()
         .ConstructUsing(src => new BundleItemDto(
         src.Id,
@@ -194,7 +184,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // ProductQuestion mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductQuestion, ProductQuestionDto>()
         .ConstructUsing(src => new ProductQuestionDto(
         src.Id,
@@ -228,7 +217,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<CreateProductQuestionDto, ProductQuestion>();
 
         // ProductAnswer mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductAnswer, ProductAnswerDto>()
         .ConstructUsing(src => new ProductAnswerDto(
         src.Id,
@@ -246,7 +234,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<CreateProductAnswerDto, ProductAnswer>();
 
         // ProductTemplate mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<ProductTemplate, ProductTemplateDto>()
         .ConvertUsing((src, context) => new ProductTemplateDto(
         src.Id,
@@ -273,7 +260,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<UpdateProductTemplateDto, ProductTemplate>();
 
         // SizeGuide mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuide, SizeGuideDto>()
         .ConvertUsing((src, context) => new SizeGuideDto(
         src.Id,
@@ -308,7 +294,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // SizeGuideEntry mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuideEntry, SizeGuideEntryDto>()
         .ConvertUsing((src, context) => new SizeGuideEntryDto(
         src.Id,
@@ -330,7 +315,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // ProductComparison mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductComparison, ProductComparisonDto>()
         .ConstructUsing(src => new ProductComparisonDto(
         src.Id,
@@ -343,7 +327,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // Product → ComparisonProductDto mapping
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Modules.Catalog.Product, ComparisonProductDto>()
         .ConstructUsing(src => new ComparisonProductDto(
         src.Id, // ProductId
@@ -369,7 +352,6 @@ public class MarketingMappingProfile : Profile
         .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.DiscountPrice ?? src.Price));
 
         // Product → ProductRecommendationDto mapping
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Modules.Catalog.Product, ProductRecommendationDto>()
         .ConstructUsing(src => new ProductRecommendationDto(
         src.Id, // ProductId
@@ -391,22 +373,18 @@ public class MarketingMappingProfile : Profile
         .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Order != null && src.Order.OrderItems != null 
         ? src.Order.OrderItems.ToList() 
         : new List<OrderItem>()))
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK) - Status zaten enum, direkt map edilebilir
         .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status));
 
         // PaymentMethod mappings
         CreateMap<PaymentMethod, PaymentMethodDto>()
         .AfterMap((src, dest) =>
         {
-        // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         dest.Settings = !string.IsNullOrEmpty(src.Settings)
         ? JsonSerializer.Deserialize<PaymentMethodSettingsDto>(src.Settings)
         : null;
         });
 
         // FAQ mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping
         CreateMap<FAQ, FaqDto>()
         .ConvertUsing(src => new FaqDto(
         src.Id,
@@ -446,7 +424,6 @@ public class MarketingMappingProfile : Profile
         // GiftCard mappings
         CreateMap<GiftCard, GiftCardDto>().ReverseMap();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Warehouse mappings
         CreateMap<Warehouse, WarehouseDto>()
         .ConstructUsing(src => new WarehouseDto(
@@ -468,7 +445,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<CreateWarehouseDto, Warehouse>();
         CreateMap<UpdateWarehouseDto, Warehouse>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Inventory mappings
         CreateMap<InventoryEntity, InventoryDto>()
         .ConstructUsing(src => new InventoryDto(
@@ -506,7 +482,6 @@ public class MarketingMappingProfile : Profile
         src.MinimumStockLevel - src.Quantity
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // StockMovement mappings
         CreateMap<StockMovement, StockMovementDto>()
         .ConstructUsing(src => new StockMovementDto(
@@ -535,7 +510,6 @@ public class MarketingMappingProfile : Profile
         ));
         CreateMap<CreateStockMovementDto, StockMovement>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // DeliveryTimeEstimation mappings
         CreateMap<DeliveryTimeEstimation, DeliveryTimeEstimationDto>()
         .ConstructUsing(src => new DeliveryTimeEstimationDto(
@@ -561,9 +535,7 @@ public class MarketingMappingProfile : Profile
         CreateMap<CreateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
         CreateMap<UpdateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPack mappings
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<PickPack, PickPackDto>()
         .ConstructUsing(src => new PickPackDto(
         src.Id,
@@ -601,7 +573,6 @@ public class MarketingMappingProfile : Profile
         ));
         CreateMap<CreatePickPackDto, PickPack>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPackItem mappings
         CreateMap<PickPackItem, PickPackItemDto>()
         .ConstructUsing(src => new PickPackItemDto(
@@ -618,7 +589,6 @@ public class MarketingMappingProfile : Profile
         src.Location
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ShippingAddress mappings
         CreateMap<ShippingAddress, ShippingAddressDto>()
         .ConstructUsing(src => new ShippingAddressDto(
@@ -679,7 +649,6 @@ public class MarketingMappingProfile : Profile
         : (decimal?)null))
         .AfterMap((src, dest) => 
         {
-        // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
         // Typed DTO kullanılıyor
         dest.Settings = !string.IsNullOrEmpty(src.Settings) 
         ? JsonSerializer.Deserialize<B2BUserSettingsDto>(src.Settings!) 
@@ -734,7 +703,6 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<PreOrderCampaign, PreOrderCampaignDto>()
         .ConstructUsing(src => new PreOrderCampaignDto(
         src.Id,
@@ -756,7 +724,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // AbandonedCartEmail mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<AbandonedCartEmail, AbandonedCartEmailDto>()
         .ConstructUsing(src => new AbandonedCartEmailDto(
         src.Id,
@@ -787,7 +754,6 @@ public class MarketingMappingProfile : Profile
         .ForMember(dest => dest.LastEmailSent, opt => opt.Ignore()); // Set manually
 
         // Content Domain Mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Blog mappings
         CreateMap<BlogCategory, BlogCategoryDto>()
         .ConstructUsing(src => new BlogCategoryDto(
@@ -849,7 +815,6 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // CMS mappings
         CreateMap<CMSPage, CMSPageDto>()
         .ConstructUsing(src => new CMSPageDto(
@@ -877,7 +842,6 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // LandingPage mappings
         CreateMap<LandingPage, LandingPageDto>()
         .ConstructUsing(src => new LandingPageDto(
@@ -916,7 +880,6 @@ public class MarketingMappingProfile : Profile
         src.TrafficSplit
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PageBuilder mappings
         CreateMap<PageBuilder, PageBuilderDto>()
         .ConstructUsing(src => new PageBuilderDto(
@@ -940,9 +903,7 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // SEO mappings
-        // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary<string, object> YASAK
         // StructuredData artık string olarak map ediliyor (StructuredDataJson)
         CreateMap<SEOSettings, SEOSettingsDto>()
         .ConstructUsing(src => new SEOSettingsDto(
@@ -978,7 +939,6 @@ public class MarketingMappingProfile : Profile
         ));
 
         // Governance mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Governance mappings
         CreateMap<Policy, PolicyDto>()
         .ConstructUsing(src => new PolicyDto(
@@ -1011,7 +971,6 @@ public class MarketingMappingProfile : Profile
         src.AcceptedAt,
         src.IsActive));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // AuditLog mapping
         CreateMap<AuditLog, AuditLogDto>()
         .ConstructUsing(src => new AuditLogDto(
@@ -1035,7 +994,6 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt));
 
         // International mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Language, LanguageDto>()
         .ConstructUsing(src => new LanguageDto(
         src.Id,
@@ -1105,7 +1063,6 @@ public class MarketingMappingProfile : Profile
         .ForMember(dest => dest.BackupCodesRemaining, opt => opt.Ignore()); // Set manually (Array.Length)
 
         // LiveCommerce mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<LiveStream, LiveStreamDto>()
         .ConstructUsing(src => new LiveStreamDto(
         src.Id,
@@ -1231,8 +1188,6 @@ public class MarketingMappingProfile : Profile
         CreateMap<LoyaltyTier, LoyaltyTierDto>();
 
         // Organization mappings
-        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs + error handling)
-        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<OrganizationEntity, OrganizationDto>()
         .ConvertUsing((src, context) =>
         {
@@ -1245,7 +1200,6 @@ public class MarketingMappingProfile : Profile
         }
         catch
         {
-        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
         }
         }
 
@@ -1273,7 +1227,6 @@ public class MarketingMappingProfile : Profile
         src.CreatedAt);
         });
 
-        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<Team, TeamDto>()
         .ConvertUsing((src, context) =>
         {
@@ -1286,7 +1239,6 @@ public class MarketingMappingProfile : Profile
         }
         catch
         {
-        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
         }
         }
 

@@ -15,9 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CreateShipping;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CreateShippingCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -29,7 +26,6 @@ public class CreateShippingCommandHandler(
     {
         logger.LogInformation("Creating shipping. OrderId: {OrderId}, Provider: {Provider}", request.OrderId, request.ShippingProvider);
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if order exists
         var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
@@ -40,7 +36,6 @@ public class CreateShippingCommandHandler(
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if shipping already exists
         var existingShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .AnyAsync(s => s.OrderId == request.OrderId, cancellationToken);
@@ -51,7 +46,6 @@ public class CreateShippingCommandHandler(
             throw new BusinessException("Bu sipariş için zaten bir kargo kaydı var.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var shippingCost = new Money(request.ShippingCost);
         var shipping = Shipping.Create(
             request.OrderId,
@@ -62,7 +56,6 @@ public class CreateShippingCommandHandler(
         await context.Set<Shipping>().AddAsync(shipping, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
         var createdShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
@@ -76,7 +69,6 @@ public class CreateShippingCommandHandler(
 
         logger.LogInformation("Shipping created successfully. ShippingId: {ShippingId}, OrderId: {OrderId}", shipping.Id, request.OrderId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ShippingDto>(createdShipping);
     }
 }

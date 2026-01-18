@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerCommission : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public Guid OrderId { get; private set; }
     public Guid OrderItemId { get; private set; }
@@ -31,7 +30,6 @@ public class SellerCommission : BaseEntity, IAggregateRoot
     public DateTime? PaidAt { get; private set; }
     public string? PaymentReference { get; private set; }
 
-    // ✅ CONCURRENCY: Eşzamanlı güncellemeleri önlemek için
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -40,7 +38,6 @@ public class SellerCommission : BaseEntity, IAggregateRoot
     public Order Order { get; private set; } = null!;
     public OrderItem OrderItem { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -49,10 +46,8 @@ public class SellerCommission : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerCommission() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerCommission Create(
         Guid sellerId,
         Guid orderId,
@@ -89,14 +84,12 @@ public class SellerCommission : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - SellerCommission Created
         commission.AddDomainEvent(new SellerCommissionCreatedEvent(
             commission.Id, sellerId, orderId, commissionAmount, netAmount));
 
         return commission;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Approve commission
     public void Approve()
     {
         if (Status == CommissionStatus.Approved)
@@ -112,11 +105,9 @@ public class SellerCommission : BaseEntity, IAggregateRoot
         ApprovedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerCommission Approved
         AddDomainEvent(new SellerCommissionApprovedEvent(Id, SellerId, NetAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as paid
     public void MarkAsPaid(string paymentReference)
     {
         Guard.AgainstNullOrEmpty(paymentReference, nameof(paymentReference));
@@ -132,11 +123,9 @@ public class SellerCommission : BaseEntity, IAggregateRoot
         PaymentReference = paymentReference;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerCommission Paid
         AddDomainEvent(new SellerCommissionPaidEvent(Id, SellerId, NetAmount, paymentReference));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel commission
     public void Cancel()
     {
         if (Status == CommissionStatus.Paid)
@@ -148,11 +137,9 @@ public class SellerCommission : BaseEntity, IAggregateRoot
         Status = CommissionStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerCommission Cancelled
         AddDomainEvent(new SellerCommissionCancelledEvent(Id, SellerId, NetAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Revert paid commission back to approved (for failed payouts)
     public void RevertToApproved()
     {
         if (Status != CommissionStatus.Paid)
@@ -163,7 +150,6 @@ public class SellerCommission : BaseEntity, IAggregateRoot
         PaymentReference = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerCommission Reverted
         AddDomainEvent(new SellerCommissionRevertedEvent(Id, SellerId, NetAmount));
     }
 }

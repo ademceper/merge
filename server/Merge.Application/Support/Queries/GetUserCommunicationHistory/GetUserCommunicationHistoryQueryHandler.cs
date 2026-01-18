@@ -15,14 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetUserCommunicationHistory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserCommunicationHistoryQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetUserCommunicationHistoryQuery, CommunicationHistoryDto>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<CommunicationHistoryDto> Handle(GetUserCommunicationHistoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
@@ -32,7 +30,6 @@ public class GetUserCommunicationHistoryQueryHandler(IDbContext context, IMapper
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         IQueryable<CustomerCommunication> query = context.Set<CustomerCommunication>()
             .AsNoTracking()
             .Where(c => c.UserId == request.UserId);
@@ -52,13 +49,11 @@ public class GetUserCommunicationHistoryQueryHandler(IDbContext context, IMapper
             .FirstOrDefaultAsync(cancellationToken);
 
         // Get recent communications
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var recent = await query
             .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.SentBy)
             .OrderByDescending(c => c.CreatedAt)
-            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
             .Take(supportConfig.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 

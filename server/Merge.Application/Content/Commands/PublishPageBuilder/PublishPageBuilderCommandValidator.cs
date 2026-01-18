@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.PublishPageBuilder;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class PublishPageBuilderCommandValidator : AbstractValidator<PublishPageBuilderCommand>
 {
     public PublishPageBuilderCommandValidator()

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.Get2FAStats;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class Get2FAStatsQueryValidator : AbstractValidator<Get2FAStatsQuery>
 {
     public Get2FAStatsQueryValidator()

@@ -5,8 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Queries.GetReviewsByProductId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public record GetReviewsByProductIdQuery(
     Guid ProductId,
     int Page = 1,

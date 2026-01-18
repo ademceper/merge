@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.ResolveAlert;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ResolveAlertCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ResolveAlertCommandHandler> logger) : IRequestHandler<ResolveAlertCommand, bool>
 {
 
@@ -21,9 +20,7 @@ public class ResolveAlertCommandHandler(IDbContext context, IUnitOfWork unitOfWo
 
         if (alert == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         alert.Resolve(request.ResolvedByUserId, request.ResolutionNotes);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Security alert resolved. AlertId: {AlertId}, ResolvedByUserId: {ResolvedByUserId}",

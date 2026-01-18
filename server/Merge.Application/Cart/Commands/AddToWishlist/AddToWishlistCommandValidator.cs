@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.AddToWishlist;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class AddToWishlistCommandValidator : AbstractValidator<AddToWishlistCommand>
 {
     public AddToWishlistCommandValidator()

@@ -4,7 +4,6 @@ using Merge.Application.Common;
 
 namespace Merge.Application.Security.Queries.GetAllChecks;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetAllChecksQuery(
     string? Status = null,
     bool? IsBlocked = null,

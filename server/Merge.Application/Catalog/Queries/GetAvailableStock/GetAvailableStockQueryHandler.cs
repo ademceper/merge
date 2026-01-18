@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetAvailableStock;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAvailableStockQueryHandler(
     IDbContext context,
     ILogger<GetAvailableStockQueryHandler> logger,
@@ -31,7 +29,6 @@ public class GetAvailableStockQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_AVAILABLE_STOCK}{request.ProductId}_{request.WarehouseId ?? Guid.Empty}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for available stock
         var cachedAvailableStock = await cache.GetAsync<AvailableStockDto>(cacheKey, cancellationToken);
         if (cachedAvailableStock != null)
         {
@@ -43,7 +40,6 @@ public class GetAvailableStockQueryHandler(
         logger.LogInformation("Cache miss for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.WarehouseId);
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu görebilmeli
         if (request.PerformedBy.HasValue)
         {
             var product = await context.Set<ProductEntity>()
@@ -64,8 +60,6 @@ public class GetAvailableStockQueryHandler(
             }
         }
 
-        // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == request.ProductId);
@@ -80,8 +74,6 @@ public class GetAvailableStockQueryHandler(
         logger.LogInformation("Available stock for ProductId: {ProductId}, WarehouseId: {WarehouseId} is {AvailableStock}",
             request.ProductId, request.WarehouseId, availableStock);
 
-        // ✅ BOLUM 4.3: Over-Posting Koruması - Anonymous object YASAK, DTO kullan
-        // ✅ BOLUM 7.1.5: Records - Positional constructor kullanımı
         var availableStockDto = new AvailableStockDto(
             request.ProductId,
             request.WarehouseId,

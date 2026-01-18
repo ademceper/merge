@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// DeliveryTimeEstimation Updated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record DeliveryTimeEstimationUpdatedEvent(
     Guid DeliveryTimeEstimationId,
     int MinDays,

@@ -14,9 +14,7 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerTransaction : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
-    // ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public SellerTransactionType TransactionType { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public decimal Amount { get; private set; }
@@ -29,7 +27,6 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
     // Navigation properties
     public User Seller { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -38,10 +35,8 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerTransaction() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerTransaction Create(
         Guid sellerId,
         SellerTransactionType transactionType,
@@ -71,13 +66,11 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - SellerTransaction Created
         transaction.AddDomainEvent(new SellerTransactionCreatedEvent(transaction.Id, sellerId, transactionType.ToString(), amount));
 
         return transaction;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Complete transaction
     public void Complete()
     {
         if (Status == FinanceTransactionStatus.Completed)
@@ -89,11 +82,9 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
         Status = FinanceTransactionStatus.Completed;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerTransaction Completed
         AddDomainEvent(new SellerTransactionCompletedEvent(Id, SellerId, Amount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Fail transaction
     public void Fail()
     {
         if (Status == FinanceTransactionStatus.Completed)
@@ -105,11 +96,9 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
         Status = FinanceTransactionStatus.Failed;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerTransaction Failed
         AddDomainEvent(new SellerTransactionFailedEvent(Id, SellerId, Amount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel transaction
     public void Cancel()
     {
         if (Status == FinanceTransactionStatus.Completed)
@@ -121,11 +110,9 @@ public class SellerTransaction : BaseEntity, IAggregateRoot
         Status = FinanceTransactionStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerTransaction Cancelled
         AddDomainEvent(new SellerTransactionCancelledEvent(Id, SellerId, Amount));
     }
 
-    // ✅ BOLUM 1.1: Helper Method - Check if completed
     public bool IsCompleted() => Status == FinanceTransactionStatus.Completed;
 }
 

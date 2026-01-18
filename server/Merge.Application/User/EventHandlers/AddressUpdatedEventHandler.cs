@@ -4,13 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.User.EventHandlers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddressUpdatedEventHandler(ILogger<AddressUpdatedEventHandler> logger) : INotificationHandler<AddressUpdatedEvent>
 {
 
     public async Task Handle(AddressUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation(
             "Address updated event received. AddressId: {AddressId}, UserId: {UserId}",

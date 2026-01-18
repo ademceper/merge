@@ -19,10 +19,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// CMS Pages API endpoints.
+/// CMS sayfalarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/cms-pages")]
+[Tags("CMSPages")]
 public class CMSPagesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -57,7 +61,6 @@ public class CMSPagesController(
         if (validationResult != null) return validationResult;
 
         var authorId = GetUserId();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { AuthorId = authorId };
         var page = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPageById), new { id = page.Id }, page);
@@ -82,13 +85,12 @@ public class CMSPagesController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCMSPageByIdQuery(id);
         var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(page);
     }
@@ -112,13 +114,12 @@ public class CMSPagesController(
         string slug,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCMSPageBySlugQuery(slug);
         var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(page);
     }
@@ -140,13 +141,12 @@ public class CMSPagesController(
     public async Task<ActionResult<CMSPageDto>> GetHomePage(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetHomePageCMSPageQuery();
         var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(page);
     }
@@ -176,8 +176,6 @@ public class CMSPagesController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -201,7 +199,6 @@ public class CMSPagesController(
     public async Task<ActionResult<IEnumerable<CMSPageDto>>> GetMenuPages(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ⚠️ NOT: GetMenuCMSPagesQuery handler'da unbounded query koruması var (max 100 sayfa)
         var query = new GetMenuCMSPagesQuery();
         var pages = await mediator.Send(query, cancellationToken);
@@ -245,8 +242,6 @@ public class CMSPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateCMSPageCommandHandler)
         // Admin ise PerformedBy = null (tüm sayfaları güncelleyebilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var updateCommand = command with { Id = id, PerformedBy = performedBy };
@@ -254,7 +249,7 @@ public class CMSPagesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -315,7 +310,7 @@ public class CMSPagesController(
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -341,8 +336,6 @@ public class CMSPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteCMSPageCommandHandler)
         // Admin ise PerformedBy = null (tüm sayfaları silebilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new DeleteCMSPageCommand(id, performedBy);
@@ -350,7 +343,7 @@ public class CMSPagesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -385,8 +378,6 @@ public class CMSPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (PublishCMSPageCommandHandler)
         // Admin ise PerformedBy = null (tüm sayfaları yayınlayabilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new PublishCMSPageCommand(id, performedBy);
@@ -394,7 +385,7 @@ public class CMSPagesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -429,8 +420,6 @@ public class CMSPagesController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (SetHomePageCMSPageCommandHandler)
         // Admin ise PerformedBy = null (tüm sayfaları ana sayfa yapabilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new SetHomePageCMSPageCommand(id, performedBy);
@@ -438,7 +427,7 @@ public class CMSPagesController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

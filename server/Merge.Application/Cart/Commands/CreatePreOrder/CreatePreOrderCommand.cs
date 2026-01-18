@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.CreatePreOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreatePreOrderCommand(
     Guid UserId,
     Guid ProductId,

@@ -102,7 +102,6 @@ public class IyzicoGateway(IConfiguration configuration, ILogger<IyzicoGateway> 
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        // ✅ SECURITY FIX: Iyzico webhook signature doğrulama implement edildi
         var webhookSecret = configuration["PaymentGateways:Iyzico:WebhookSecret"];
 
         if (string.IsNullOrEmpty(webhookSecret))

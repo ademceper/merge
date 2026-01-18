@@ -3,9 +3,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// InternationalShipping In Customs Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record InternationalShippingInCustomsEvent(
     Guid InternationalShippingId,
     Guid OrderId) : IDomainEvent

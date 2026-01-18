@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.CreateCMSPage;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateCMSPageCommandValidator : AbstractValidator<CreateCMSPageCommand>
 {
     public CreateCMSPageCommandValidator()

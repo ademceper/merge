@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class SearchHistory : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // Nullable for anonymous users
     
     private string _searchTerm = string.Empty;
@@ -31,7 +30,6 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - ResultCount >= 0
     private int _resultCount = 0;
     public int ResultCount 
     { 
@@ -74,7 +72,6 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -82,10 +79,8 @@ public class SearchHistory : BaseEntity, IAggregateRoot
     public User? User { get; private set; }
     public Product? ClickedProduct { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SearchHistory() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SearchHistory Create(
         Guid? userId,
         string searchTerm,
@@ -107,10 +102,8 @@ public class SearchHistory : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         searchHistory.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - SearchRecordedEvent
         searchHistory.AddDomainEvent(new SearchRecordedEvent(
             searchHistory.Id,
             userId,
@@ -122,7 +115,6 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         return searchHistory;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record click
     public void RecordClick(Guid productId)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -131,7 +123,6 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         ClickedProductId = productId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - SearchClickRecordedEvent
         AddDomainEvent(new SearchClickRecordedEvent(
             Id,
             productId,
@@ -139,7 +130,6 @@ public class SearchHistory : BaseEntity, IAggregateRoot
             SearchTerm));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_searchTerm))

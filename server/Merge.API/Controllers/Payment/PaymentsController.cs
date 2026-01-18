@@ -14,9 +14,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Payment;
 
+/// <summary>
+/// Payment API endpoints.
+/// Ödeme işlemlerini yönetir.
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/payments")]
 [Authorize]
+[Tags("Payments")]
 public class PaymentsController(IMediator mediator) : BaseController
 {
     [HttpGet("order/{orderId}")]
@@ -36,7 +42,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -46,7 +52,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         var payment = await mediator.Send(query, cancellationToken);
         if (payment == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(payment);
     }
@@ -69,7 +75,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -120,9 +126,19 @@ public class PaymentsController(IMediator mediator) : BaseController
         return Ok(payment);
     }
 
+    /// <summary>
+    /// Ödeme işlemini doğrular
+    /// </summary>
+    /// <param name="dto">Doğrulama parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Doğrulama sonucu</returns>
+    /// <response code="200">Doğrulama başarılı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("verify")]
     [RateLimit(10, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -130,6 +146,6 @@ public class PaymentsController(IMediator mediator) : BaseController
     {
         var query = new VerifyPaymentQuery(dto.TransactionId);
         var result = await mediator.Send(query, cancellationToken);
-        return Ok(new { isValid = result });
+        return Ok(result);
     }
 }

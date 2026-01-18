@@ -8,10 +8,7 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.B2B.EventHandlers;
 
-/// <summary>
-/// B2B User Approved Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class B2BUserApprovedEventHandler(
     ILogger<B2BUserApprovedEventHandler> logger,
     INotificationService? notificationService = null) : INotificationHandler<B2BUserApprovedEvent>
@@ -19,7 +16,6 @@ public class B2BUserApprovedEventHandler(
 
     public async Task Handle(B2BUserApprovedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "B2B user approved event received. B2BUserId: {B2BUserId}, UserId: {UserId}, OrganizationId: {OrganizationId}, ApprovedByUserId: {ApprovedByUserId}",
             notification.B2BUserId, notification.UserId, notification.OrganizationId, notification.ApprovedByUserId);
@@ -47,7 +43,6 @@ public class B2BUserApprovedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling B2BUserApprovedEvent. B2BUserId: {B2BUserId}, UserId: {UserId}",
                 notification.B2BUserId, notification.UserId);

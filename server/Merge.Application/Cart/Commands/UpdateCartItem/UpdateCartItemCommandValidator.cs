@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.UpdateCartItem;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateCartItemCommandValidator : AbstractValidator<UpdateCartItemCommand>
 {
     public UpdateCartItemCommandValidator()

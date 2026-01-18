@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Seller.Commands.FailPayout;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class FailPayoutCommandValidator : AbstractValidator<FailPayoutCommand>
 {
     public FailPayoutCommandValidator()

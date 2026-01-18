@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.DeleteTrustBadge;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class DeleteTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteTrustBadgeCommandHandler> logger) : IRequestHandler<DeleteTrustBadgeCommand, bool>
 {
 
@@ -24,7 +23,6 @@ public class DeleteTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
 
         if (badge == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         badge.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

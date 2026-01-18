@@ -9,9 +9,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
-[ApiController]
+/// <summary>
+/// Email Verification API endpoints.
+/// E-posta doğrulama işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/email-verification")]
+[Tags("EmailVerification")]
 public class EmailVerificationController(IMediator mediator) : BaseController
 {
 
@@ -69,7 +74,7 @@ public class EmailVerificationController(IMediator mediator) : BaseController
     [HttpGet("status")]
     [Authorize]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<bool>> GetVerificationStatus(
@@ -81,9 +86,8 @@ public class EmailVerificationController(IMediator mediator) : BaseController
         }
 
         var query = new IsEmailVerifiedQuery(userId);
-        
         var isVerified = await mediator.Send(query, cancellationToken);
-        return Ok(new { isVerified });
+        return Ok(isVerified);
     }
 }
 

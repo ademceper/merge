@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.ApproveReturnRequest;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ApproveReturnRequestCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveReturnRequestCommandHandler> logger) : IRequestHandler<ApproveReturnRequestCommand, bool>
 {
 
@@ -26,10 +25,8 @@ public class ApproveReturnRequestCommandHandler(IDbContext context, IUnitOfWork 
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         returnRequest.Approve();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Return request approved. ReturnRequestId: {ReturnRequestId}", request.ReturnRequestId);

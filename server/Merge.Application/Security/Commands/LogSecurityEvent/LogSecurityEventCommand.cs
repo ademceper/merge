@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Security;
 
 namespace Merge.Application.Security.Commands.LogSecurityEvent;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record LogSecurityEventCommand(
     Guid UserId,
     string EventType,

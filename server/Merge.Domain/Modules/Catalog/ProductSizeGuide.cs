@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductSizeGuide : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
     public Product Product { get; private set; } = null!;
     public Guid SizeGuideId { get; private set; }
@@ -33,7 +32,6 @@ public class ProductSizeGuide : BaseEntity
     
     public bool FitType { get; private set; } = true; // true = Regular Fit, false = Slim Fit, etc.
     
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MaxFitDescriptionLength = 500;
@@ -54,14 +52,11 @@ public class ProductSizeGuide : BaseEntity
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductSizeGuide() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductSizeGuide Create(
         Guid productId,
         Guid sizeGuideId,
@@ -93,13 +88,11 @@ public class ProductSizeGuide : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         productSizeGuide.ValidateInvariants();
         
         return productSizeGuide;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update
     public void Update(
         Guid? sizeGuideId = null,
         string? customNotes = null,
@@ -122,11 +115,9 @@ public class ProductSizeGuide : BaseEntity
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -134,11 +125,9 @@ public class ProductSizeGuide : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ProductId)

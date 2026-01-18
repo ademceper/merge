@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.CreateLandingPage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateLandingPageCommandHandler(
     IRepository landingPageRepository,
     IDbContext context,
@@ -34,7 +32,6 @@ public class CreateLandingPageCommandHandler(
         logger.LogInformation("Creating landing page. AuthorId: {AuthorId}, Name: {Name}, Title: {Title}",
             request.AuthorId, request.Name, request.Title);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -70,7 +67,6 @@ public class CreateLandingPageCommandHandler(
                 statusEnum = ContentStatus.Draft;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             LandingPage landingPage;
             if (request.VariantOfId.HasValue)
             {
@@ -119,7 +115,6 @@ public class CreateLandingPageCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<LandingPage>()
                 .AsNoTracking()
                 .Include(lp => lp.Author)
@@ -132,7 +127,6 @@ public class CreateLandingPageCommandHandler(
                 throw new NotFoundException("Landing Page", landingPage.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_PAGES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_PAGES, cancellationToken);
             await cache.RemoveAsync($"landing_page_{landingPage.Id}", cancellationToken); // Single page cache
@@ -151,7 +145,6 @@ public class CreateLandingPageCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating landing page with Name: {Name}", request.Name);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

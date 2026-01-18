@@ -11,10 +11,8 @@ public class TwilioProvider(IConfiguration configuration, ILogger<TwilioProvider
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
-        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
         ArgumentNullException.ThrowIfNull(message);
 
-        // ✅ ARCHITECTURE: Input validation
         if (string.IsNullOrWhiteSpace(message.To))
         {
             throw new ValidationException("Telefon numarası boş olamaz.");

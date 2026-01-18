@@ -7,15 +7,9 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Ordering;
 
-/// <summary>
-/// CartItem Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
-/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
-/// BOLUM 1.7: Concurrency Control (ZORUNLU)
-/// </summary>
+
 public class CartItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid CartId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? ProductVariantId { get; private set; } // Seçilen varyant (renk, beden vb.)
@@ -31,7 +25,6 @@ public class CartItem : BaseEntity
         }
     }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _price;
     public decimal Price
     {
@@ -43,7 +36,6 @@ public class CartItem : BaseEntity
         }
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
@@ -52,15 +44,11 @@ public class CartItem : BaseEntity
     public Product Product { get; private set; } = null!;
     public ProductVariant? ProductVariant { get; private set; }
 
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [NotMapped]
     public Money PriceMoney => new Money(_price);
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CartItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public static CartItem Create(Guid cartId, Guid productId, int quantity, Money price, Guid? productVariantId = null)
     {
         Guard.AgainstDefault(cartId, nameof(cartId));
@@ -81,7 +69,6 @@ public class CartItem : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity with maximum limit validation
     public void UpdateQuantity(int newQuantity, int? maxQuantity = null)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
@@ -95,7 +82,6 @@ public class CartItem : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;

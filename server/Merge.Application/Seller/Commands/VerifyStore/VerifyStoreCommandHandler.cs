@@ -10,16 +10,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.VerifyStore;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class VerifyStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<VerifyStoreCommandHandler> logger) : IRequestHandler<VerifyStoreCommand, bool>
 {
 
     public async Task<bool> Handle(VerifyStoreCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Verifying store. StoreId: {StoreId}", request.StoreId);
 
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
@@ -29,11 +26,8 @@ public class VerifyStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.Verify();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Store verified. StoreId: {StoreId}", request.StoreId);

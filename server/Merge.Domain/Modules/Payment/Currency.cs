@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class Currency : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Code { get; private set; } = string.Empty; // USD, EUR, TRY, GBP
     public string Name { get; private set; } = string.Empty; // US Dollar, Euro, Turkish Lira
     public string Symbol { get; private set; } = string.Empty; // $, €, ₺, £
@@ -48,14 +47,11 @@ public class Currency : BaseEntity, IAggregateRoot
     
     public string Format { get; private set; } = string.Empty; // {symbol}{amount} or {amount}{symbol}
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Currency() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Currency Create(
         string code,
         string name,
@@ -70,7 +66,6 @@ public class Currency : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(symbol, nameof(symbol));
         Guard.AgainstNegative(exchangeRate, nameof(exchangeRate));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MinCurrencyDecimalPlaces=0, MaxCurrencyDecimalPlaces=10
         Guard.AgainstOutOfRange(decimalPlaces, 0, 10, nameof(decimalPlaces));
 
@@ -92,18 +87,15 @@ public class Currency : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyCreatedEvent
         currency.AddDomainEvent(new CurrencyCreatedEvent(currency.Id, currency.Code, currency.Name));
 
         return currency;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update currency details
     public void UpdateDetails(string name, string symbol, int decimalPlaces, string format)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(symbol, nameof(symbol));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MinCurrencyDecimalPlaces=0, MaxCurrencyDecimalPlaces=10
         Guard.AgainstOutOfRange(decimalPlaces, 0, 10, nameof(decimalPlaces));
 
@@ -114,11 +106,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyUpdatedEvent
         AddDomainEvent(new CurrencyUpdatedEvent(Id, Code, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update exchange rate
     public void UpdateExchangeRate(decimal newRate, string source = "Manual")
     {
         if (IsBaseCurrency)
@@ -131,11 +121,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyExchangeRateUpdatedEvent
         AddDomainEvent(new CurrencyExchangeRateUpdatedEvent(Id, Code, oldRate, newRate, source));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Set as base currency
     public void SetAsBaseCurrency()
     {
         if (IsBaseCurrency)
@@ -146,11 +134,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencySetAsBaseEvent
         AddDomainEvent(new CurrencySetAsBaseEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Remove base currency status
     public void RemoveBaseCurrencyStatus()
     {
         if (!IsBaseCurrency)
@@ -160,11 +146,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - CurrencyBaseCurrencyStatusRemovedEvent
         AddDomainEvent(new CurrencyBaseCurrencyStatusRemovedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate currency
     public void Activate()
     {
         if (IsActive)
@@ -174,11 +158,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyActivatedEvent
         AddDomainEvent(new CurrencyActivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate currency
     public void Deactivate()
     {
         if (!IsActive)
@@ -191,11 +173,9 @@ public class Currency : BaseEntity, IAggregateRoot
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyDeactivatedEvent
         AddDomainEvent(new CurrencyDeactivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -208,11 +188,9 @@ public class Currency : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CurrencyDeletedEvent
         AddDomainEvent(new CurrencyDeletedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore currency
     public void Restore()
     {
         if (!IsDeleted)
@@ -221,7 +199,6 @@ public class Currency : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - CurrencyRestoredEvent
         AddDomainEvent(new CurrencyRestoredEvent(Id, Code));
     }
 }

@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.FailPayout;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class FailPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<FailPayoutCommandHandler> logger) : IRequestHandler<FailPayoutCommand, bool>
 {
 
     public async Task<bool> Handle(FailPayoutCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Failing payout. PayoutId: {PayoutId}, Reason: {Reason}",
             request.PayoutId, request.Reason);
 
@@ -32,7 +30,6 @@ public class FailPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         payout.Fail(request.Reason);
 
         // Revert commissions back to approved using domain method
@@ -40,13 +37,10 @@ public class FailPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         {
             if (item.Commission != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 item.Commission.RevertToApproved();
             }
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Payout failed. PayoutId: {PayoutId}, Reason: {Reason}",

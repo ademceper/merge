@@ -19,15 +19,12 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class OrderSplit : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OriginalOrderId { get; private set; }
     public Guid SplitOrderId { get; private set; }
     public string SplitReason { get; private set; } = string.Empty; // Different shipping address, Different seller, Stock availability, etc.
     public Guid? NewAddressId { get; private set; } // If split due to different address
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
     public OrderSplitStatus Status { get; private set; } = OrderSplitStatus.Pending;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -39,7 +36,6 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -51,7 +47,6 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -59,12 +54,10 @@ public class OrderSplit : BaseEntity, IAggregateRoot
     public Order OriginalOrder { get; private set; } = null!;
     public Order SplitOrder { get; private set; } = null!;
     public Address? NewAddress { get; private set; }
-    public ICollection<OrderSplitItem> OrderSplitItems { get; private set; } = new List<OrderSplitItem>();
+    public ICollection<OrderSplitItem> OrderSplitItems { get; private set; } = [];
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private OrderSplit() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static OrderSplit Create(
         Guid originalOrderId,
         Guid splitOrderId,
@@ -94,7 +87,6 @@ public class OrderSplit : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Order Split Created
         orderSplit.AddDomainEvent(new OrderSplitCreatedEvent(
             orderSplit.Id,
             originalOrderId,
@@ -104,7 +96,6 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         return orderSplit;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Cancel order split
     public void Cancel()
     {
         if (Status == OrderSplitStatus.Completed)
@@ -116,11 +107,9 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         Status = OrderSplitStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Order Split Cancelled
         AddDomainEvent(new OrderSplitCancelledEvent(Id, OriginalOrderId, SplitOrderId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as processing
     public void MarkAsProcessing()
     {
         if (Status != OrderSplitStatus.Pending)
@@ -129,11 +118,9 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         Status = OrderSplitStatus.Processing;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Event - Order Split Processing
         AddDomainEvent(new OrderSplitProcessingEvent(Id, OriginalOrderId, SplitOrderId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Complete order split
     public void Complete()
     {
         if (Status != OrderSplitStatus.Pending && Status != OrderSplitStatus.Processing)
@@ -142,7 +129,6 @@ public class OrderSplit : BaseEntity, IAggregateRoot
         Status = OrderSplitStatus.Completed;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Order Split Completed
         AddDomainEvent(new OrderSplitCompletedEvent(Id, OriginalOrderId, SplitOrderId));
     }
 }

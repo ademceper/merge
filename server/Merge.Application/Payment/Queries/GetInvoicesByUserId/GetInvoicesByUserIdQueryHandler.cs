@@ -27,12 +27,9 @@ public class GetInvoicesByUserIdQueryHandler(IDbContext context, IMapper mapper,
         logger.LogInformation("Retrieving invoices by user ID. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
             request.UserId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > 100 ? 100 : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = context.Set<Invoice>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -53,8 +50,6 @@ public class GetInvoicesByUserIdQueryHandler(IDbContext context, IMapper mapper,
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         var dtos = mapper.Map<IEnumerable<InvoiceDto>>(invoices);
 
         return new PagedResult<InvoiceDto>

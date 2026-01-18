@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.AskQuestion;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class AskQuestionCommandValidator : AbstractValidator<AskQuestionCommand>
 {
     public AskQuestionCommandValidator()

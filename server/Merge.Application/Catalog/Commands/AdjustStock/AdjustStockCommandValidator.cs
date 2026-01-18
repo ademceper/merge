@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.AdjustStock;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class AdjustStockCommandValidator : AbstractValidator<AdjustStockCommand>
 {
     public AdjustStockCommandValidator()

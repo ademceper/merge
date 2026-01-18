@@ -41,10 +41,8 @@ public class GenerateInvoicePdfCommandHandler(IDbContext context, IUnitOfWork un
             
             var pdfUrl = $"/invoices/{invoice.InvoiceNumber}.pdf";
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             invoice.SetPdfUrl(pdfUrl);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 

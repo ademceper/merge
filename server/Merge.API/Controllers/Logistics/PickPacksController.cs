@@ -24,10 +24,15 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Pick & Pack API endpoints.
+/// Toplama ve paketleme işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/pick-packs")]
 [Authorize(Roles = "Admin,Manager,Warehouse")]
+[Tags("PickPacks")]
 public class PickPacksController(
     IMediator mediator,
     IOptions<ShippingSettings> shippingSettings) : BaseController
@@ -75,14 +80,14 @@ public class PickPacksController(
         var pickPack = await mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
@@ -113,14 +118,14 @@ public class PickPacksController(
         var pickPack = await mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
@@ -151,7 +156,7 @@ public class PickPacksController(
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))

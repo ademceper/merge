@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetWorstPerformers;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetWorstPerformersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetWorstPerformersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

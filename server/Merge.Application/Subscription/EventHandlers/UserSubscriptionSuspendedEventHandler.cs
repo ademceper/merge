@@ -11,28 +11,20 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-/// <summary>
-/// UserSubscription Suspended Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class UserSubscriptionSuspendedEventHandler(ILogger<UserSubscriptionSuspendedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionSuspendedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(UserSubscriptionSuspendedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "User subscription suspended event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
             notification.SubscriptionId, notification.UserId);
 
         try
         {
-            // Email gönderimi
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
-                await _notificationService.CreateNotificationAsync(new CreateNotificationDto(
+                await notificationService.CreateNotificationAsync(new CreateNotificationDto(
                     notification.UserId,
                     NotificationType.Account,
                     "Abonelik Askıya Alındı",
@@ -49,7 +41,6 @@ public class UserSubscriptionSuspendedEventHandler(ILogger<UserSubscriptionSuspe
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling UserSubscriptionSuspendedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);

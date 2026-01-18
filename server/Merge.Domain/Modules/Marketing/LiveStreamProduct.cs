@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class LiveStreamProduct : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid LiveStreamId { get; private set; }
     public LiveStream LiveStream { get; private set; } = null!;
     public Guid ProductId { get; private set; }
@@ -71,7 +70,6 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money (EF Core compatibility için decimal backing)
     private decimal? _specialPrice;
     public decimal? SpecialPrice 
     { 
@@ -86,7 +84,6 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
     [NotMapped]
     public Money? SpecialPriceMoney => _specialPrice.HasValue ? new Money(_specialPrice.Value) : null;
     
@@ -104,14 +101,11 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         } 
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStreamProduct() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LiveStreamProduct Create(
         Guid liveStreamId,
         Guid productId,
@@ -135,16 +129,13 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         streamProduct.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductAddedEvent
         streamProduct.AddDomainEvent(new LiveStreamProductAddedEvent(liveStreamId, productId, specialPrice));
 
         return streamProduct;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Showcase product
     public void Showcase()
     {
         if (IsHighlighted) return;
@@ -153,14 +144,11 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         ShowcasedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductShowcasedEvent
         AddDomainEvent(new LiveStreamProductShowcasedEvent(LiveStreamId, ProductId, ShowcasedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unhighlight product
     public void Unhighlight()
     {
         if (!IsHighlighted) return;
@@ -168,44 +156,35 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         IsHighlighted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductUnhighlightedEvent
         AddDomainEvent(new LiveStreamProductUnhighlightedEvent(LiveStreamId, ProductId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment view count
     public void IncrementViewCount()
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment click count
     public void IncrementClickCount()
     {
         ClickCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Increment order count
     public void IncrementOrderCount()
     {
         OrderCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update display order
     public void UpdateDisplayOrder(int newDisplayOrder)
     {
         Guard.AgainstNegative(newDisplayOrder, nameof(newDisplayOrder));
@@ -213,11 +192,9 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         _displayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update special price
     public void UpdateSpecialPrice(decimal? newSpecialPrice)
     {
         if (newSpecialPrice.HasValue)
@@ -228,21 +205,17 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         _specialPrice = newSpecialPrice;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update showcase notes
     public void UpdateShowcaseNotes(string? newShowcaseNotes)
     {
         ShowcaseNotes = newShowcaseNotes;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -251,14 +224,11 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         IsHighlighted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductDeletedEvent
         AddDomainEvent(new LiveStreamProductDeletedEvent(LiveStreamId, ProductId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Restore deleted product
     public void Restore()
     {
         if (!IsDeleted)
@@ -267,14 +237,11 @@ public class LiveStreamProduct : BaseEntity, IAggregateRoot
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductRestoredEvent
         AddDomainEvent(new LiveStreamProductRestoredEvent(LiveStreamId, ProductId, UpdatedAt.Value));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == LiveStreamId)

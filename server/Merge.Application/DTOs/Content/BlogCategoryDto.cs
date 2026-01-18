@@ -1,7 +1,6 @@
 using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Content;
 
-// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 public record BlogCategoryDto(
     Guid Id,
     string Name,

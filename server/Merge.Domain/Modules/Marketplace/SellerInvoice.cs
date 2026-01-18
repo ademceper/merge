@@ -14,7 +14,6 @@ namespace Merge.Domain.Modules.Marketplace;
 /// </summary>
 public class SellerInvoice : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public string InvoiceNumber { get; private set; } = string.Empty; // Auto-generated: INV-YYYYMM-XXXXXX
     public DateTime InvoiceDate { get; private set; } = DateTime.UtcNow;
@@ -33,7 +32,6 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
     // Navigation properties
     public User Seller { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -42,10 +40,8 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SellerInvoice() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SellerInvoice Create(
         Guid sellerId,
         string invoiceNumber,
@@ -89,13 +85,11 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - SellerInvoice Created
         invoice.AddDomainEvent(new SellerInvoiceCreatedEvent(invoice.Id, sellerId, invoiceNumber, netAmount));
 
         return invoice;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Send invoice
     public void Send()
     {
         if (Status != SellerInvoiceStatus.Draft)
@@ -104,11 +98,9 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
         Status = SellerInvoiceStatus.Sent;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerInvoice Sent
         AddDomainEvent(new SellerInvoiceSentEvent(Id, SellerId, InvoiceNumber));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark invoice as paid
     public void MarkAsPaid()
     {
         if (Status == SellerInvoiceStatus.Paid)
@@ -124,11 +116,9 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
         PaidAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerInvoice Paid
         AddDomainEvent(new SellerInvoicePaidEvent(Id, SellerId, NetAmount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Cancel invoice
     public void Cancel(string? reason = null)
     {
         if (Status == SellerInvoiceStatus.Paid)
@@ -142,18 +132,15 @@ public class SellerInvoice : BaseEntity, IAggregateRoot
             Notes = string.IsNullOrEmpty(Notes) ? reason : $"{Notes}\nİptal nedeni: {reason}";
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - SellerInvoice Cancelled
         AddDomainEvent(new SellerInvoiceCancelledEvent(Id, SellerId, InvoiceNumber, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update notes
     public void UpdateNotes(string? notes)
     {
         Notes = notes;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update invoice data
     public void UpdateInvoiceData(string? invoiceData)
     {
         InvoiceData = invoiceData;

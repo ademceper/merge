@@ -5,7 +5,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Seller.Commands.SubmitSellerApplication;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SubmitSellerApplicationCommandValidator : AbstractValidator<SubmitSellerApplicationCommand>
 {
     public SubmitSellerApplicationCommandValidator()
@@ -22,7 +21,6 @@ public class SubmitSellerApplicationCommandValidator : AbstractValidator<SubmitS
                 .NotEmpty().WithMessage("Business name is required.")
                 .MaximumLength(200).WithMessage("Business name must not exceed 200 characters.");
 
-            // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
             RuleFor(x => x.ApplicationDto!.BusinessType)
                 .IsInEnum().WithMessage("Business type must be a valid enum value.");
 

@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Queries.GetPolicies;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetPoliciesQuery(
     string? PolicyType = null,
     string? Language = null,

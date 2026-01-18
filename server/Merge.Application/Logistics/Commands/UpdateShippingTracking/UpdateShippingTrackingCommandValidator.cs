@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingTracking;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdateShippingTrackingCommandValidator : AbstractValidator<UpdateShippingTrackingCommand>
 {
     public UpdateShippingTrackingCommandValidator()

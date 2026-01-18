@@ -1,8 +1,6 @@
 namespace Merge.Domain.Enums;
 
-/// <summary>
-/// Entity Type Enum - BOLUM 1.2: Enum kullanımı (string EntityType YASAK)
-/// </summary>
+
 public enum EntityType
 {
     User = 0,

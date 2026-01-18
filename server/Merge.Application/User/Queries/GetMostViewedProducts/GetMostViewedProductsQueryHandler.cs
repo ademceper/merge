@@ -16,24 +16,19 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.User.Queries.GetMostViewedProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetMostViewedProductsQueryHandler(IDbContext context, ILogger<GetMostViewedProductsQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetMostViewedProductsQuery, List<PopularProductDto>>
 {
-
-    private readonly UserSettings config = userSettings.Value;
-
     public async Task<List<PopularProductDto>> Handle(GetMostViewedProductsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", request.Days, request.TopN);
         var days = request.Days;
-        if (days > config.Activity.MaxDays) days = config.Activity.MaxDays;
-        if (days < 1) days = config.Activity.DefaultDays;
+        if (days > userSettings.Value.Activity.MaxDays) days = userSettings.Value.Activity.MaxDays;
+        if (days < 1) days = userSettings.Value.Activity.DefaultDays;
 
         var topN = request.TopN;
-        if (topN > config.Activity.MaxTopN) topN = config.Activity.MaxTopN;
-        if (topN < 1) topN = config.Activity.DefaultTopN;
+        if (topN > userSettings.Value.Activity.MaxTopN) topN = userSettings.Value.Activity.MaxTopN;
+        if (topN < 1) topN = userSettings.Value.Activity.DefaultTopN;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 

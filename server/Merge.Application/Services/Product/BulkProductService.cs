@@ -32,16 +32,12 @@ public class BulkProductService(
     ILogger<BulkProductService> logger) : IBulkProductService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("CSV bulk import başlatıldı");
 
-        // ✅ PERFORMANCE FIX: O(n²) → O(n) - Mutable lists kullan, sonra immutable record'a dönüştür
-        var errors = new List<string>();
-        var importedProducts = new List<ProductDto>();
+        List<string> errors = [];
+        List<ProductDto> importedProducts = [];
         var totalProcessed = 0;
         var successCount = 0;
         var failureCount = 0;
@@ -68,7 +64,6 @@ public class BulkProductService(
                     continue;
                 }
 
-                // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
                 var productDto = new BulkProductImportDto(
                     Name: values[0],
                     Description: values[1],
@@ -82,10 +77,9 @@ public class BulkProductService(
                     IsActive: true);
 
                 var product = await ImportSingleProductAsync(productDto, cancellationToken);
-                if (product != null)
+                if (product is not null)
                 {
                     successCount++;
-                    // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                     var importedProductDto = mapper.Map<ProductDto>(product);
                     importedProducts.Add(importedProductDto);
                 }
@@ -103,12 +97,10 @@ public class BulkProductService(
             }
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "CSV bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
             totalProcessed, successCount, failureCount);
 
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         return new BulkProductImportResultDto(
             TotalProcessed: totalProcessed,
             SuccessCount: successCount,
@@ -117,16 +109,12 @@ public class BulkProductService(
             ImportedProducts: importedProducts);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("JSON bulk import başlatıldı");
 
-        // ✅ PERFORMANCE FIX: O(n²) → O(n) - Mutable lists kullan, sonra immutable record'a dönüştür
-        var errors = new List<string>();
-        var importedProducts = new List<ProductDto>();
+        List<string> errors = [];
+        List<ProductDto> importedProducts = [];
         var totalProcessed = 0;
         var successCount = 0;
         var failureCount = 0;
@@ -135,7 +123,7 @@ public class BulkProductService(
         {
             var products = await JsonSerializer.DeserializeAsync<List<BulkProductImportDto>>(fileStream, cancellationToken: cancellationToken);
 
-            if (products == null || products.Count == 0)
+            if (products is null || products.Count == 0)
             {
                 errors.Add("No products found in JSON file");
                 return new BulkProductImportResultDto(
@@ -155,10 +143,9 @@ public class BulkProductService(
                 try
                 {
                     var product = await ImportSingleProductAsync(productDto, cancellationToken);
-                    if (product != null)
+                    if (product is not null)
                     {
                         successCount++;
-                        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                         var importedProductDto = mapper.Map<ProductDto>(product);
                         importedProducts.Add(importedProductDto);
                     }
@@ -182,12 +169,10 @@ public class BulkProductService(
             logger.LogError(ex, "JSON parsing hatası");
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "JSON bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
             totalProcessed, successCount, failureCount);
 
-        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         return new BulkProductImportResultDto(
             TotalProcessed: totalProcessed,
             SuccessCount: successCount,
@@ -196,7 +181,6 @@ public class BulkProductService(
             ImportedProducts: importedProducts);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<byte[]> ExportProductsToCsvAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         var products = await GetProductsForExportAsync(exportDto, cancellationToken);
@@ -223,7 +207,6 @@ public class BulkProductService(
         return Encoding.UTF8.GetBytes(csv.ToString());
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<byte[]> ExportProductsToJsonAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         var products = await GetProductsForExportAsync(exportDto, cancellationToken);
@@ -253,7 +236,6 @@ public class BulkProductService(
         return Encoding.UTF8.GetBytes(json);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<byte[]> ExportProductsToExcelAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // For Excel export, we'll use CSV format as a simple alternative
@@ -263,10 +245,8 @@ public class BulkProductService(
 
     // Helper methods
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task<ProductEntity?> ImportSingleProductAsync(BulkProductImportDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if SKU already exists
         var existingProduct = await context.Set<ProductEntity>()
             .AsNoTracking()
@@ -277,7 +257,6 @@ public class BulkProductService(
             throw new BusinessException($"Bu SKU ile ürün zaten mevcut: '{dto.SKU}'");
         }
 
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         // Find category by name
         var category = await context.Set<Category>()
             .AsNoTracking()
@@ -288,7 +267,6 @@ public class BulkProductService(
             throw new NotFoundException("Kategori", Guid.Empty);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var sku = new SKU(dto.SKU);
         var price = new Money(dto.Price);
         var product = ProductEntity.Create(
@@ -303,7 +281,6 @@ public class BulkProductService(
             null  // storeId
         );
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         if (dto.DiscountPrice.HasValue)
         {
             var discountPrice = new Money(dto.DiscountPrice.Value);
@@ -321,15 +298,12 @@ public class BulkProductService(
         }
 
         product = await productRepository.AddAsync(product);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (SaveChangesAsync YASAK - Repository pattern)
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return product;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category);
@@ -352,7 +326,7 @@ public class BulkProductService(
 
     private string[] ParseCsvLine(string line)
     {
-        var values = new List<string>();
+        List<string> values = [];
         var currentValue = new StringBuilder();
         bool inQuotes = false;
 

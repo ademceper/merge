@@ -34,7 +34,6 @@ public class PaymentDbContext(DbContextOptions<PaymentDbContext> options) : DbCo
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("PaymentDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -48,7 +47,6 @@ public class PaymentDbContext(DbContextOptions<PaymentDbContext> options) : DbCo
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PaymentDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Payment");
 
-        // ✅ HIGH-DB-003 FIX: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

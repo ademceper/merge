@@ -17,14 +17,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetTrendingProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTrendingProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTrendingProductsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetTrendingProductsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetTrendingProductsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Trending products isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
@@ -38,7 +36,6 @@ public class GetTrendingProductsQueryHandler(IDbContext context, IMapper mapper,
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var trendingProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.CreatedAt >= startDate)
@@ -57,15 +54,13 @@ public class GetTrendingProductsQueryHandler(IDbContext context, IMapper mapper,
             return Array.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = trendingProducts.Select(tp => tp.ProductId).ToList();
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = new List<ProductRecommendationDto>();
+        List<ProductRecommendationDto> recommendations = [];
         foreach (var tp in trendingProducts)
         {
             if (products.TryGetValue(tp.ProductId, out var product))
@@ -86,7 +81,6 @@ public class GetTrendingProductsQueryHandler(IDbContext context, IMapper mapper,
             }
         }
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Trending products tamamlandı. Days: {Days}, Count: {Count}",
             days, recommendations.Count);

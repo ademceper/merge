@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetFlashSaleById;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetFlashSaleByIdQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetFlashSaleByIdQuery, FlashSaleDto?>
 {
     public async Task<FlashSaleDto?> Handle(GetFlashSaleByIdQuery request, CancellationToken cancellationToken)

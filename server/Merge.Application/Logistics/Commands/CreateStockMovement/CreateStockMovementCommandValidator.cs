@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Logistics.Commands.CreateStockMovement;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateStockMovementCommandValidator : AbstractValidator<CreateStockMovementCommand>
 {
     public CreateStockMovementCommandValidator()

@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.CompletePacking;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CompletePackingCommandValidator : AbstractValidator<CompletePackingCommand>
 {
     public CompletePackingCommandValidator()

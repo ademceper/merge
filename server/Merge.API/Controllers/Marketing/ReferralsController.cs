@@ -15,10 +15,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing;
 
+/// <summary>
+/// Referrals API endpoints.
+/// Referans programı işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/referrals")]
 [Authorize]
+[Tags("Referrals")]
 public class ReferralsController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController

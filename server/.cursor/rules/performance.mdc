@@ -3,7 +3,6 @@ description: Performance rules - Async patterns, Memory management, Caching, Dat
 globs: "**/*.cs"
 alwaysApply: false
 ---
-
 # PERFORMANS KURALLARI
 
 > Bu dosya, Merge E-Commerce Backend projesinde performans optimizasyonu için

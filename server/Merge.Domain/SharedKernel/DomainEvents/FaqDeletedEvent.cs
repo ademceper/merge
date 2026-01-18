@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// FAQ Deleted Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record FaqDeletedEvent(
     Guid FaqId,
     string Question,

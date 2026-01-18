@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetWishlist;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetWishlistQueryValidator : AbstractValidator<GetWishlistQuery>
 {
     public GetWishlistQueryValidator()

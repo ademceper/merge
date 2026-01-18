@@ -16,11 +16,9 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductAnswer : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid QuestionId { get; private set; }
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MinAnswerLength = 5;
@@ -54,7 +52,6 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -64,10 +61,8 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
     private readonly List<AnswerHelpfulness> _helpfulnessVotes = new();
     public IReadOnlyCollection<AnswerHelpfulness> HelpfulnessVotes => _helpfulnessVotes.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductAnswer() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductAnswer Create(
         Guid questionId,
         Guid userId,
@@ -93,16 +88,13 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         productAnswer.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         productAnswer.AddDomainEvent(new ProductAnswerCreatedEvent(productAnswer.Id, questionId, userId, isSellerAnswer));
         
         return productAnswer;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Approve
     public void Approve()
     {
         if (IsApproved) return;
@@ -110,24 +102,19 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
         IsApproved = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductAnswerApprovedEvent(Id, QuestionId));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Increment helpful count
     public void IncrementHelpfulCount()
     {
         _helpfulCount++;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Decrement helpful count
     public void DecrementHelpfulCount()
     {
         if (_helpfulCount > 0)
@@ -135,12 +122,10 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
             _helpfulCount--;
             UpdatedAt = DateTime.UtcNow;
             
-            // ✅ BOLUM 1.4: Invariant validation
             ValidateInvariants();
         }
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add helpfulness vote (collection manipulation)
     public void AddHelpfulnessVote(AnswerHelpfulness helpfulness)
     {
         Guard.AgainstNull(helpfulness, nameof(helpfulness));
@@ -156,15 +141,12 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
         IncrementHelpfulCount();
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductAnswerUpdatedEvent yayınla (ÖNERİLİR)
         // Helpfulness vote ekleme önemli bir business event'tir
         AddDomainEvent(new ProductAnswerUpdatedEvent(Id, QuestionId, UserId, _helpfulCount));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
     public void RemoveHelpfulnessVote(Guid voteId)
     {
         Guard.AgainstDefault(voteId, nameof(voteId));
@@ -177,15 +159,12 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
         DecrementHelpfulCount();
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductAnswerUpdatedEvent yayınla (ÖNERİLİR)
         // Helpfulness vote silme önemli bir business event'tir
         AddDomainEvent(new ProductAnswerUpdatedEvent(Id, QuestionId, UserId, _helpfulCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -193,14 +172,11 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductAnswerDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductAnswerDeletedEvent(Id, QuestionId, UserId));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == QuestionId)

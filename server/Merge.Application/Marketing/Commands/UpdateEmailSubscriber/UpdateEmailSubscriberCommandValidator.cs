@@ -2,8 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Marketing.Commands.UpdateEmailSubscriber;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class UpdateEmailSubscriberCommandValidator : AbstractValidator<UpdateEmailSubscriberCommand>
 {
     public UpdateEmailSubscriberCommandValidator()

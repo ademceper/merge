@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Category Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class CategoryUpdatedEventHandler(
     ILogger<CategoryUpdatedEventHandler> logger) : INotificationHandler<CategoryUpdatedEvent>
 {
 
     public async Task Handle(CategoryUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Category updated event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}",
             notification.CategoryId, notification.Name, notification.Slug);
@@ -32,7 +28,6 @@ public class CategoryUpdatedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling CategoryUpdatedEvent. CategoryId: {CategoryId}, Name: {Name}",
                 notification.CategoryId, notification.Name);

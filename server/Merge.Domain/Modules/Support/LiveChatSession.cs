@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class LiveChatSession : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; }
     public Guid? AgentId { get; private set; }
     public string SessionId { get; private set; } = string.Empty;
@@ -32,7 +31,6 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
     public int UnreadCount { get; private set; } = 0;
     public string? Department { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - Priority 0-2 arası
     private int _priority = 0;
     public int Priority 
     { 
@@ -50,18 +48,14 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
     public User? User { get; private set; }
     public User? Agent { get; private set; }
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<LiveChatMessage> _messages = new();
     public IReadOnlyCollection<LiveChatMessage> Messages => _messages.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveChatSession() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LiveChatSession Create(
         string sessionId,
         Guid? userId = null,
@@ -91,7 +85,6 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - LiveChatSessionCreatedEvent
         session.AddDomainEvent(new LiveChatSessionCreatedEvent(
             session.Id,
             session.SessionId,
@@ -102,7 +95,6 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         return session;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Assign agent
     public void AssignAgent(Guid agentId)
     {
         Guard.AgainstDefault(agentId, nameof(agentId));
@@ -114,11 +106,9 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         Status = ChatSessionStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LiveChatSessionAssignedEvent
         AddDomainEvent(new LiveChatSessionAssignedEvent(Id, SessionId, agentId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Close session
     public void Close()
     {
         if (Status == ChatSessionStatus.Closed)
@@ -129,18 +119,15 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         ResolvedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LiveChatSessionClosedEvent
         AddDomainEvent(new LiveChatSessionClosedEvent(Id, SessionId, UserId, ResolvedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update priority
     public void UpdatePriority(int priority)
     {
         Priority = priority;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add message (internal use by LiveChatMessage)
     public void AddMessage(string senderType)
     {
         MessageCount++;
@@ -162,14 +149,12 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark messages as read
     public void MarkMessagesAsRead()
     {
         UnreadCount = 0;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -183,11 +168,9 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LiveChatSessionDeletedEvent
         AddDomainEvent(new LiveChatSessionDeletedEvent(Id, SessionId, UserId, AgentId));
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         base.AddDomainEvent(domainEvent);

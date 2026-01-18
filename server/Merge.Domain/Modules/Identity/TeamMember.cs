@@ -15,11 +15,9 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class TeamMember : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid TeamId { get; private set; }
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Role YASAK)
     public TeamMemberRole Role { get; private set; } = TeamMemberRole.Member;
     
     public DateTime JoinedAt { get; private set; } = DateTime.UtcNow;
@@ -29,10 +27,8 @@ public class TeamMember : BaseEntity
     public Team Team { get; private set; } = null!;
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TeamMember() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TeamMember Create(
         Guid teamId,
         Guid userId,
@@ -52,21 +48,18 @@ public class TeamMember : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event (Team aggregate root'a event eklenmeli)
         // NOT: TeamMember bir aggregate root değil, bu yüzden event'i Team entity'ye eklemek gerekir
         // Ancak burada event oluşturulup Team entity'ye eklenmesi service layer'da yapılacak
 
         return teamMember;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update role
     public void UpdateRole(TeamMemberRole role)
     {
         Role = role;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate member
     public void Activate()
     {
         if (IsActive)
@@ -76,7 +69,6 @@ public class TeamMember : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate member
     public void Deactivate()
     {
         if (!IsActive)
@@ -86,7 +78,6 @@ public class TeamMember : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete member (soft delete)
     public void Delete()
     {
         if (IsDeleted)

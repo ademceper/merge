@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetOrganizationCreditTermsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -28,12 +26,9 @@ public class GetOrganizationCreditTermsQueryHandler(
 
     public async Task<PagedResult<CreditTermDto>> Handle(GetOrganizationCreditTermsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !ct.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<CreditTerm>()
             .AsNoTracking()
             .Include(ct => ct.Organization)
@@ -44,7 +39,6 @@ public class GetOrganizationCreditTermsQueryHandler(
             query = query.Where(ct => ct.IsActive == request.IsActive.Value);
         }
 
-        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
         var totalCount = await query.CountAsync(cancellationToken);
 
         var creditTerms = await query
@@ -53,10 +47,8 @@ public class GetOrganizationCreditTermsQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = mapper.Map<List<CreditTermDto>>(creditTerms);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<CreditTermDto>
         {
             Items = items,

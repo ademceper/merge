@@ -10,7 +10,6 @@ public class CartConfiguration : IEntityTypeConfiguration<Cart>
     {
         builder.HasIndex(e => e.UserId);
 
-        // ✅ CRITICAL-DB-002 FIX: RowVersion configuration for optimistic concurrency
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);

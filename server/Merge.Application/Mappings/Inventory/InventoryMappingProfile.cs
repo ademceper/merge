@@ -32,7 +32,6 @@ public class InventoryMappingProfile : Profile
         CreateMap<CreateWarehouseDto, Warehouse>();
         CreateMap<UpdateWarehouseDto, Warehouse>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Inventory mappings
         CreateMap<InventoryEntity, InventoryDto>()
         .ConstructUsing(src => new InventoryDto(
@@ -70,7 +69,6 @@ public class InventoryMappingProfile : Profile
         src.MinimumStockLevel - src.Quantity
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // StockMovement mappings
         CreateMap<StockMovement, StockMovementDto>()
         .ConstructUsing(src => new StockMovementDto(
@@ -99,7 +97,6 @@ public class InventoryMappingProfile : Profile
         ));
         CreateMap<CreateStockMovementDto, StockMovement>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // DeliveryTimeEstimation mappings
         CreateMap<DeliveryTimeEstimation, DeliveryTimeEstimationDto>()
         .ConstructUsing(src => new DeliveryTimeEstimationDto(
@@ -125,9 +122,7 @@ public class InventoryMappingProfile : Profile
         CreateMap<CreateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
         CreateMap<UpdateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPack mappings
-        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<PickPack, PickPackDto>()
         .ConstructUsing(src => new PickPackDto(
         src.Id,
@@ -165,7 +160,6 @@ public class InventoryMappingProfile : Profile
         ));
         CreateMap<CreatePickPackDto, PickPack>();
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPackItem mappings
         CreateMap<PickPackItem, PickPackItemDto>()
         .ConstructUsing(src => new PickPackItemDto(
@@ -182,7 +176,6 @@ public class InventoryMappingProfile : Profile
         src.Location
         ));
 
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ShippingAddress mappings
         CreateMap<ShippingAddress, ShippingAddressDto>()
         .ConstructUsing(src => new ShippingAddressDto(

@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Domain.ValueObjects;
 
-/// <summary>
-/// Address Value Object - BOLUM 1.3: Value Objects (ZORUNLU)
-/// </summary>
+
 public record Address
 {
     public string AddressLine1 { get; }
@@ -51,7 +49,7 @@ public record Address
 
     public string ToFormattedString()
     {
-        var parts = new List<string> { AddressLine1 };
+        List<string> parts = [AddressLine1];
         if (!string.IsNullOrWhiteSpace(AddressLine2))
             parts.Add(AddressLine2);
         parts.Add($"{City}, {State}".TrimEnd(',', ' '));

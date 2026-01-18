@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.ExportOrders;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record ExportOrdersCommand(
     DateTime? StartDate,
     DateTime? EndDate,

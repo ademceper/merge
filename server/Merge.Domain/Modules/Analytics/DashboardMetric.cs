@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class DashboardMetric : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Key { get; private set; } = string.Empty; // Unique identifier like 'total_revenue', 'total_orders'
     public string Category { get; private set; } = string.Empty; // Sales, Customers, Products, Inventory
@@ -28,14 +27,11 @@ public class DashboardMetric : BaseEntity
     public DateTime PeriodEnd { get; private set; }
     public string? Metadata { get; private set; } // JSON for additional data
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private DashboardMetric() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static DashboardMetric Create(
         string key,
         string name,
@@ -51,7 +47,6 @@ public class DashboardMetric : BaseEntity
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(category, nameof(category));
 
-        // ✅ BOLUM 1.6: Invariant Validation - PeriodStart < PeriodEnd
         if (periodStart >= periodEnd)
             throw new DomainException("Başlangıç tarihi bitiş tarihinden önce olmalıdır");
 
@@ -80,7 +75,6 @@ public class DashboardMetric : BaseEntity
         return metric;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update value
     public void UpdateValue(decimal newValue, decimal? previousValue = null)
     {
         PreviousValue = Value;
@@ -99,7 +93,6 @@ public class DashboardMetric : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate change percentage
     public decimal? CalculateChangePercentage(decimal previousValue)
     {
         if (previousValue == 0)
@@ -108,7 +101,6 @@ public class DashboardMetric : BaseEntity
         return ((Value - previousValue) / previousValue) * 100;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set formatted value
     public void SetFormattedValue(string formattedValue)
     {
         ValueFormatted = formattedValue;

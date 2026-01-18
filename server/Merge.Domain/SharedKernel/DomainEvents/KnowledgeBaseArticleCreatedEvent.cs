@@ -3,9 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
-/// <summary>
-/// Knowledge Base Article Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
-/// </summary>
+
 public record KnowledgeBaseArticleCreatedEvent(
     Guid ArticleId,
     string Title,

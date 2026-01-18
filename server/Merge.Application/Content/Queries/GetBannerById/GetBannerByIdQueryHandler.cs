@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetBannerById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetBannerByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -29,7 +27,6 @@ public class GetBannerByIdQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_BANNER_BY_ID}{request.Id}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for single banner
         var cachedBanner = await cache.GetAsync<BannerDto>(cacheKey, cancellationToken);
         if (cachedBanner != null)
         {
@@ -39,7 +36,6 @@ public class GetBannerByIdQueryHandler(
 
         logger.LogInformation("Cache miss for banner. BannerId: {BannerId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var banner = await context.Set<Banner>()
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
@@ -53,7 +49,6 @@ public class GetBannerByIdQueryHandler(
         logger.LogInformation("Successfully retrieved banner {BannerId} with Title: {Title}",
             request.Id, banner.Title);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var bannerDto = mapper.Map<BannerDto>(banner);
         
         // Cache the result

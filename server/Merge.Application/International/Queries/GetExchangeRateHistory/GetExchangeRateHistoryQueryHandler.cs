@@ -26,7 +26,7 @@ public class GetExchangeRateHistoryQueryHandler(
 
         var history = await context.Set<ExchangeRateHistory>()
             .AsNoTracking()
-            .Where(h => h.CurrencyCode.ToUpper() == request.CurrencyCode.ToUpper() &&
+            .Where(h => EF.Functions.ILike(h.CurrencyCode, request.CurrencyCode) &&
                        h.RecordedAt >= startDate)
             .OrderByDescending(h => h.RecordedAt)
             .Take(1000)

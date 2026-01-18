@@ -16,10 +16,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
-[ApiController]
+/// <summary>
+/// Two-Factor Authentication API endpoints.
+/// İki faktörlü kimlik doğrulama işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/two-factor-auth")]
 [Authorize]
+[Tags("TwoFactorAuth")]
 public class TwoFactorAuthController(IMediator mediator) : BaseController
 {
 

@@ -24,11 +24,11 @@ public class ConvertPriceCommandHandler(
 
         var from = await context.Set<Currency>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.FromCurrency.ToUpper() && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.FromCurrency) && c.IsActive, cancellationToken);
 
         var to = await context.Set<Currency>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.ToCurrency.ToUpper() && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.ToCurrency) && c.IsActive, cancellationToken);
 
         if (from == null || to == null)
         {

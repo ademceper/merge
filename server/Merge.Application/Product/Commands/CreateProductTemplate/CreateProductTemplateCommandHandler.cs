@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.CreateProductTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateProductTemplateCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -48,7 +47,6 @@ public class CreateProductTemplateCommandHandler(
                 throw new NotFoundException("Kategori", request.CategoryId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var template = ProductTemplate.Create(
                 request.Name,
                 request.Description,
@@ -63,11 +61,9 @@ public class CreateProductTemplateCommandHandler(
                 request.IsActive);
 
             await context.Set<ProductTemplate>().AddAsync(template, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             template = await context.Set<ProductTemplate>()
                 .AsNoTracking()
                 .Include(t => t.Category)
@@ -75,12 +71,10 @@ public class CreateProductTemplateCommandHandler(
 
             logger.LogInformation("Product template created successfully. TemplateId: {TemplateId}", template!.Id);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_TEMPLATES, cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATES_BY_CATEGORY}{request.CategoryId}_", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_TEMPLATES_ACTIVE, cancellationToken);
             // Invalidate popular templates cache (all possible limits)
-            // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
             for (int limit = paginationConfig.DefaultPageSize; limit <= paginationConfig.MaxPageSize; limit += paginationConfig.DefaultPageSize)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_POPULAR_TEMPLATES}{limit}", cancellationToken);

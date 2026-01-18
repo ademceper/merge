@@ -5,8 +5,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Subscription.Queries.GetUserSubscriptions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public record GetUserSubscriptionsQuery(
     Guid UserId,
     SubscriptionStatus? Status = null,

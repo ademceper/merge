@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.RejectReview;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RejectReviewCommandValidator : AbstractValidator<RejectReviewCommand>
 {
     public RejectReviewCommandValidator()

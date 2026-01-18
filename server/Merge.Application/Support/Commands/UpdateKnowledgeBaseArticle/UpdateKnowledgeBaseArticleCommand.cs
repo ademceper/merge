@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Support;
 
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateKnowledgeBaseArticleCommand(
     Guid ArticleId,
     string? Title = null,

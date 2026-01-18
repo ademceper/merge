@@ -18,8 +18,6 @@ using IBundleItemRepository = Merge.Application.Interfaces.IRepository<Merge.Dom
 
 namespace Merge.Application.Product.Commands.CreateProductBundle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateProductBundleCommandHandler(IBundleRepository bundleRepository, IBundleItemRepository bundleItemRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, IMapper mapper, ILogger<CreateProductBundleCommandHandler> logger) : IRequestHandler<CreateProductBundleCommand, ProductBundleDto>
 {
 
@@ -40,7 +38,6 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ PERFORMANCE: Fetch all products in a single query to avoid N+1
             var productIds = request.Products.Select(p => p.ProductId).ToList();
             var products = await context.Set<ProductEntity>()
                 .AsNoTracking()
@@ -60,7 +57,6 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
             decimal originalTotal = request.Products.Sum(productDto =>
                 (products[productDto.ProductId].DiscountPrice ?? products[productDto.ProductId].Price) * productDto.Quantity);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var bundle = ProductBundle.Create(
                 request.Name,
                 request.Description,
@@ -70,7 +66,6 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
                 request.StartDate,
                 request.EndDate);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             foreach (var productDto in request.Products)
             {
                 bundle.AddItem(productDto.ProductId, productDto.Quantity, productDto.SortOrder);
@@ -78,8 +73,6 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
 
             bundle = await bundleRepository.AddAsync(bundle, cancellationToken);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -95,7 +88,6 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
                 throw new NotFoundException("Paket", bundle.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);
 

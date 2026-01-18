@@ -13,7 +13,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class OrderSplitItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderSplitId { get; private set; }
     public Guid OriginalOrderItemId { get; private set; }
     public Guid SplitOrderItemId { get; private set; }
@@ -34,10 +33,8 @@ public class OrderSplitItem : BaseEntity
     public OrderItem OriginalOrderItem { get; private set; } = null!;
     public OrderItem SplitOrderItem { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private OrderSplitItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static OrderSplitItem Create(
         Guid orderSplitId,
         Guid originalOrderItemId,

@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.MarkReviewHelpfulness;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<MarkReviewHelpfulnessCommandHandler> logger) : IRequestHandler<MarkReviewHelpfulnessCommand>
 {
 
@@ -35,7 +34,6 @@ public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork
 
         if (existingVote != null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             if (existingVote.IsHelpful != request.IsHelpful)
             {
                 // Decrement old count
@@ -55,7 +53,6 @@ public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork
         }
         else
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var vote = ReviewHelpfulness.Create(
                 request.ReviewId,
                 request.UserId,
@@ -63,14 +60,12 @@ public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork
 
             await context.Set<ReviewHelpfulness>().AddAsync(vote, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             if (request.IsHelpful)
                 review.MarkAsHelpful();
             else
                 review.MarkAsUnhelpful();
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(

@@ -14,10 +14,15 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing.EmailTemplates;
 
+/// <summary>
+/// Email Templates API endpoints.
+/// E-posta şablonlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/email-templates")]
 [Authorize]
+[Tags("EmailTemplates")]
 public class EmailTemplatesController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -67,7 +72,7 @@ public class EmailTemplatesController(
 
         if (template == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(template);
@@ -174,7 +179,7 @@ public class EmailTemplatesController(
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();

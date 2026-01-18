@@ -14,10 +14,8 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class RefreshToken : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanmalı (PLAIN TEXT YASAK)
     public string TokenHash { get; private set; } = string.Empty;
     public DateTime ExpiresAt { get; private set; }
     public bool IsRevoked { get; private set; } = false;
@@ -29,11 +27,9 @@ public class RefreshToken : BaseEntity, IAggregateRoot
     // Navigation property
     public virtual User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Domain Logic - Computed properties
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
     public bool IsActive => !IsRevoked && !IsExpired;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -42,7 +38,6 @@ public class RefreshToken : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -51,10 +46,8 @@ public class RefreshToken : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private RefreshToken() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static RefreshToken Create(
         Guid userId,
         string tokenHash,
@@ -84,13 +77,11 @@ public class RefreshToken : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - RefreshTokenCreatedEvent
         refreshToken.AddDomainEvent(new RefreshTokenCreatedEvent(refreshToken.Id, userId, expiresAt));
 
         return refreshToken;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Revoke token
     public void Revoke(string? revokedByIp = null, string? replacedByTokenHash = null)
     {
         if (IsRevoked)
@@ -115,7 +106,6 @@ public class RefreshToken : BaseEntity, IAggregateRoot
         ReplacedByTokenHash = replacedByTokenHash;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - RefreshTokenRevokedEvent
         AddDomainEvent(new RefreshTokenRevokedEvent(Id, UserId, revokedByIp, replacedByTokenHash));
     }
 }

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetReports;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetReportsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetReportsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

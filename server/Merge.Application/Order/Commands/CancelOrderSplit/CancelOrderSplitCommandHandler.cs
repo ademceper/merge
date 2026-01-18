@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CancelOrderSplit;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CancelOrderSplitCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CancelOrderSplitCommandHandler> logger) : IRequestHandler<CancelOrderSplitCommand, bool>
 {
 
@@ -31,7 +30,6 @@ public class CancelOrderSplitCommandHandler(IDbContext context, IUnitOfWork unit
             throw new BusinessException("Beklemede durumunda olmayan bölünmüş sipariş iptal edilemez.");
         }
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var splitItems = await context.Set<OrderSplitItem>()
             .AsSplitQuery()
             .Include(si => si.OriginalOrderItem)
@@ -44,22 +42,18 @@ public class CancelOrderSplitCommandHandler(IDbContext context, IUnitOfWork unit
         foreach (var splitItem in splitItems)
         {
             var originalItem = splitItem.OriginalOrderItem;
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (UpdateQuantity)
             var newQuantity = originalItem.Quantity + splitItem.Quantity;
             originalItem.UpdateQuantity(newQuantity);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         var originalOrder = split.OriginalOrder;
         originalOrder.RecalculateTotals();
 
         split.SplitOrder.MarkAsDeleted();
         split.MarkAsDeleted();
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         split.Cancel();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("Order split cancelled. SplitId: {SplitId}", request.SplitId);

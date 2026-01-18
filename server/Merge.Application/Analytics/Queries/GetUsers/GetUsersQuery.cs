@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Analytics.Queries.GetUsers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetUsersQuery(
     int Page = 1,
     int PageSize = 0,

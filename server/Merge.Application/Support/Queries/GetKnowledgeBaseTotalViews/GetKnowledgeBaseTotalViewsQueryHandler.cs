@@ -9,15 +9,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseTotalViews;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetKnowledgeBaseTotalViewsQueryHandler(IDbContext context) : IRequestHandler<GetKnowledgeBaseTotalViewsQuery, int>
 {
 
     public async Task<int> Handle(GetKnowledgeBaseTotalViewsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Database'de sum yap, memory'de işlem YASAK
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (request.ArticleId.HasValue)
         {
             var article = await context.Set<KnowledgeBaseArticle>()

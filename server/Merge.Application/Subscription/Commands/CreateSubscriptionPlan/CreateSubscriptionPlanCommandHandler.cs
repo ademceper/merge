@@ -15,17 +15,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Commands.CreateSubscriptionPlan;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateSubscriptionPlanCommandHandler> logger) : IRequestHandler<CreateSubscriptionPlanCommand, SubscriptionPlanDto>
 {
 
     public async Task<SubscriptionPlanDto> Handle(CreateSubscriptionPlanCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Creating subscription plan. Name: {Name}, PlanType: {PlanType}, Price: {Price}",
             request.Name, request.PlanType, request.Price);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var plan = SubscriptionPlan.Create(
             name: request.Name,
             description: request.Description,
@@ -43,22 +40,17 @@ public class CreateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
 
         await context.Set<SubscriptionPlan>().AddAsync(plan, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes for mapping
         plan = await context.Set<SubscriptionPlan>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == plan.Id, cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Subscription plan created successfully. PlanId: {PlanId}, Name: {Name}",
             plan!.Id, plan.Name);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = mapper.Map<SubscriptionPlanDto>(plan);
         
-        // ✅ PERFORMANCE: Batch load subscriber count
         var subscriberCount = await context.Set<UserSubscription>()
             .AsNoTracking()
             .CountAsync(us => us.SubscriptionPlanId == plan.Id && 

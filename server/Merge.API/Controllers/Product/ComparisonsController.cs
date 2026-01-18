@@ -21,9 +21,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
+/// <summary>
+/// Product Comparisons API endpoints.
+/// Ürün karşılaştırma işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/products/comparisons")]
+[Tags("ProductComparisons")]
 public class ProductComparisonsController(IMediator mediator) : BaseController
 {
             [HttpPost]
@@ -42,9 +47,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var userId = GetUserId();
         var command = new CreateProductComparisonCommand(userId, dto.Name, dto.ProductIds.ToList());
         var comparison = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
-        return CreatedAtAction(nameof(GetComparison), new { id = comparison.Id }, new { comparison, _links = links });
+        return CreatedAtAction(nameof(GetComparison), new { id = comparison.Id }, comparison);
     }
 
     [HttpGet("{id}")]
@@ -65,15 +68,13 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (comparison == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (string.IsNullOrEmpty(comparison.ShareCode) && comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
-        return Ok(new { comparison, _links = links });
+        return Ok(comparison);
     }
 
     [HttpGet("current")]
@@ -90,11 +91,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         
         if (comparison == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
-        return Ok(new { comparison, _links = links });
+        return Ok(comparison);
     }
 
     [HttpGet("my-comparisons")]
@@ -112,16 +111,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var userId = GetUserId();
         var query = new GetUserComparisonsQuery(userId, savedOnly, page, pageSize);
         var comparisons = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var paginationLinks = HateoasHelper.CreatePaginationLinks(
-            Url,
-            "GetMyComparisons",
-            page,
-            pageSize,
-            comparisons.TotalPages,
-            new { savedOnly },
-            version);
-        return Ok(new { comparisons, _links = paginationLinks });
+        return Ok(comparisons);
     }
 
     [HttpGet("shared/{shareCode}")]
@@ -138,11 +128,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (comparison == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
-        return Ok(new { comparison, _links = links });
+        return Ok(comparison);
     }
 
     [HttpPost("add")]
@@ -161,9 +149,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var userId = GetUserId();
         var command = new AddProductToComparisonCommand(userId, dto.ProductId);
         var comparison = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
-        return Ok(new { comparison, _links = links });
+        return Ok(comparison);
     }
 
     [HttpDelete("remove/{productId}")]
@@ -181,7 +167,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -208,15 +194,26 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
 
+    /// <summary>
+    /// Ürün karşılaştırması için paylaşım kodu oluşturur
+    /// </summary>
+    /// <param name="id">Karşılaştırma ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Paylaşım kodu</returns>
+    /// <response code="200">Paylaşım kodu başarıyla oluşturuldu</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="404">Karşılaştırma bulunamadı</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("{id}/share")]
     [Authorize]
     [RateLimit(10, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -231,7 +228,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var comparison = await mediator.Send(getQuery, cancellationToken);
         if (comparison == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -239,7 +236,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         }
         var command = new GenerateShareCodeCommand(id);
         var shareCode = await mediator.Send(command, cancellationToken);
-        return Ok(new { shareCode });
+        return Ok(shareCode);
     }
 
     [HttpDelete("clear")]
@@ -257,7 +254,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -277,7 +274,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -299,7 +296,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var comparison = await mediator.Send(getQuery, cancellationToken);
         if (comparison == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (string.IsNullOrEmpty(comparison.ShareCode) && comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -307,8 +304,6 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         }
         var query = new GetComparisonMatrixQuery(id);
         var matrix = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateProductComparisonLinks(Url, id, version);
-        return Ok(new { matrix, _links = links });
+        return Ok(matrix);
     }
 }

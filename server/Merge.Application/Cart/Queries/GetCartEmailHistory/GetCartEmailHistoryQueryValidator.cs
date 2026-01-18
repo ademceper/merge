@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetCartEmailHistory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetCartEmailHistoryQueryValidator : AbstractValidator<GetCartEmailHistoryQuery>
 {
     public GetCartEmailHistoryQueryValidator()

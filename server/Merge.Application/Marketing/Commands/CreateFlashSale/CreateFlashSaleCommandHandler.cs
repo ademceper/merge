@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.CreateFlashSale;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class CreateFlashSaleCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -26,7 +24,6 @@ public class CreateFlashSaleCommandHandler(
     {
         logger.LogInformation("Creating flash sale. Title: {Title}", request.Title);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var flashSale = FlashSale.Create(
             request.Title,
             request.Description,
@@ -36,7 +33,6 @@ public class CreateFlashSaleCommandHandler(
 
         await context.Set<FlashSale>().AddAsync(flashSale, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -55,7 +51,6 @@ public class CreateFlashSaleCommandHandler(
 
         logger.LogInformation("FlashSale created successfully. FlashSaleId: {FlashSaleId}, Title: {Title}", flashSale.Id, request.Title);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<FlashSaleDto>(createdFlashSale);
     }
 }

@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class TicketAttachment : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid TicketId { get; private set; }
     public Guid? MessageId { get; private set; }
     public string FileName { get; private set; } = string.Empty;
@@ -23,14 +22,11 @@ public class TicketAttachment : BaseEntity
     public SupportTicket Ticket { get; private set; } = null!;
     public TicketMessage? Message { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TicketAttachment() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static TicketAttachment Create(
         Guid ticketId,
         string fileName,

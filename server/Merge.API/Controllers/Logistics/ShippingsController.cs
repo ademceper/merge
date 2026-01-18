@@ -17,10 +17,15 @@ using Merge.Application.Order.Queries.GetOrderById;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Shipping API endpoints.
+/// Kargo işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/shippings")]
 [Authorize]
+[Tags("Shipping")]
 public class ShippingsController(IMediator mediator) : BaseController
 {
     [HttpGet("providers")]
@@ -56,7 +61,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         var shipping = await mediator.Send(query, cancellationToken);
         if (shipping == null)
         {
-            return NotFound();
+            return Problem("Shipping not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         // Order ownership kontrolü
@@ -64,7 +69,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Order not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -95,7 +100,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
-            return NotFound();
+            return Problem("Order not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -107,15 +112,26 @@ public class ShippingsController(IMediator mediator) : BaseController
         var shipping = await mediator.Send(query, cancellationToken);
         if (shipping == null)
         {
-            return NotFound();
+            return Problem("Shipping not found for this order", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(shipping);
     }
 
+    /// <summary>
+    /// Kargo maliyetini hesaplar
+    /// </summary>
+    /// <param name="dto">Kargo hesaplama parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Kargo maliyeti</returns>
+    /// <response code="200">Maliyet başarıyla hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="404">Sipariş bulunamadı</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("calculate")]
     [RateLimit(30, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -129,7 +145,7 @@ public class ShippingsController(IMediator mediator) : BaseController
 
         var query = new CalculateShippingCostQuery(dto.OrderId, dto.Provider);
         var cost = await mediator.Send(query, cancellationToken);
-        return Ok(new { cost });
+        return Ok(cost);
     }
 
     [HttpPost]

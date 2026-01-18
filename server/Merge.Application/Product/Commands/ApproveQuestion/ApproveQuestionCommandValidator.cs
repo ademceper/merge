@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.ApproveQuestion;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ApproveQuestionCommandValidator : AbstractValidator<ApproveQuestionCommand>
 {
     public ApproveQuestionCommandValidator()

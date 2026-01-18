@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Logistics.Commands.CreateWarehouse;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateWarehouseCommandValidator : AbstractValidator<CreateWarehouseCommand>
 {
     public CreateWarehouseCommandValidator()

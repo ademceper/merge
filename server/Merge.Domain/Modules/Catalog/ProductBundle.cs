@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductBundle : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
     private static class ValidationConstants
     {
         public const int MinNameLength = 2;
@@ -24,7 +23,6 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         public const int MaxImageUrlLength = 2000;
     }
 
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _name = string.Empty;
     public string Name 
     { 
@@ -48,7 +46,6 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing fields (EF Core compatibility)
     private decimal _bundlePrice;
     public decimal BundlePrice 
     { 
@@ -102,11 +99,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money BundlePriceMoney => new Money(_bundlePrice);
     
@@ -120,10 +115,8 @@ public class ProductBundle : BaseEntity, IAggregateRoot
     private readonly List<BundleItem> _bundleItems = new();
     public IReadOnlyCollection<BundleItem> BundleItems => _bundleItems.AsReadOnly();
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductBundle() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductBundle Create(
         string name,
         string description,
@@ -145,7 +138,6 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(imageUrl))
         {
             Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(imageUrl);
@@ -180,16 +172,13 @@ public class ProductBundle : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         bundle.ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         bundle.AddDomainEvent(new ProductBundleCreatedEvent(bundle.Id, name, bundlePrice, discountPercentage));
         
         return bundle;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update bundle
     public void Update(
         string name,
         string? description = null,
@@ -210,7 +199,6 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(imageUrl))
         {
             Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(imageUrl);
@@ -242,14 +230,11 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add item
     public void AddItem(Guid productId, int quantity, int sortOrder = 0)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -261,21 +246,17 @@ public class ProductBundle : BaseEntity, IAggregateRoot
             throw new DomainException("Bu ürün zaten pakete eklenmiş");
         }
         
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var item = BundleItem.Create(Id, productId, quantity, sortOrder);
         
         _bundleItems.Add(item);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün ekleme önemli bir business event'tir
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove item
     public void RemoveItem(Guid productId)
     {
         Guard.AgainstDefault(productId, nameof(productId));
@@ -289,15 +270,12 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         _bundleItems.Remove(item);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün çıkarma önemli bir business event'tir
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update total prices (recalculates discount percentage)
     public void UpdateTotalPrices(decimal? originalTotalPrice)
     {
         if (originalTotalPrice.HasValue)
@@ -319,15 +297,12 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Fiyat güncellemesi önemli bir business event'tir
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Activate
     public void Activate()
     {
         if (IsActive) return;
@@ -335,14 +310,11 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate
     public void Deactivate()
     {
         if (!IsActive) return;
@@ -350,14 +322,11 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -365,14 +334,11 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductBundleDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(_name))
@@ -388,7 +354,6 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(_imageUrl))
         {
             Guard.AgainstLength(_imageUrl, ValidationConstants.MaxImageUrlLength, nameof(ImageUrl));
-            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
             try
             {
                 var urlValueObject = new Url(_imageUrl);

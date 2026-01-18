@@ -17,10 +17,15 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Notification;
 
-[ApiController]
+/// <summary>
+/// Notification Template API endpoints.
+/// Bildirim şablonlarını yönetir.
+/// </summary>
 [ApiVersion("1.0")]
-[Route("api/v1/notifications/templates")]
+[ApiController]
+[Route("api/v{version:apiVersion}/notifications/templates")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("NotificationTemplates")]
 public class NotificationTemplatesController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -58,7 +63,7 @@ public class NotificationTemplatesController(
         var template = await mediator.Send(query, cancellationToken);
         if (template == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(template);
     }
@@ -83,7 +88,7 @@ public class NotificationTemplatesController(
         var template = await mediator.Send(query, cancellationToken);
         if (template == null)
         {
-            return NotFound(new { message = $"Template not found for type: {type}" });
+            return Problem($"Template not found for type: {type}", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(template);
     }
@@ -182,7 +187,7 @@ public class NotificationTemplatesController(
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

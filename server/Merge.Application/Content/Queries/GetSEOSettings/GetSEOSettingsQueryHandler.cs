@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetSEOSettings;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetSEOSettingsQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -30,7 +28,6 @@ public class GetSEOSettingsQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_SEO_SETTINGS}{request.PageType}_{request.EntityId?.ToString() ?? "null"}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for SEO settings
         var cachedSettings = await cache.GetOrCreateNullableAsync<SEOSettingsDto>(
             cacheKey,
             async () =>
@@ -38,7 +35,6 @@ public class GetSEOSettingsQueryHandler(
                 logger.LogInformation("Cache miss for SEO settings. PageType: {PageType}, EntityId: {EntityId}",
                     request.PageType, request.EntityId);
 
-                // ✅ PERFORMANCE: AsNoTracking for read-only queries
                 var settings = await context.Set<SEOSettings>()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.PageType == request.PageType && 

@@ -3,7 +3,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Catalog.Commands.UpdateCategory;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateCategoryCommandValidator : AbstractValidator<UpdateCategoryCommand>
 {
     public UpdateCategoryCommandValidator()

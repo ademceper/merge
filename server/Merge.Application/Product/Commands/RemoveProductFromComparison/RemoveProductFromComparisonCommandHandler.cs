@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.RemoveProductFromComparison;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RemoveProductFromComparisonCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RemoveProductFromComparisonCommandHandler> logger, ICacheService cache) : IRequestHandler<RemoveProductFromComparisonCommand, bool>
 {
 
@@ -44,15 +43,12 @@ public class RemoveProductFromComparisonCommandHandler(IDbContext context, IUnit
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Domain method içinde zaten product check ve removal var
             comparison.RemoveProduct(request.ProductId);
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);

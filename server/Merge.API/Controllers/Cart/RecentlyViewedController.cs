@@ -12,11 +12,15 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Recently Viewed API endpoints.
+/// Son görüntülenen ürünleri yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/recently-viewed")]
 [Authorize]
+[Tags("RecentlyViewed")]
 public class RecentlyViewedController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -44,8 +48,6 @@ public class RecentlyViewedController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -75,7 +77,6 @@ public class RecentlyViewedController(
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new AddToRecentlyViewedCommand(userId, productId);
         await mediator.Send(command, cancellationToken);
@@ -97,7 +98,6 @@ public class RecentlyViewedController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ClearRecentlyViewed(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new ClearRecentlyViewedCommand(userId);
         await mediator.Send(command, cancellationToken);

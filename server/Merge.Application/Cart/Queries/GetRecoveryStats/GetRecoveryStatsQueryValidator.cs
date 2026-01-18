@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetRecoveryStats;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRecoveryStatsQueryValidator : AbstractValidator<GetRecoveryStatsQuery>
 {
     public GetRecoveryStatsQueryValidator()

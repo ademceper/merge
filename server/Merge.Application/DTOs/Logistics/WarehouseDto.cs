@@ -1,7 +1,6 @@
 using Merge.Domain.Modules.Identity;
 namespace Merge.Application.DTOs.Logistics;
 
-// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 public record WarehouseDto(
     Guid Id,
     string Name,

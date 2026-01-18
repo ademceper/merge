@@ -22,13 +22,11 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Seller.Commands.SubmitSellerApplication;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SubmitSellerApplicationCommandHandler(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, ILogger<SubmitSellerApplicationCommandHandler> logger) : IRequestHandler<SubmitSellerApplicationCommand, SellerApplicationDto>
 {
 
     public async Task<SellerApplicationDto> Handle(SubmitSellerApplicationCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Processing seller application submission for user {UserId}, Business: {BusinessName}",
             request.UserId, request.ApplicationDto.BusinessName);
 
@@ -51,8 +49,6 @@ public class SubmitSellerApplicationCommandHandler(IRepository applicationReposi
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         var application = SellerApplication.Create(
             userId: request.UserId,
             businessName: request.ApplicationDto.BusinessName,
@@ -81,8 +77,6 @@ public class SubmitSellerApplicationCommandHandler(IRepository applicationReposi
 
         application = await applicationRepository.AddAsync(application);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Seller application created successfully for user {UserId}, ApplicationId: {ApplicationId}",

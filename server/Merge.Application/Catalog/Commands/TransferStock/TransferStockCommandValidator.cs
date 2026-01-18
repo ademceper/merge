@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.TransferStock;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class TransferStockCommandValidator : AbstractValidator<TransferStockCommand>
 {
     public TransferStockCommandValidator()

@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetKnowledgeBaseCategoryQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetKnowledgeBaseCategoryQuery, KnowledgeBaseCategoryDto?>
 {
 
@@ -19,6 +18,7 @@ public class GetKnowledgeBaseCategoryQueryHandler(IDbContext context, IMapper ma
     {
         var category = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);

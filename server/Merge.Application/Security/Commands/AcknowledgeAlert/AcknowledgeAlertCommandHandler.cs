@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.AcknowledgeAlert;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AcknowledgeAlertCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<AcknowledgeAlertCommandHandler> logger) : IRequestHandler<AcknowledgeAlertCommand, bool>
 {
 
@@ -21,9 +20,7 @@ public class AcknowledgeAlertCommandHandler(IDbContext context, IUnitOfWork unit
 
         if (alert == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         alert.Acknowledge(request.AcknowledgedByUserId);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Security alert acknowledged. AlertId: {AlertId}, AcknowledgedByUserId: {AcknowledgedByUserId}",

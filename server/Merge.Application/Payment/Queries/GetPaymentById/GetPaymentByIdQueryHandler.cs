@@ -22,7 +22,6 @@ public class GetPaymentByIdQueryHandler(IDbContext context, IMapper mapper, ILog
     {
         logger.LogInformation("Retrieving payment with ID: {PaymentId}", request.PaymentId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var payment = await context.Set<PaymentEntity>()
             .AsNoTracking()
             .Include(p => p.Order)
@@ -34,7 +33,6 @@ public class GetPaymentByIdQueryHandler(IDbContext context, IMapper mapper, ILog
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<PaymentDto>(payment);
     }
 }

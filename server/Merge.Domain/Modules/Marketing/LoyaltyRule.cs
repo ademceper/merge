@@ -17,12 +17,10 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class LoyaltyRule : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public LoyaltyTransactionType Type { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - PointsAwarded >= 0
     private int _pointsAwarded;
     public int PointsAwarded 
     { 
@@ -34,7 +32,6 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal? _minimumPurchaseAmount;
     public decimal? MinimumPurchaseAmount 
     { 
@@ -47,7 +44,6 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.6: Invariant validation - ExpiryDays > 0
     private int? _expiryDays;
     public int? ExpiryDays 
     { 
@@ -62,20 +58,16 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
     
     public bool IsActive { get; private set; } = true;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.3: Value Object properties
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money? MinimumPurchaseAmountMoney => _minimumPurchaseAmount.HasValue 
         ? new Money(_minimumPurchaseAmount.Value) 
         : null;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LoyaltyRule() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static LoyaltyRule Create(
         string name,
         string description,
@@ -101,13 +93,11 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - LoyaltyRuleCreatedEvent
         rule.AddDomainEvent(new LoyaltyRuleCreatedEvent(rule.Id, rule.Name, rule.Type, rule.PointsAwarded));
 
         return rule;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate
     public void Activate()
     {
         if (IsActive)
@@ -116,11 +106,9 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LoyaltyRuleActivatedEvent
         AddDomainEvent(new LoyaltyRuleActivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate
     public void Deactivate()
     {
         if (!IsActive)
@@ -129,11 +117,9 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LoyaltyRuleDeactivatedEvent
         AddDomainEvent(new LoyaltyRuleDeactivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string? name = null,
         string? description = null,
@@ -158,7 +144,6 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - LoyaltyRuleUpdatedEvent
         AddDomainEvent(new LoyaltyRuleUpdatedEvent(Id, Name));
     }
 }

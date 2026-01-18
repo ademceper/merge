@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class EmailSubscriber : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.3: Value Objects - Email backing field (EF Core compatibility)
     private string _email = string.Empty;
     public string Email 
     { 
@@ -82,18 +81,14 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
     public DateTime? LastEmailSentAt { get; private set; }
     public DateTime? LastEmailOpenedAt { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private EmailSubscriber() { }
 
-    // ✅ BOLUM 1.3: Value Object properties
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Email EmailValue => new Email(_email);
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static EmailSubscriber Create(
         Email email,
         string? firstName = null,
@@ -118,13 +113,11 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
             SubscribedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         subscriber.AddDomainEvent(new EmailSubscriberCreatedEvent(subscriber.Id, email.Value));
 
         return subscriber;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Subscribe
     public void Subscribe()
     {
         if (IsSubscribed)
@@ -134,11 +127,9 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         SubscribedAt = DateTime.UtcNow;
         UnsubscribedAt = null;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailSubscriberSubscribedEvent(Id, Email));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unsubscribe
     public void Unsubscribe()
     {
         if (!IsSubscribed)
@@ -147,11 +138,9 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         IsSubscribed = false;
         UnsubscribedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailSubscriberUnsubscribedEvent(Id, Email));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string? firstName = null,
         string? lastName = null,
@@ -174,31 +163,26 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         if (customFields != null)
             CustomFields = customFields;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailSubscriberUpdatedEvent(Id, Email));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record email sent
     public void RecordEmailSent()
     {
         EmailsSent++;
         LastEmailSentAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record email opened
     public void RecordEmailOpened()
     {
         EmailsOpened++;
         LastEmailOpenedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record email clicked
     public void RecordEmailClicked()
     {
         EmailsClicked++;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -208,10 +192,8 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         IsSubscribed = false;
         UnsubscribedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailSubscriberDeletedEvent(Id, Email));
     }
-    // ✅ BOLUM 1.1: Domain Method - Restore (undelete)
     public void Restore()
     {
         if (!IsDeleted)

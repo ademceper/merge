@@ -36,8 +36,6 @@ public class GetUserComparisonsQueryHandler(
         logger.LogInformation("Fetching user comparisons. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}, SavedOnly: {SavedOnly}",
             request.UserId, request.Page, request.PageSize, request.SavedOnly);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize > paginationConfig.MaxPageSize
             ? paginationConfig.MaxPageSize
@@ -45,14 +43,12 @@ public class GetUserComparisonsQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_{request.SavedOnly}_{page}_{pageSize}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
                 logger.LogInformation("Cache miss for user comparisons. Fetching from database.");
 
-                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
                 var query = context.Set<ProductComparison>()
                     .AsNoTracking()
                     .AsSplitQuery()
@@ -96,7 +92,6 @@ public class GetUserComparisonsQueryHandler(
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
@@ -108,7 +103,6 @@ public class GetUserComparisonsQueryHandler(
                 .ThenInclude(p => p.Category)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
         var reviews = await context.Set<ReviewEntity>()
@@ -124,8 +118,7 @@ public class GetUserComparisonsQueryHandler(
             .ToListAsync(cancellationToken);
         reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
-        var products = new List<ComparisonProductDto>();
+        List<ComparisonProductDto> products = [];
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
@@ -136,7 +129,7 @@ public class GetUserComparisonsQueryHandler(
                 Rating = hasReviewStats ? (decimal?)stats.Rating : null,
                 ReviewCount = hasReviewStats ? stats.Count : 0,
                 Specifications = new Dictionary<string, string>().AsReadOnly(),
-                Features = new List<string>().AsReadOnly()
+                Features = Array.Empty<string>()
             };
             products.Add(compProduct);
         }

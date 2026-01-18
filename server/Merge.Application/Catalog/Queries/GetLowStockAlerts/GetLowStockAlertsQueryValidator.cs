@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Catalog.Queries.GetLowStockAlerts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetLowStockAlertsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetLowStockAlertsQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

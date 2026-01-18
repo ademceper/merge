@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetTemplate;
 
-/// <summary>
-/// Get Template Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class GetTemplateQueryValidator : AbstractValidator<GetTemplateQuery>
 {
     public GetTemplateQueryValidator()

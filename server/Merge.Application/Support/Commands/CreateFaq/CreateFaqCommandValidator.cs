@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Commands.CreateFaq;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateFaqCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateFaqCommand>
 {
     private readonly SupportSettings config = settings.Value;

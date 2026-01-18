@@ -5,7 +5,6 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record SearchAuditLogsQuery(
     Guid? UserId = null,
     string? UserEmail = null,

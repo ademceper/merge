@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.SendBulkRecoveryEmails;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SendBulkRecoveryEmailsCommandValidator : AbstractValidator<SendBulkRecoveryEmailsCommand>
 {
     public SendBulkRecoveryEmailsCommandValidator()

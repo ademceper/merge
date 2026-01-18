@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.UpdateUserPreference;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateUserPreferenceCommandHandler> logger) : IRequestHandler<UpdateUserPreferenceCommand, UserPreferenceDto>
 {
 
     public async Task<UserPreferenceDto> Handle(UpdateUserPreferenceCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Updating preferences for user: {UserId}", request.UserId);
 
@@ -71,11 +69,9 @@ public class UpdateUserPreferenceCommandHandler(IDbContext context, IUnitOfWork 
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogInformation("Preferences updated successfully for user: {UserId}", request.UserId);
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<UserPreferenceDto>(preferences);
     }
 }

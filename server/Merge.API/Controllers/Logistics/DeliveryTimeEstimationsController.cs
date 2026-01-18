@@ -12,9 +12,14 @@ using Merge.Application.Logistics.Commands.DeleteDeliveryTimeEstimation;
 
 namespace Merge.API.Controllers.Logistics;
 
+/// <summary>
+/// Delivery Time Estimation API endpoints.
+/// Teslimat süresi tahmini işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/delivery-time")]
+[Tags("DeliveryTimeEstimation")]
 public class DeliveryTimeEstimationsController(IMediator mediator) : BaseController
 {
     [HttpGet("estimate")]
@@ -70,7 +75,7 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         var estimation = await mediator.Send(query, cancellationToken);
         if (estimation == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(estimation);
     }

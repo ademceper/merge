@@ -21,7 +21,6 @@ namespace Merge.Application.Services.User;
 public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserActivityService> logger) : IUserActivityService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task LogActivityAsync(CreateActivityLogDto activityDto, string ipAddress, string userAgent, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", activityDto.ActivityType, activityDto.UserId);
@@ -48,7 +47,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
                 deviceType = DeviceType.Other;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var activity = UserActivityLog.Create(
             activityType: activityType,
             entityType: entityType,
@@ -72,12 +70,10 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
         logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserActivityLogDto?> GetActivityByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Retrieving activity with ID: {ActivityId}", id);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var activity = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
@@ -89,18 +85,15 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<UserActivityLogDto>(activity);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserActivityLogDto>> GetUserActivitiesAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", userId, days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var activities = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
@@ -110,16 +103,13 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
 
         logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, userId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserActivityLogDto>> GetActivitiesAsync(ActivityFilterDto filter, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", filter.PageNumber, filter.PageSize);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
@@ -163,19 +153,15 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
 
         logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ActivityStatsDto> GetActivityStatsAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Generating activity statistics for last {Days} days", days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate);
@@ -187,7 +173,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Distinct()
             .CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap
         var activitiesByType = await query
             .GroupBy(a => a.ActivityType)
             .Select(g => new { Type = g.Key, Count = g.Count() })
@@ -203,8 +188,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Select(g => new { Hour = g.Key.ToString(), Count = g.Count() })
             .ToDictionaryAsync(x => x.Hour, x => x.Count, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping ve ordering yap
-        // ✅ userIds'i önce database'de oluştur, sonra topUsersData'yı al
         var userIds = await query
             .Where(a => a.UserId.HasValue)
             .GroupBy(a => a.UserId)
@@ -218,14 +201,11 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Select(u => u.UserId)
             .ToListAsync(cancellationToken);
         
-        // ✅ PERFORMANCE: Batch load user emails
         var userEmails = await context.Users
             .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de topUsersData'yı al (userIds ile filtrele)
-        // ✅ DTO'ları database query'sinde oluştur, memory'de Select YASAK
         var topUsersData = await query
             .Where(a => a.UserId.HasValue && userIds.Contains(a.UserId.Value))
             .GroupBy(a => a.UserId)
@@ -240,7 +220,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Take(10)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: UserEmail'i batch loaded dictionary'den set et (minimal memory işlemi)
         foreach (var user in topUsersData)
         {
             if (userEmails.TryGetValue(user.UserId, out var email) && !string.IsNullOrEmpty(email))
@@ -253,7 +232,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
 
         var mostViewedProducts = await GetMostViewedProductsAsync(days, 10, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de average hesapla
         var avgSessionDuration = await query
             .Where(a => a.DurationMs > 0)
             .AverageAsync(a => (decimal?)a.DurationMs, cancellationToken) ?? 0;
@@ -273,14 +251,12 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserSessionDto>> GetUserSessionsAsync(Guid userId, int days = 7, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", userId, days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var activities = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
@@ -289,8 +265,7 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .ToListAsync(cancellationToken);
 
         var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / 10 : 1);
-        // ✅ HIGH-NET-001 FIX: Collection expressions (C# 12)
-        var currentSession = new List<UserActivityLog>();
+        List<UserActivityLog> currentSession = [];
         var sessionTimeout = TimeSpan.FromMinutes(30);
 
         foreach (var activity in activities)
@@ -300,7 +275,7 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             {
                 // Start new session
                 sessions.Add(CreateSessionDto(currentSession));
-                currentSession = new List<UserActivityLog>();
+                currentSession = [];
             }
 
             currentSession.Add(activity);
@@ -317,15 +292,12 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
         return sessions;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", days, topN);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: productIds'i önce database'de oluştur, sonra productActivities'ı al
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var productIds = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
@@ -344,7 +316,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Select(p => p.ProductId)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de productActivities'ı al (productIds ile filtrele)
         var productActivitiesData = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
@@ -377,7 +348,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Select(g => new { ProductId = g.Key, PurchaseCount = g.Sum(oi => oi.Quantity) })
             .ToDictionaryAsync(p => p.ProductId, p => p.PurchaseCount, cancellationToken);
 
-        // ✅ PERFORMANCE: DTO'ları oluştur (minimal memory işlemi - property assignment ve dictionary lookup)
         // Note: Dictionary lookup ve matematiksel işlemler minimal memory işlemleridir
         var result = new List<PopularProductDto>(productActivitiesData.Count);
         foreach (var p in productActivitiesData)
@@ -401,14 +371,12 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
         return result;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task DeleteOldActivitiesAsync(int daysToKeep = 90, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Deleting old activities older than {Days} days", daysToKeep);
 
         var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
 
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var oldActivities = await context.Set<UserActivityLog>()
             .Where(a => a.CreatedAt < cutoffDate)
             .ToListAsync(cancellationToken);
@@ -421,7 +389,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
-        // ✅ ERROR HANDLING FIX: Safe First()/Last() operations with null check
         if (activities == null || activities.Count == 0)
         {
             throw new ArgumentException("Activities list cannot be empty", nameof(activities));
@@ -438,7 +405,6 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             SessionEnd = last.CreatedAt,
             DurationMinutes = (int)(last.CreatedAt - first.CreatedAt).TotalMinutes,
             ActivitiesCount = activities.Count,
-            // ✅ ARCHITECTURE: AutoMapper kullan
             Activities = mapper.Map<List<UserActivityLogDto>>(activities)
         };
     }

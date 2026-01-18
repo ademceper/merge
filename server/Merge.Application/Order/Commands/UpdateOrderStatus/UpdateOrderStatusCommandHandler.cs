@@ -31,11 +31,9 @@ public class UpdateOrderStatusCommandHandler(
 
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (Encapsulation)
             // TransitionTo methodu içinde status validasyonu ve Domain Event tetiklenmesi yapılır
             order.TransitionTo(request.Status);
 
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             logger.LogInformation("Order status updated successfully. OrderId: {OrderId}, Status: {NewStatus}",

@@ -17,10 +17,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Banners API endpoints.
+/// Banner'ları yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/banners")]
+[Tags("Banners")]
 public class BannersController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -48,8 +52,6 @@ public class BannersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -83,8 +85,6 @@ public class BannersController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -111,13 +111,12 @@ public class BannersController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBannerByIdQuery(id);
         var banner = await mediator.Send(query, cancellationToken);
         
         if (banner == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(banner);
     }
@@ -150,7 +149,6 @@ public class BannersController(
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var banner = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
     }
@@ -187,7 +185,6 @@ public class BannersController(
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var banner = await mediator.Send(updateCommand, cancellationToken);
         return Ok(banner);
@@ -244,13 +241,12 @@ public class BannersController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBannerCommand(id);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

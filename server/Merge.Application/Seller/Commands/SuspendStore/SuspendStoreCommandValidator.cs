@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.SuspendStore;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class SuspendStoreCommandValidator : AbstractValidator<SuspendStoreCommand>
 {
     public SuspendStoreCommandValidator()

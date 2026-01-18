@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class EmailVerification : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public string Email { get; private set; } = string.Empty;
     public string Token { get; private set; } = string.Empty;
@@ -28,14 +27,11 @@ public class EmailVerification : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private EmailVerification() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static EmailVerification Create(
         Guid userId,
         string email,
@@ -60,13 +56,11 @@ public class EmailVerification : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - EmailVerificationCreatedEvent
         verification.AddDomainEvent(new EmailVerificationCreatedEvent(verification.Id, userId, email));
 
         return verification;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Verify email
     public void Verify()
     {
         if (IsVerified)
@@ -79,11 +73,9 @@ public class EmailVerification : BaseEntity, IAggregateRoot
         VerifiedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - EmailVerifiedEvent
         AddDomainEvent(new EmailVerifiedEvent(UserId, Email, Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Computed property
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
 }
 

@@ -12,22 +12,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetInvoice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetInvoiceQueryHandler(IDbContext context, IMapper mapper, ILogger<GetInvoiceQueryHandler> logger) : IRequestHandler<GetInvoiceQuery, SellerInvoiceDto?>
 {
 
     public async Task<SellerInvoiceDto?> Handle(GetInvoiceQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting invoice. InvoiceId: {InvoiceId}", request.InvoiceId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
         var invoice = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return invoice != null ? mapper.Map<SellerInvoiceDto>(invoice) : null;
     }
 }

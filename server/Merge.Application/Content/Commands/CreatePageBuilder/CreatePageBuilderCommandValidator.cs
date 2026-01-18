@@ -3,7 +3,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Content.Commands.CreatePageBuilder;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class CreatePageBuilderCommandValidator : AbstractValidator<CreatePageBuilderCommand>
 {
     public CreatePageBuilderCommandValidator()

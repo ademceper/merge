@@ -10,18 +10,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Support.EventHandlers;
 
-/// <summary>
-/// Support Ticket Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class SupportTicketCreatedEventHandler(ILogger<SupportTicketCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SupportTicketCreatedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(SupportTicketCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Support ticket created event received. TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}, Category: {Category}, Priority: {Priority}",
             notification.TicketId, notification.TicketNumber, notification.UserId, notification.Category, notification.Priority);
@@ -29,7 +22,7 @@ public class SupportTicketCreatedEventHandler(ILogger<SupportTicketCreatedEventH
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -38,7 +31,7 @@ public class SupportTicketCreatedEventHandler(ILogger<SupportTicketCreatedEventH
                     $"Destek talebiniz başarıyla oluşturuldu. Talep No: {notification.TicketNumber}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -46,7 +39,6 @@ public class SupportTicketCreatedEventHandler(ILogger<SupportTicketCreatedEventH
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling SupportTicketCreatedEvent. TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}",
                 notification.TicketId, notification.TicketNumber, notification.UserId);

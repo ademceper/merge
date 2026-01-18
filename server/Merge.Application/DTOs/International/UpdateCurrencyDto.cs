@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.International;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record UpdateCurrencyDto(
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Para birimi adı en az 2, en fazla 100 karakter olmalıdır.")]
     string Name,

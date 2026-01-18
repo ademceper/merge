@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.DTOs.Seller;
 
-// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
 public record UpdateStoreDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Mağaza adı en az 2, en fazla 200 karakter olmalıdır.")]
@@ -41,7 +40,6 @@ public record UpdateStoreDto
     [StringLength(20)]
     public string? PostalCode { get; init; }
     
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public EntityStatus? Status { get; init; }
     
     public bool? IsPrimary { get; init; }

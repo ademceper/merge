@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.ScheduleEmailCampaign;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class ScheduleEmailCampaignCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -20,11 +19,9 @@ public class ScheduleEmailCampaignCommandHandler(
 {
     public async Task<bool> Handle(ScheduleEmailCampaignCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Scheduling email campaign. CampaignId: {CampaignId}, ScheduledAt: {ScheduledAt}", 
             request.Id, request.ScheduledAt);
 
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
@@ -34,7 +31,6 @@ public class ScheduleEmailCampaignCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         campaign.Schedule(request.ScheduledAt);
 
         // Prepare recipients (EmailCampaignService'deki PrepareCampaignRecipientsAsync mantığı)
@@ -42,10 +38,8 @@ public class ScheduleEmailCampaignCommandHandler(
         var subscribers = await GetTargetedSubscribersAsync(campaign.TargetSegment, cancellationToken);
         campaign.StartSending(subscribers.Count);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Email campaign scheduled successfully. CampaignId: {CampaignId}, ScheduledAt: {ScheduledAt}, Recipients: {Recipients}", 
             request.Id, request.ScheduledAt, subscribers.Count);
 

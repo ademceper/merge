@@ -22,15 +22,11 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
         IQueryable<NotificationEntity> query = context.Set<NotificationEntity>()
             .AsNoTracking()
             .Where(n => n.UserId == userId);
@@ -48,7 +44,6 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var notificationDtos = mapper.Map<IEnumerable<NotificationDto>>(notifications);
 
         return new PagedResult<NotificationDto>
@@ -60,7 +55,6 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto?> GetByIdAsync(Guid notificationId, CancellationToken cancellationToken = default)
     {
         var notification = await context.Set<NotificationEntity>()
@@ -75,16 +69,12 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
         return mapper.Map<NotificationDto>(notification);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto> CreateNotificationAsync(CreateNotificationDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Notification oluşturuluyor. UserId: {UserId}, Type: {Type}, Title: {Title}",
             dto.UserId, dto.Type, dto.Title);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ FIX: Notification namespace conflict - using alias
         var notification = NotificationEntity.Create(
             dto.UserId,
             dto.Type,
@@ -95,22 +85,17 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
 
         await notificationRepository.AddAsync(notification);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Notification oluşturuldu. NotificationId: {NotificationId}, UserId: {UserId}, Type: {Type}",
             notification.Id, dto.UserId, dto.Type);
         
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<NotificationDto>(notification);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> MarkAsReadAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
         var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
@@ -119,42 +104,33 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         notification.MarkAsRead();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
         var notifications = await context.Set<NotificationEntity>()
             .Where(n => n.UserId == userId && !n.IsRead)
             .ToListAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         foreach (var notification in notifications)
         {
             notification.MarkAsRead();
         }
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
         if (notifications.Count > 0)
         {
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteNotificationAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
         var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
@@ -163,18 +139,14 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         notification.Delete();
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
         return await context.Set<NotificationEntity>()
             .CountAsync(n => n.UserId == userId && !n.IsRead, cancellationToken);
     }

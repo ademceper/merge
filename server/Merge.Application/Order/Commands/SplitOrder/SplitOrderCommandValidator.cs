@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.SplitOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Validation
 public class SplitOrderCommandValidator : AbstractValidator<SplitOrderCommand>
 {
     public SplitOrderCommandValidator()

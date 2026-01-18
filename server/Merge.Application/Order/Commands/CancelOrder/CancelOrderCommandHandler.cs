@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CancelOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CancelOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CancelOrderCommandHandler> logger) : IRequestHandler<CancelOrderCommand, bool>
 {
 
@@ -35,21 +34,16 @@ public class CancelOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             throw new BusinessException("Bu sipariş iptal edilemez.");
         }
 
-        // ✅ CRITICAL: Transaction for atomic stock restoration
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             foreach (var item in order.OrderItems)
             {
                 item.Product.IncreaseStock(item.Quantity);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             order.Cancel();
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 

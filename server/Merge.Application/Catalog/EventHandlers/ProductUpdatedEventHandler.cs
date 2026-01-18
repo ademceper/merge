@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Product Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ProductUpdatedEventHandler(
     ILogger<ProductUpdatedEventHandler> logger) : INotificationHandler<ProductUpdatedEvent>
 {
 
     public async Task Handle(ProductUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Product updated event received. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}, CategoryId: {CategoryId}",
             notification.ProductId, notification.Name, notification.SKU, notification.CategoryId);
@@ -34,7 +30,6 @@ public class ProductUpdatedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ProductUpdatedEvent. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}",
                 notification.ProductId, notification.Name, notification.SKU);

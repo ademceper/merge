@@ -12,7 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetReviewMedia;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetReviewMediaQueryHandler(IDbContext context, IMapper mapper, ILogger<GetReviewMediaQueryHandler> logger) : IRequestHandler<GetReviewMediaQuery, IEnumerable<ReviewMediaDto>>
 {
 
@@ -20,14 +19,12 @@ public class GetReviewMediaQueryHandler(IDbContext context, IMapper mapper, ILog
     {
         logger.LogInformation("Fetching review media. ReviewId: {ReviewId}", request.ReviewId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
         var media = await context.Set<ReviewMedia>()
             .AsNoTracking()
             .Where(m => m.ReviewId == request.ReviewId)
             .OrderBy(m => m.DisplayOrder)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<ReviewMediaDto>>(media);
     }
 }

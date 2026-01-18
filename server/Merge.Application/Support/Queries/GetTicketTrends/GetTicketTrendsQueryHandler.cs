@@ -10,13 +10,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetTicketTrends;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTicketTrendsQueryHandler(IDbContext context) : IRequestHandler<GetTicketTrendsQuery, List<TicketTrendDto>>
 {
 
     public async Task<List<TicketTrendDto>> Handle(GetTicketTrendsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
@@ -35,7 +33,6 @@ public class GetTicketTrendsQueryHandler(IDbContext context) : IRequestHandler<G
             query = query.Where(t => t.CreatedAt <= request.EndDate.Value);
         }
 
-        // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
         // Note: EF Core doesn't support grouping by Date directly, so we need to use a workaround
         var trends = await query
             .GroupBy(t => new { Year = t.CreatedAt.Year, Month = t.CreatedAt.Month, Day = t.CreatedAt.Day })

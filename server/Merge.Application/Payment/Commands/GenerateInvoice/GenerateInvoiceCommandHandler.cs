@@ -82,8 +82,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             var invoiceNumber = GenerateInvoiceNumber();
             var dueDate = DateTime.UtcNow.AddDays(paymentConfig.InvoiceDueDays);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
-            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var subTotalMoney = new Money(order.SubTotal);
             var taxMoney = new Money(order.Tax);
             var shippingCostMoney = new Money(order.ShippingCost);
@@ -101,7 +99,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
                 totalAmountMoney);
 
             await context.Set<Invoice>().AddAsync(invoice, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             invoice = await context.Set<Invoice>()
@@ -120,7 +117,6 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             logger.LogInformation("Invoice generated successfully. InvoiceId: {InvoiceId}, InvoiceNumber: {InvoiceNumber}, OrderId: {OrderId}",
                 invoice!.Id, invoiceNumber, request.OrderId);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<InvoiceDto>(invoice);
         }
         catch (Exception ex)

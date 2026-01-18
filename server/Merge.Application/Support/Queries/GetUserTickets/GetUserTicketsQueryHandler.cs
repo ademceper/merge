@@ -18,22 +18,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetUserTickets;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserTicketsQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetUserTicketsQuery, PagedResult<SupportTicketDto>>
 {
-    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
-
     public async Task<PagedResult<SupportTicketDto>> Handle(GetUserTicketsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var pageSize = request.PageSize > 0 && request.PageSize <= paginationConfig.MaxPageSize 
-            ? request.PageSize 
-            : paginationConfig.DefaultPageSize;
+        var pageSize = request.PageSize > 0 && request.PageSize <= paginationSettings.Value.MaxPageSize
+            ? request.PageSize
+            : paginationSettings.Value.DefaultPageSize;
         var page = request.Page > 0 ? request.Page : 1;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -51,22 +44,14 @@ public class GetUserTicketsQueryHandler(IDbContext context, IMapper mapper, IOpt
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var paginatedTicketsQuery = query
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize);
 
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var tickets = await paginatedTicketsQuery
-            .AsSplitQuery()
-            .Include(t => t.User)
-            .Include(t => t.Order)
-            .Include(t => t.Product)
-            .Include(t => t.AssignedTo)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets (subquery ile)
         var ticketIdsSubquery = from t in paginatedTicketsQuery select t.Id;
         var messagesDict = await context.Set<TicketMessage>()
             .AsNoTracking()
@@ -96,7 +81,6 @@ public class GetUserTicketsQueryHandler(IDbContext context, IMapper mapper, IOpt
         {
             var dto = mapper.Map<SupportTicketDto>(ticket);
             
-            // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
@@ -117,7 +101,6 @@ public class GetUserTicketsQueryHandler(IDbContext context, IMapper mapper, IOpt
                 attachments = Array.Empty<TicketAttachmentDto>().AsReadOnly();
             }
             
-            // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
             dtos.Add(dto with { Messages = messages, Attachments = attachments });
         }
 

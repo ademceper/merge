@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Content.Commands.UpdateSitemapEntry;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateSitemapEntryCommandValidator : AbstractValidator<UpdateSitemapEntryCommand>
 {
     public UpdateSitemapEntryCommandValidator()

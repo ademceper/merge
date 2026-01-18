@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetAllPayouts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAllPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllPayoutsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllPayoutsQuery, PagedResult<CommissionPayoutDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -25,19 +24,14 @@ public class GetAllPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogg
 
     public async Task<PagedResult<CommissionPayoutDto>> Handle(GetAllPayoutsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting all payouts. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         IQueryable<CommissionPayout> query = context.Set<CommissionPayout>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -46,7 +40,6 @@ public class GetAllPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogg
                 .ThenInclude(i => i.Commission)
                     .ThenInclude(c => c.Order);
 
-        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         if (request.Status.HasValue)
         {
             query = query.Where(p => p.Status == request.Status.Value);
@@ -60,7 +53,6 @@ public class GetAllPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogg
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var payoutDtos = mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts).ToList();
 
         return new PagedResult<CommissionPayoutDto>

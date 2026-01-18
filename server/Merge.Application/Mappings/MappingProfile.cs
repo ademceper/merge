@@ -35,7 +35,6 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        // ✅ ARCHITECTURE: Domain-specific mapping profiles
         // Each domain has its own mapping profile for better maintainability and Single Responsibility Principle
         
         // Note: AutoMapper automatically discovers all Profile classes in the assembly

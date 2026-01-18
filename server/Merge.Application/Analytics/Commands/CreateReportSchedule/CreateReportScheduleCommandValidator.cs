@@ -3,7 +3,6 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Analytics.Commands.CreateReportSchedule;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateReportScheduleCommandValidator : AbstractValidator<CreateReportScheduleCommand>
 {
     public CreateReportScheduleCommandValidator()

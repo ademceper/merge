@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Queries.GetWholesalePrice;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetWholesalePriceQueryValidator : AbstractValidator<GetWholesalePriceQuery>
 {
     public GetWholesalePriceQueryValidator()

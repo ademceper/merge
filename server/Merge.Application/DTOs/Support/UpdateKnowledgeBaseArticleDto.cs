@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Support;
 
-/// <summary>
-/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
-/// </summary>
+
 public record UpdateKnowledgeBaseArticleDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Başlık en az 2, en fazla 200 karakter olmalıdır.")]

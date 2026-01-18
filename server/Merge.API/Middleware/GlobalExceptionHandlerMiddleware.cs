@@ -11,8 +11,6 @@ using Merge.Domain.Exceptions;
 
 namespace Merge.API.Middleware;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior exception handling (ZORUNLU)
-// ✅ BOLUM 4.1.4: RFC 7807 Problem Details (ZORUNLU)
 public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlerMiddleware> logger, IWebHostEnvironment environment)
 {
 
@@ -36,7 +34,6 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
 
         switch (exception)
         {
-            // ✅ BOLUM 2.1: FluentValidation ValidationException handling
             case FluentValidation.ValidationException validationEx:
                 problemDetails.Type = "https://api.merge.com/errors/validation-error";
                 problemDetails.Title = "Validation Error";
@@ -55,6 +52,31 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
+
+            case Merge.Application.Exceptions.ValidationException validationEx:
+                problemDetails.Type = $"https://api.merge.com/errors/{validationEx.ErrorCode.ToLowerInvariant().Replace("_", "-")}";
+                problemDetails.Title = "Validation Error";
+                problemDetails.Status = validationEx.HttpStatusCode; // 400
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = validationEx.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                problemDetails.Extensions["errorCode"] = validationEx.ErrorCode;
+
+                // Validation errors ekle
+                if (validationEx.Errors.Count > 0)
+                {
+                    problemDetails.Extensions["errors"] = validationEx.Errors;
+                }
+
+                // Metadata ekle
+                foreach (var (key, value) in validationEx.Metadata)
+                {
+                    problemDetails.Extensions[key] = value;
+                }
+
+                context.Response.StatusCode = validationEx.HttpStatusCode;
                 break;
             
             case ArgumentNullException:
@@ -85,16 +107,34 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
             case DomainException domainEx:
                 problemDetails.Type = "https://api.merge.com/errors/domain-error";
                 problemDetails.Title = "Domain Error";
-                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Status = (int)HttpStatusCode.UnprocessableEntity; // 422 - Business rule violation
                 problemDetails.Instance = context.Request.Path;
                 problemDetails.Detail = domainEx.Message;
                 problemDetails.Extensions["traceId"] = traceId;
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                context.Response.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
                 break;
                 
-            case NotFoundException:
+            case NotFoundException notFoundEx:
+                problemDetails.Type = $"https://api.merge.com/errors/{notFoundEx.ErrorCode.ToLowerInvariant().Replace("_", "-")}";
+                problemDetails.Title = "Not Found";
+                problemDetails.Status = notFoundEx.HttpStatusCode; // 404
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = notFoundEx.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                problemDetails.Extensions["errorCode"] = notFoundEx.ErrorCode;
+
+                // Metadata ekle
+                foreach (var (key, value) in notFoundEx.Metadata)
+                {
+                    problemDetails.Extensions[key] = value;
+                }
+
+                context.Response.StatusCode = notFoundEx.HttpStatusCode;
+                break;
+
             case KeyNotFoundException:
             case InvalidOperationException when exception.Message.Contains("not found") || exception.Message.Contains("bulunamadı"):
                 problemDetails.Type = "https://api.merge.com/errors/not-found";
@@ -108,10 +148,28 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 break;
                 
-            case BusinessException:
-            case InvalidOperationException:
-                problemDetails.Type = "https://api.merge.com/errors/business-error";
+            case BusinessException businessEx:
+                problemDetails.Type = $"https://api.merge.com/errors/{businessEx.ErrorCode.ToLowerInvariant().Replace("_", "-")}";
                 problemDetails.Title = "Business Error";
+                problemDetails.Status = businessEx.HttpStatusCode; // 422 - Unprocessable Entity
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = businessEx.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                problemDetails.Extensions["errorCode"] = businessEx.ErrorCode;
+
+                // Metadata ekle
+                foreach (var (key, value) in businessEx.Metadata)
+                {
+                    problemDetails.Extensions[key] = value;
+                }
+
+                context.Response.StatusCode = businessEx.HttpStatusCode;
+                break;
+
+            case InvalidOperationException:
+                problemDetails.Type = "https://api.merge.com/errors/invalid-operation";
+                problemDetails.Title = "Invalid Operation";
                 problemDetails.Status = (int)HttpStatusCode.BadRequest;
                 problemDetails.Instance = context.Request.Path;
                 problemDetails.Detail = exception.Message;
@@ -121,7 +179,6 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
 
-            // ✅ ERROR HANDLING FIX: DbUpdateConcurrencyException - optimistic concurrency conflict
             case DbUpdateConcurrencyException:
                 problemDetails.Type = "https://api.merge.com/errors/concurrency-conflict";
                 problemDetails.Title = "Concurrency Conflict";
@@ -134,7 +191,6 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 context.Response.StatusCode = (int)HttpStatusCode.Conflict;
                 break;
 
-            // ✅ ERROR HANDLING FIX: DbUpdateException - database constraint violations
             case DbUpdateException dbEx:
                 problemDetails.Type = "https://api.merge.com/errors/database-error";
                 problemDetails.Title = "Database Error";
@@ -148,6 +204,25 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
 
+            case ConfigurationException configEx:
+                problemDetails.Type = $"https://api.merge.com/errors/{configEx.ErrorCode.ToLowerInvariant().Replace("_", "-")}";
+                problemDetails.Title = "Configuration Error";
+                problemDetails.Status = configEx.HttpStatusCode; // 500
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = configEx.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                problemDetails.Extensions["errorCode"] = configEx.ErrorCode;
+
+                // Metadata ekle
+                foreach (var (key, value) in configEx.Metadata)
+                {
+                    problemDetails.Extensions[key] = value;
+                }
+
+                context.Response.StatusCode = configEx.HttpStatusCode;
+                break;
+
             default:
                 problemDetails.Type = "https://api.merge.com/errors/internal-server-error";
                 problemDetails.Title = "An unexpected error occurred";
@@ -157,7 +232,6 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 problemDetails.Extensions["traceId"] = traceId;
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
-                // ✅ SECURITY FIX: Stack trace sadece Development'ta ve sınırlı bilgi ile
                 if (environment.IsDevelopment())
                 {
                     problemDetails.Extensions["exception"] = exception.GetType().Name;
@@ -186,7 +260,6 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
         return context.Response.WriteAsync(result);
     }
 
-    // ✅ ERROR HANDLING FIX: User-friendly database error messages
     private static string GetDbErrorMessage(DbUpdateException ex)
     {
         var innerMessage = ex.InnerException?.Message ?? ex.Message;

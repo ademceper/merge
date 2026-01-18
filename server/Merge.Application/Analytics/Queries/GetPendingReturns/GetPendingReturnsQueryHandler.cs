@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetPendingReturns;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPendingReturnsQueryHandler(
     IDbContext context,
     ILogger<GetPendingReturnsQueryHandler> logger,
@@ -32,14 +30,10 @@ public class GetPendingReturnsQueryHandler(
     {
         logger.LogInformation("Fetching pending returns. Page: {Page}, PageSize: {PageSize}", request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<ReturnRequest>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -55,7 +49,6 @@ public class GetPendingReturnsQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<ReturnRequestDto>
         {
             Items = mapper.Map<List<ReturnRequestDto>>(returns),

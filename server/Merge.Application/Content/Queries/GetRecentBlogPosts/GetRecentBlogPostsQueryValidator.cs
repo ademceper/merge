@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetRecentBlogPosts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetRecentBlogPostsQueryValidator(IOptions<ContentSettings> contentSettings) : AbstractValidator<GetRecentBlogPostsQuery>
 {
     private readonly ContentSettings config = contentSettings.Value;

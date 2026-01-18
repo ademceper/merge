@@ -17,12 +17,10 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class CreditTerm : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrganizationId { get; private set; }
     public string Name { get; private set; } = string.Empty; // e.g., "Net 30", "Net 60"
     public int PaymentDays { get; private set; } // Number of days to pay
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal? _creditLimit;
     private decimal? _usedCredit;
     
@@ -53,7 +51,6 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money? CreditLimitMoney => _creditLimit.HasValue ? new Money(_creditLimit.Value) : null;
     
@@ -63,17 +60,14 @@ public class CreditTerm : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Terms { get; private set; } // Additional terms description
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Organization Organization { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CreditTerm() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static CreditTerm Create(
         Guid organizationId,
         Organization organization,
@@ -101,7 +95,6 @@ public class CreditTerm : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Created
         creditTerm.AddDomainEvent(new CreditTermCreatedEvent(
             creditTerm.Id,
             organizationId,
@@ -112,7 +105,6 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         return creditTerm;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Use credit
     public void UseCredit(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
@@ -122,43 +114,36 @@ public class CreditTerm : BaseEntity, IAggregateRoot
 
         var newUsedCredit = (UsedCredit ?? 0) + amount;
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (newUsedCredit > CreditLimit.Value)
             throw new DomainException("Kredi limiti aşıldı");
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Credit Used
         AddDomainEvent(new CreditTermCreditUsedEvent(Id, OrganizationId, amount, newUsedCredit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Release credit
     public void ReleaseCredit(decimal amount)
     {
         Guard.AgainstNegativeOrZero(amount, nameof(amount));
 
         var newUsedCredit = (UsedCredit ?? 0) - amount;
 
-        // ✅ BOLUM 1.6: Invariant validation
         if (newUsedCredit < 0)
             throw new DomainException("Kullanılan kredi negatif olamaz");
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Credit Released
         AddDomainEvent(new CreditTermCreditReleasedEvent(Id, OrganizationId, amount, newUsedCredit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update credit limit
     public void UpdateCreditLimit(decimal? creditLimit)
     {
         if (creditLimit.HasValue)
         {
             Guard.AgainstNegative(creditLimit.Value, nameof(creditLimit));
             
-            // ✅ BOLUM 1.6: Invariant validation
             if (UsedCredit.HasValue && UsedCredit.Value > creditLimit.Value)
                 throw new DomainException("Kullanılan kredi, kredi limitinden büyük olamaz");
         }
@@ -166,17 +151,14 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         CreditLimit = creditLimit;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Updated
         AddDomainEvent(new CreditTermUpdatedEvent(Id, OrganizationId, Name, PaymentDays, creditLimit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
     public void Activate()
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Activated
         AddDomainEvent(new CreditTermActivatedEvent(Id, OrganizationId));
     }
 
@@ -185,11 +167,9 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Deactivated
         AddDomainEvent(new CreditTermDeactivatedEvent(Id, OrganizationId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update details
     public void UpdateDetails(string name, int paymentDays, string? terms = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
@@ -200,11 +180,9 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         Terms = terms;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Updated
         AddDomainEvent(new CreditTermUpdatedEvent(Id, OrganizationId, name, paymentDays, CreditLimit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
     public void Delete()
     {
         if (IsDeleted)
@@ -213,7 +191,6 @@ public class CreditTerm : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Event - Credit Term Deleted
         AddDomainEvent(new CreditTermDeletedEvent(Id, OrganizationId));
     }
 }

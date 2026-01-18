@@ -2,7 +2,6 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Inventory;
 namespace Merge.Application.DTOs.Logistics;
 
-// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 public record DeliveryTimeEstimateResultDto(
     int MinDays,
     int MaxDays,

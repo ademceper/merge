@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.UpdateTrustBadge;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateTrustBadgeCommandHandler> logger) : IRequestHandler<UpdateTrustBadgeCommand, TrustBadgeDto>
 {
 
@@ -31,7 +30,6 @@ public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
             throw new NotFoundException("Rozet", request.BadgeId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         if (!string.IsNullOrEmpty(request.Name))
             badge.UpdateName(request.Name);
         if (request.Description != null)
@@ -61,7 +59,6 @@ public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
 
         logger.LogInformation("Trust badge updated successfully. BadgeId: {BadgeId}", request.BadgeId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<TrustBadgeDto>(badge);
     }
 }

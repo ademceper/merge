@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetSystemHealth;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetSystemHealthQueryValidator : AbstractValidator<GetSystemHealthQuery>
 {
     public GetSystemHealthQueryValidator()

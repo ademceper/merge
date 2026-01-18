@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Validate Coupon DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record ValidateCouponDto
 {
     [Required(ErrorMessage = "Coupon code is required")]

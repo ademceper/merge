@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetOrganizationB2BUsersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetOrganizationB2BUsersQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

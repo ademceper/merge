@@ -5,16 +5,11 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.Interfaces;
 
-// ✅ BOLUM 1.1: Interface'ler Application katmanında olmalı (Clean Architecture)
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-// ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
 public interface IRepository<T> where T : BaseEntity
 {
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);
     
-    // ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
     Task<T?> GetBySpecAsync(ISpecification<T> spec, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<T>> ListAsync(ISpecification<T> spec, CancellationToken cancellationToken = default);
     Task<int> CountAsync(ISpecification<T> spec, CancellationToken cancellationToken = default);

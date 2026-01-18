@@ -18,8 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreateVolumeDiscount;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateVolumeDiscountCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -32,7 +30,6 @@ public class CreateVolumeDiscountCommandHandler(
         logger.LogInformation("Creating volume discount. ProductId: {ProductId}, CategoryId: {CategoryId}, OrganizationId: {OrganizationId}",
             request.Dto.ProductId, request.Dto.CategoryId, request.Dto.OrganizationId);
 
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
         ProductEntity? product = null;
         if (request.Dto.ProductId.HasValue)
@@ -55,7 +52,6 @@ public class CreateVolumeDiscountCommandHandler(
                 .FirstOrDefaultAsync(o => o.Id == request.Dto.OrganizationId.Value, cancellationToken);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var discount = VolumeDiscount.Create(
             request.Dto.ProductId ?? Guid.Empty,
             product,
@@ -83,7 +79,6 @@ public class CreateVolumeDiscountCommandHandler(
 
         logger.LogInformation("Volume discount created successfully. VolumeDiscountId: {VolumeDiscountId}", discount!.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<VolumeDiscountDto>(discount);
     }
 }

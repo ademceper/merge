@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetAdminLowStockProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAdminLowStockProductsQueryHandler(
     IDbContext context,
     ILogger<GetAdminLowStockProductsQueryHandler> logger,
@@ -25,8 +23,6 @@ public class GetAdminLowStockProductsQueryHandler(
     {
         logger.LogInformation("Fetching admin low stock products. Threshold: {Threshold}", request.Threshold);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
         var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
@@ -34,7 +30,6 @@ public class GetAdminLowStockProductsQueryHandler(
             .OrderBy(p => p.StockQuantity)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<IEnumerable<ProductDto>>(products);
     }
 }

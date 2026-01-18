@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.B2B.EventHandlers;
 
-/// <summary>
-/// Volume Discount Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class VolumeDiscountUpdatedEventHandler(
     ILogger<VolumeDiscountUpdatedEventHandler> logger) : INotificationHandler<VolumeDiscountUpdatedEvent>
 {
 
     public async Task Handle(VolumeDiscountUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Volume discount updated event received. VolumeDiscountId: {VolumeDiscountId}, ProductId: {ProductId}, CategoryId: {CategoryId}, OrganizationId: {OrganizationId}, DiscountPercentage: {DiscountPercentage}, FixedDiscountAmount: {FixedDiscountAmount}",
             notification.VolumeDiscountId, notification.ProductId, notification.CategoryId, notification.OrganizationId, notification.DiscountPercentage, notification.FixedDiscountAmount);

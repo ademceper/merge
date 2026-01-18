@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Inventory;
 /// </summary>
 public class StockMovement : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid InventoryId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid WarehouseId { get; private set; }
@@ -52,10 +51,8 @@ public class StockMovement : BaseEntity, IAggregateRoot
     public Warehouse? FromWarehouse { get; private set; }
     public Warehouse? ToWarehouse { get; private set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private StockMovement() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static StockMovement Create(
         Guid inventoryId,
         Guid productId,
@@ -100,7 +97,6 @@ public class StockMovement : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - StockMovementCreatedEvent
         stockMovement.AddDomainEvent(new StockMovementCreatedEvent(
             stockMovement.Id,
             stockMovement.ProductId,
@@ -113,7 +109,6 @@ public class StockMovement : BaseEntity, IAggregateRoot
         return stockMovement;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;

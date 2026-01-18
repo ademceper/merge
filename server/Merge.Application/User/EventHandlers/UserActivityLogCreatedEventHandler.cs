@@ -4,13 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.User.EventHandlers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UserActivityLogCreatedEventHandler(ILogger<UserActivityLogCreatedEventHandler> logger) : INotificationHandler<UserActivityLogCreatedEvent>
 {
 
     public async Task Handle(UserActivityLogCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation(
             "User activity log created event received. ActivityLogId: {ActivityLogId}, UserId: {UserId}, ActivityType: {ActivityType}, EntityType: {EntityType}, EntityId: {EntityId}",

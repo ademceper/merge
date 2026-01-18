@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetPopularSearches;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetPopularSearchesQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetPopularSearchesQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

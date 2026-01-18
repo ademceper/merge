@@ -11,8 +11,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.SendBulkRecoveryEmails;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SendBulkRecoveryEmailsCommandHandler(
     IMediator mediator,
     ILogger<SendBulkRecoveryEmailsCommandHandler> logger,
@@ -21,13 +19,10 @@ public class SendBulkRecoveryEmailsCommandHandler(
 
     public async Task Handle(SendBulkRecoveryEmailsCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern - GetAbandonedCartsQuery dispatch
         var abandonedCartsQuery = new GetAbandonedCartsQuery(request.MinHours, 30, 1, 1000);
         var abandonedCarts = await mediator.Send(abandonedCartsQuery, cancellationToken);
 
-        // ✅ PERFORMANCE: Filter carts that haven't received this email type yet
-        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
-        var cartsToEmail = new List<AbandonedCartDto>();
+        List<AbandonedCartDto> cartsToEmail = [];
         foreach (var c in abandonedCarts.Items)
         {
             bool shouldEmail = false;
@@ -48,8 +43,6 @@ public class SendBulkRecoveryEmailsCommandHandler(
         {
             try
             {
-                // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
-                // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
                 var includeCoupon = request.EmailType == AbandonedCartEmailType.Final;
                 var sendEmailCommand = new SendRecoveryEmailCommand(
                     cart.CartId,
@@ -57,12 +50,10 @@ public class SendBulkRecoveryEmailsCommandHandler(
                     includeCoupon,
                     cartSettings.Value.DefaultAbandonedCartCouponDiscount);
                 
-                // ✅ BOLUM 2.0: MediatR + CQRS pattern - SendRecoveryEmailCommand dispatch
                 await mediator.Send(sendEmailCommand, cancellationToken);
             }
             catch (Exception ex)
             {
-                // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve devam et
                 logger.LogError(ex,
                     "Abandoned cart recovery email gonderilemedi. CartId: {CartId}, EmailType: {EmailType}",
                     cart.CartId, request.EmailType);

@@ -17,9 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingTracking;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class UpdateShippingTrackingCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -33,7 +30,6 @@ public class UpdateShippingTrackingCommandHandler(
     {
         logger.LogInformation("Updating shipping tracking. ShippingId: {ShippingId}, TrackingNumber: {TrackingNumber}", request.ShippingId, request.TrackingNumber);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var shipping = await context.Set<Shipping>()
             .FirstOrDefaultAsync(s => s.Id == request.ShippingId, cancellationToken);
 
@@ -43,15 +39,12 @@ public class UpdateShippingTrackingCommandHandler(
             throw new NotFoundException("Kargo kaydı", request.ShippingId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         shipping.Ship(request.TrackingNumber);
         
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         // Varsayılan teslimat süresini configuration'dan al
         var estimatedDays = _shippingSettings.DefaultDeliveryTime.AverageDays;
         shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(estimatedDays));
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Order status'unu güncelle
         var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == shipping.OrderId, cancellationToken);
 
@@ -60,12 +53,9 @@ public class UpdateShippingTrackingCommandHandler(
             order.Ship();
         }
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         // Notification ve email gönderimi domain event handler'lar tarafından yapılacak
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
         var updatedShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
@@ -79,7 +69,6 @@ public class UpdateShippingTrackingCommandHandler(
 
         logger.LogInformation("Shipping tracking updated successfully. ShippingId: {ShippingId}", request.ShippingId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ShippingDto>(updatedShipping);
     }
 }

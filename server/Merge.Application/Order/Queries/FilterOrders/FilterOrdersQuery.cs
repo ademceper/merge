@@ -6,7 +6,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.FilterOrders;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record FilterOrdersQuery(
     Guid? UserId = null,
     string? Status = null,

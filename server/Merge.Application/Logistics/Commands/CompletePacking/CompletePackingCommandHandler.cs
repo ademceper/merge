@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CompletePacking;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CompletePackingCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -25,7 +22,6 @@ public class CompletePackingCommandHandler(
         logger.LogInformation("Completing packing. PickPackId: {PickPackId}, Weight: {Weight}, PackageCount: {PackageCount}",
             request.PickPackId, request.Weight, request.PackageCount);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
@@ -35,8 +31,6 @@ public class CompletePackingCommandHandler(
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
-        // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Tek sorguda GroupBy ile total ve packed item sayılarını al (2 ayrı CountAsync yerine)
         var itemCounts = await context.Set<PickPackItem>()
             .AsNoTracking()
             .Where(i => i.PickPackId == request.PickPackId)
@@ -55,11 +49,8 @@ public class CompletePackingCommandHandler(
             throw new BusinessException("Tüm kalemler paketlenmemiş.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         pickPack.CompletePacking(request.Weight, request.Dimensions, request.PackageCount);
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Packing completed successfully. PickPackId: {PickPackId}", request.PickPackId);

@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.RevokeSellerBadge;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class RevokeSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RevokeSellerBadgeCommandHandler> logger) : IRequestHandler<RevokeSellerBadgeCommand, bool>
 {
 
@@ -26,7 +25,6 @@ public class RevokeSellerBadgeCommandHandler(IDbContext context, IUnitOfWork uni
 
         if (badge == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         badge.Deactivate();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

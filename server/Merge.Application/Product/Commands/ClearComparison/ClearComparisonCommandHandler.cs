@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.ClearComparison;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ClearComparisonCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ClearComparisonCommandHandler> logger, ICacheService cache) : IRequestHandler<ClearComparisonCommand, bool>
 {
 
@@ -37,7 +36,6 @@ public class ClearComparisonCommandHandler(IDbContext context, IUnitOfWork unitO
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Clear all products from comparison using domain method
             var productIds = comparison.Items.Select(i => i.ProductId).ToList();
             foreach (var productId in productIds)
@@ -45,11 +43,9 @@ public class ClearComparisonCommandHandler(IDbContext context, IUnitOfWork unitO
                 comparison.RemoveProduct(productId);
             }
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
             await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);

@@ -17,14 +17,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateKnowledgeBaseArticleCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto?>
 {
     private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseArticleDto?> Handle(UpdateKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Updating knowledge base article {ArticleId}", request.ArticleId);
 
         var article = await context.Set<KnowledgeBaseArticle>()
@@ -36,7 +34,6 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(request.Title))
         {
             var newSlug = GenerateSlug(request.Title);
@@ -83,7 +80,6 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             article.UpdateTags(tagsString);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Knowledge base article {ArticleId} updated successfully", request.ArticleId);
@@ -94,7 +90,6 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 

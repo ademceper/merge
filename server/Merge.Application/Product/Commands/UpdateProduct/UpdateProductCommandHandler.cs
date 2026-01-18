@@ -16,8 +16,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Product.Commands.UpdateProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateProductCommandHandler(IRepository productRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, IMapper mapper, ILogger<UpdateProductCommandHandler> logger) : IRequestHandler<UpdateProductCommand, ProductDto>
 {
 
@@ -39,7 +37,6 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
                 throw new NotFoundException("Ürün", request.Id);
             }
 
-            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerini güncelleyebilmeli
             if (request.PerformedBy.HasValue && product.SellerId.HasValue && product.SellerId.Value != request.PerformedBy.Value)
             {
                 logger.LogWarning("Unauthorized attempt to update product {ProductId} by user {UserId}. Product belongs to {SellerId}",
@@ -50,7 +47,6 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
             // Store old category ID for cache invalidation
             var oldCategoryId = product.CategoryId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             product.UpdateName(request.Name);
             product.UpdateDescription(request.Description);
             
@@ -85,7 +81,6 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedProduct = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Include(p => p.Category)
@@ -97,7 +92,6 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
                 throw new NotFoundException("Ürün", request.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             // Note: Paginated cache'ler (products_all_paged_*, products_by_category_*, products_search_*)
             // pattern-based invalidation gerektirir. ICacheService'de RemoveByPrefixAsync yok.
             // Şimdilik cache expiration'a güveniyoruz (15 dakika TTL)

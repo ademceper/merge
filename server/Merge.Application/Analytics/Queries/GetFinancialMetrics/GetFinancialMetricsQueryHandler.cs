@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetFinancialMetrics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetFinancialMetricsQueryHandler(
     IDbContext context,
     ILogger<GetFinancialMetricsQueryHandler> logger,
@@ -28,7 +26,6 @@ public class GetFinancialMetricsQueryHandler(
         logger.LogInformation("Fetching financial metrics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
@@ -40,11 +37,9 @@ public class GetFinancialMetricsQueryHandler(
 
         var totalRevenue = await ordersQuery.SumAsync(o => o.TotalAmount, cancellationToken);
         var totalOrders = await ordersQuery.CountAsync(cancellationToken);
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var totalCosts = totalRevenue * settings.Value.DefaultCostPercentage;
         var netProfit = totalRevenue - totalCosts;
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new FinancialMetricsDto(
             TotalRevenue: Math.Round(totalRevenue, 2),
             TotalCosts: Math.Round(totalCosts, 2),

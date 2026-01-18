@@ -12,10 +12,15 @@ using Merge.Application.Analytics.Queries.GetReferralPerformance;
 
 namespace Merge.API.Controllers.Analytics.Marketing;
 
+/// <summary>
+/// Marketing Analytics API endpoints.
+/// Pazarlama analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/marketing")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("MarketingAnalytics")]
 public class MarketingAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -36,8 +41,6 @@ public class MarketingAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetMarketingAnalyticsQuery(startDate, endDate);
         var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
@@ -58,8 +61,6 @@ public class MarketingAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetCouponPerformanceQuery(startDate, endDate);
         var performance = await mediator.Send(query, cancellationToken);
         return Ok(performance);
@@ -80,8 +81,6 @@ public class MarketingAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReferralPerformanceQuery(startDate, endDate);
         var performance = await mediator.Send(query, cancellationToken);
         return Ok(performance);

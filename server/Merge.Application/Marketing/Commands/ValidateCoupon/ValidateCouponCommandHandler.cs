@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.ValidateCoupon;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class ValidateCouponCommandHandler(
     IDbContext context,
     ILogger<ValidateCouponCommandHandler> logger) : IRequestHandler<ValidateCouponCommand, decimal>
@@ -30,7 +28,7 @@ public class ValidateCouponCommandHandler(
 
         var coupon = await context.Set<Coupon>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
         if (coupon == null)
         {
@@ -38,7 +36,6 @@ public class ValidateCouponCommandHandler(
             throw new NotFoundException("Kupon", Guid.Empty);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         if (!coupon.IsValid())
         {
             throw new BusinessException("Kupon geçerli değil.");
@@ -75,7 +72,6 @@ public class ValidateCouponCommandHandler(
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         var purchaseAmount = new Money(request.OrderAmount);
         var discount = coupon.CalculateDiscount(purchaseAmount);
 

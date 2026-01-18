@@ -40,7 +40,6 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> options) : DbCo
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
     // IDbContext implementations for compatibility
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir (tutarlılık için InvalidOperationException kullanılıyor)
     DbSet<User> IDbContext.Users => throw new InvalidOperationException("CatalogDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles => throw new InvalidOperationException("CatalogDbContext does not support Roles. Use ApplicationDbContext for identity operations.");
     DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles => throw new InvalidOperationException("CatalogDbContext does not support UserRoles. Use ApplicationDbContext for identity operations.");

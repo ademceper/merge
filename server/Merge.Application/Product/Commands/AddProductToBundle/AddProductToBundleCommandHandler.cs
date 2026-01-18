@@ -15,8 +15,6 @@ using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain
 
 namespace Merge.Application.Product.Commands.AddProductToBundle;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class AddProductToBundleCommandHandler(IBundleRepository bundleRepository, IBundleItemRepository bundleItemRepository, IProductRepository productRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, ILogger<AddProductToBundleCommandHandler> logger) : IRequestHandler<AddProductToBundleCommand, bool>
 {
 
@@ -44,26 +42,21 @@ public class AddProductToBundleCommandHandler(IBundleRepository bundleRepository
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Note: Duplicate check zaten ProductBundle.AddItem() method'unda yapılıyor
             bundle.AddItem(request.ProductId, request.Quantity, request.SortOrder);
 
-            // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
             var newTotal = await context.Set<BundleItem>()
                 .AsNoTracking()
                 .Include(bi => bi.Product)
                 .Where(bi => bi.BundleId == request.BundleId)
                 .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             bundle.UpdateTotalPrices(newTotal);
 
             await bundleRepository.UpdateAsync(bundle, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.BundleId}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);

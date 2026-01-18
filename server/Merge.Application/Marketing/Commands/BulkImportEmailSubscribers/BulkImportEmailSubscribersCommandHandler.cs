@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.BulkImportEmailSubscribers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class BulkImportEmailSubscribersCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -29,14 +27,13 @@ public class BulkImportEmailSubscribersCommandHandler(
             return 0;
         }
 
-        // ✅ PERFORMANCE: Batch load existing subscribers (N+1 fix)
         var emails = request.Subscribers.Select(s => s.Email.ToLower()).Distinct().ToList();
         var existingSubscribers = await context.Set<EmailSubscriber>()
             .Where(s => emails.Contains(s.Email.ToLower()))
             .ToDictionaryAsync(s => s.Email.ToLower(), cancellationToken);
 
-        var newSubscribers = new List<EmailSubscriber>();
-        var updatedSubscribers = new List<EmailSubscriber>();
+        List<EmailSubscriber> newSubscribers = [];
+        List<EmailSubscriber> updatedSubscribers = [];
 
         foreach (var subscriberDto in request.Subscribers)
         {
@@ -44,20 +41,17 @@ public class BulkImportEmailSubscribersCommandHandler(
             
             if (existingSubscribers.TryGetValue(email, out var existing))
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 // Update existing
                 if (existing.IsDeleted)
                 {
                     existing.Restore();
                 }
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 if (!existing.IsSubscribed)
                 {
                     existing.Subscribe();
                 }
 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 existing.UpdateDetails(
                     firstName: subscriberDto.FirstName,
                     lastName: subscriberDto.LastName,
@@ -69,8 +63,6 @@ public class BulkImportEmailSubscribersCommandHandler(
             }
             else
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-                // ✅ BOLUM 1.3: Value Objects - Email Value Object kullanımı
                 var emailValue = new Email(subscriberDto.Email);
                 var subscriber = EmailSubscriber.Create(
                     email: emailValue,
@@ -81,7 +73,6 @@ public class BulkImportEmailSubscribersCommandHandler(
                     tags: subscriberDto.Tags != null ? JsonSerializer.Serialize(subscriberDto.Tags) : null,
                     customFields: subscriberDto.CustomFields != null ? JsonSerializer.Serialize(subscriberDto.CustomFields) : null);
                 
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 subscriber.Subscribe();
                 
                 newSubscribers.Add(subscriber);
@@ -93,10 +84,8 @@ public class BulkImportEmailSubscribersCommandHandler(
             await context.Set<EmailSubscriber>().AddRangeAsync(newSubscribers, cancellationToken);
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Toplu email abone import işlemi tamamlandı. Yeni: {NewCount}, Güncellenen: {UpdatedCount}",
             newSubscribers.Count, updatedSubscribers.Count);

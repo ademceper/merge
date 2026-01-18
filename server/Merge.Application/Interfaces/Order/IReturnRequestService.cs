@@ -2,13 +2,11 @@ using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
 using Merge.Domain.Modules.Ordering;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Order;
 
 public interface IReturnRequestService
 {
     Task<ReturnRequestDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
     Task<PagedResult<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<PagedResult<ReturnRequestDto>> GetAllAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<ReturnRequestDto> CreateAsync(CreateReturnRequestDto dto, CancellationToken cancellationToken = default);

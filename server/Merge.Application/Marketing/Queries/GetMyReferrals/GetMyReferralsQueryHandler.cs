@@ -12,12 +12,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetMyReferrals;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetMyReferralsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetMyReferralsQuery, PagedResult<ReferralDto>>
 {
     public async Task<PagedResult<ReferralDto>> Handle(GetMyReferralsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var query = context.Set<Referral>()
             .AsNoTracking()
             .Include(r => r.ReferredUser)

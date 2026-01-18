@@ -21,7 +21,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class InternationalShipping : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public string OriginCountry { get; private set; } = string.Empty;
     public string DestinationCountry { get; private set; } = string.Empty;
@@ -29,7 +28,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     public string? DestinationCity { get; private set; }
     public string ShippingMethod { get; private set; } = string.Empty; // Express, Standard, Economy
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Private backing fields with validation
     private decimal _shippingCost;
     public decimal ShippingCost 
     { 
@@ -88,7 +86,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         } 
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money ShippingCostMoney => new Money(_shippingCost);
     
@@ -118,7 +115,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     public string? TrackingNumber { get; private set; }
     public string? CustomsDeclarationNumber { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public ShippingStatus Status { get; private set; } = ShippingStatus.Preparing;
     
     public DateTime? ShippedAt { get; private set; }
@@ -126,7 +122,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     public DateTime? ClearedAt { get; private set; }
     public DateTime? DeliveredAt { get; private set; }
     
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
@@ -138,7 +133,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
@@ -150,17 +144,14 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Order Order { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private InternationalShipping() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static InternationalShipping Create(
         Guid orderId,
         string originCountry,
@@ -178,7 +169,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         Guard.AgainstNull(shippingCost, nameof(shippingCost));
         Guard.AgainstNegative(estimatedDays, nameof(estimatedDays));
         
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxCountryNameLength=100, MaxCityNameLength=100, MaxShippingMethodLength=50
         Guard.AgainstLength(originCountry, 100, nameof(originCountry));
         Guard.AgainstLength(destinationCountry, 100, nameof(destinationCountry));
@@ -205,7 +195,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingCreatedEvent
         internationalShipping.AddDomainEvent(new InternationalShippingCreatedEvent(
             internationalShipping.Id, 
             orderId, 
@@ -217,8 +206,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         return internationalShipping;
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update customs duty
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public void UpdateCustomsDuty(Money customsDuty)
     {
         Guard.AgainstNull(customsDuty, nameof(customsDuty));
@@ -228,12 +215,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingUpdatedEvent
         AddDomainEvent(new InternationalShippingUpdatedEvent(Id, OrderId, "CustomsDuty"));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update import tax
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public void UpdateImportTax(Money importTax)
     {
         Guard.AgainstNull(importTax, nameof(importTax));
@@ -243,12 +227,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingUpdatedEvent
         AddDomainEvent(new InternationalShippingUpdatedEvent(Id, OrderId, "ImportTax"));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update handling fee
-    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
     public void UpdateHandlingFee(Money handlingFee)
     {
         Guard.AgainstNull(handlingFee, nameof(handlingFee));
@@ -258,41 +239,33 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingUpdatedEvent
         AddDomainEvent(new InternationalShippingUpdatedEvent(Id, OrderId, "HandlingFee"));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update tracking number
     public void UpdateTrackingNumber(string trackingNumber)
     {
         Guard.AgainstNullOrEmpty(trackingNumber, nameof(trackingNumber));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxTrackingNumberLength=100
         Guard.AgainstLength(trackingNumber, 100, nameof(trackingNumber));
         
         TrackingNumber = trackingNumber;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingTrackingUpdatedEvent
         AddDomainEvent(new InternationalShippingTrackingUpdatedEvent(Id, OrderId, trackingNumber));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update customs declaration number
     public void UpdateCustomsDeclarationNumber(string customsDeclarationNumber)
     {
         Guard.AgainstNullOrEmpty(customsDeclarationNumber, nameof(customsDeclarationNumber));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxCustomsDeclarationNumberLength=100
         Guard.AgainstLength(customsDeclarationNumber, 100, nameof(customsDeclarationNumber));
         
         CustomsDeclarationNumber = customsDeclarationNumber;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingUpdatedEvent
         AddDomainEvent(new InternationalShippingUpdatedEvent(Id, OrderId, "CustomsDeclarationNumber"));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Update estimated days
     public void UpdateEstimatedDays(int estimatedDays)
     {
         Guard.AgainstNegative(estimatedDays, nameof(estimatedDays));
@@ -300,15 +273,12 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         _estimatedDays = estimatedDays;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingUpdatedEvent
         AddDomainEvent(new InternationalShippingUpdatedEvent(Id, OrderId, "EstimatedDays"));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as shipped
     public void MarkAsShipped(string trackingNumber)
     {
         Guard.AgainstNullOrEmpty(trackingNumber, nameof(trackingNumber));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değeri: MaxTrackingNumberLength=100
         Guard.AgainstLength(trackingNumber, 100, nameof(trackingNumber));
         
@@ -320,11 +290,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         ShippedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingStatusChangedEvent
         AddDomainEvent(new InternationalShippingStatusChangedEvent(Id, OrderId, ShippingStatus.Preparing, Status));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as in customs
     public void MarkAsInCustoms()
     {
         if (Status != ShippingStatus.Shipped && Status != ShippingStatus.InTransit)
@@ -333,11 +301,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         InCustomsAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingInCustomsEvent
         AddDomainEvent(new InternationalShippingInCustomsEvent(Id, OrderId));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as cleared from customs
     public void MarkAsClearedFromCustoms()
     {
         if (InCustomsAt == null)
@@ -347,11 +313,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         Status = ShippingStatus.InTransit;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingClearedFromCustomsEvent
         AddDomainEvent(new InternationalShippingClearedFromCustomsEvent(Id, OrderId));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as delivered
     public void MarkAsDelivered()
     {
         if (Status != ShippingStatus.InTransit && Status != ShippingStatus.OutForDelivery)
@@ -362,11 +326,9 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         DeliveredAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingStatusChangedEvent
         AddDomainEvent(new InternationalShippingStatusChangedEvent(Id, OrderId, oldStatus, Status));
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Recalculate total cost
     private void RecalculateTotalCost()
     {
         _totalCost = _shippingCost 
@@ -375,7 +337,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
             + (_handlingFee ?? 0);
     }
     
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -387,7 +348,6 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.5: Domain Events - InternationalShippingDeletedEvent
         AddDomainEvent(new InternationalShippingDeletedEvent(Id, OrderId));
     }
 }

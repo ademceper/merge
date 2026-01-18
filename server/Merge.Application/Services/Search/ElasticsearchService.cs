@@ -17,7 +17,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
 
      // Fallback to SQL search via MediatR
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IndexProductAsync(ProductDto product, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];
@@ -38,7 +37,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IndexProductsAsync(IEnumerable<ProductDto> products, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];
@@ -62,7 +60,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];
@@ -82,7 +79,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];
@@ -137,7 +133,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
         return await mediator.Send(fallbackQuery, cancellationToken);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> ReindexAllProductsAsync(CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];
@@ -154,7 +149,6 @@ public class ElasticsearchService(IConfiguration configuration, ILogger<Elastics
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = configuration["Elasticsearch:Url"];

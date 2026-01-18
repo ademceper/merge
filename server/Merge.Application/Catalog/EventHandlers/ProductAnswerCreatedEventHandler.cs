@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Product Answer Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ProductAnswerCreatedEventHandler(
     ILogger<ProductAnswerCreatedEventHandler> logger) : INotificationHandler<ProductAnswerCreatedEvent>
 {
 
     public async Task Handle(ProductAnswerCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Product answer created event received. AnswerId: {AnswerId}, QuestionId: {QuestionId}, UserId: {UserId}, IsSellerAnswer: {IsSellerAnswer}",
             notification.AnswerId, notification.QuestionId, notification.UserId, notification.IsSellerAnswer);
@@ -31,7 +27,6 @@ public class ProductAnswerCreatedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ProductAnswerCreatedEvent. AnswerId: {AnswerId}, QuestionId: {QuestionId}",
                 notification.AnswerId, notification.QuestionId);

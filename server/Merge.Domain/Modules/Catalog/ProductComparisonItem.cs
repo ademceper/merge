@@ -11,7 +11,6 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductComparisonItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ComparisonId { get; private set; }
     public ProductComparison Comparison { get; private set; } = null!;
     public Guid ProductId { get; private set; }
@@ -30,14 +29,11 @@ public class ProductComparisonItem : BaseEntity
     
     public DateTime AddedAt { get; private set; } = DateTime.UtcNow;
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductComparisonItem() { }
     
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static ProductComparisonItem Create(
         Guid comparisonId,
         Guid productId,
@@ -57,24 +53,20 @@ public class ProductComparisonItem : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         item.ValidateInvariants();
         
         return item;
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Update position
     public void UpdatePosition(int newPosition)
     {
         Guard.AgainstNegative(newPosition, nameof(newPosition));
         _position = newPosition;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -82,11 +74,9 @@ public class ProductComparisonItem : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == ComparisonId)

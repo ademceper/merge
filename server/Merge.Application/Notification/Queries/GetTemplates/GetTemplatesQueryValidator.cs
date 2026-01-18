@@ -5,9 +5,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetTemplates;
 
-/// <summary>
-/// Get Templates Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class GetTemplatesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetTemplatesQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

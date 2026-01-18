@@ -4,14 +4,11 @@ using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// LiveStreamProduct Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class LiveStreamProductConfiguration : IEntityTypeConfiguration<LiveStreamProduct>
 {
     public void Configure(EntityTypeBuilder<LiveStreamProduct> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.LiveStreamId);
         builder.HasIndex(e => e.ProductId);
         builder.HasIndex(e => e.IsHighlighted);
@@ -22,16 +19,13 @@ public class LiveStreamProductConfiguration : IEntityTypeConfiguration<LiveStrea
         builder.Property(e => e.ShowcaseNotes)
             .HasMaxLength(1000);
         
-        // ✅ BOLUM 1.3: Value Objects - Money (decimal precision)
         builder.Property(e => e.SpecialPrice)
             .HasPrecision(18, 2);
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
         
-        // ✅ BOLUM 6.2: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_LiveStreamProduct_DisplayOrder_NonNegative", "\"DisplayOrder\" >= 0");

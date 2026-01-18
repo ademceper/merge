@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetAllProductTemplates;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAllProductTemplatesQueryHandler(
     IDbContext context,
     ILogger<GetAllProductTemplatesQueryHandler> logger,
@@ -34,7 +32,6 @@ public class GetAllProductTemplatesQueryHandler(
         logger.LogInformation("Fetching all product templates. CategoryId: {CategoryId}, IsActive: {IsActive}",
             request.CategoryId, request.IsActive);
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern
         string cacheKey;
         if (request.CategoryId.HasValue)
         {
@@ -59,7 +56,6 @@ public class GetAllProductTemplatesQueryHandler(
 
         logger.LogInformation("Cache miss for product templates. Fetching from database.");
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         IQueryable<ProductTemplate> query = context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category);
@@ -81,8 +77,6 @@ public class GetAllProductTemplatesQueryHandler(
 
         var templateDtos = mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
-        // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         await cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(cacheConfig.ProductTemplateCacheExpirationMinutes), cancellationToken);
 
         logger.LogInformation("Retrieved all product templates. Count: {Count}, CategoryId: {CategoryId}, IsActive: {IsActive}",

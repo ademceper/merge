@@ -16,7 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetUserComparison;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetUserComparisonQueryHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -35,7 +34,6 @@ public class GetUserComparisonQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_USER_COMPARISON}{request.UserId}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
         var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
@@ -53,7 +51,6 @@ public class GetUserComparisonQueryHandler(
 
                 if (comparison == null)
                 {
-                    // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
                     comparison = ProductComparison.Create(
                         request.UserId,
                         "Current Comparison",
@@ -73,7 +70,6 @@ public class GetUserComparisonQueryHandler(
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
@@ -85,7 +81,6 @@ public class GetUserComparisonQueryHandler(
                 .ThenInclude(p => p.Category)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
         var reviews = await context.Set<ReviewEntity>()
@@ -101,8 +96,7 @@ public class GetUserComparisonQueryHandler(
             .ToListAsync(cancellationToken);
         reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
-        var products = new List<ComparisonProductDto>();
+        List<ComparisonProductDto> products = [];
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
@@ -113,7 +107,7 @@ public class GetUserComparisonQueryHandler(
                 Rating = hasReviewStats ? (decimal?)stats.Rating : null,
                 ReviewCount = hasReviewStats ? stats.Count : 0,
                 Specifications = new Dictionary<string, string>().AsReadOnly(),
-                Features = new List<string>().AsReadOnly()
+                Features = Array.Empty<string>()
             };
             products.Add(compProduct);
         }

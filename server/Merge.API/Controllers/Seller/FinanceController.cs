@@ -20,10 +20,15 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Seller;
 
-[ApiController]
+/// <summary>
+/// Seller Finance API endpoints.
+/// Satıcı finansal işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/seller/finance")]
 [Authorize(Roles = "Seller,Admin")]
+[Tags("SellerFinance")]
 public class FinanceController(IMediator mediator) : BaseController
 {
 
@@ -41,12 +46,7 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerFinanceSummaryQuery(sellerId, startDate, endDate);
         var summary = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetFinanceSummary", new { version, startDate, endDate }, version);
-        links["balance"] = new LinkDto { Href = $"/api/v{version}/seller/finance/balance", Method = "GET" };
-        links["transactions"] = new LinkDto { Href = $"/api/v{version}/seller/finance/transactions", Method = "GET" };
-        links["invoices"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices", Method = "GET" };
-        return Ok(new { summary, _links = links });
+        return Ok(summary);
     }
 
     [HttpGet("balance")]
@@ -61,17 +61,21 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerBalanceQuery(sellerId);
         var balance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetBalance", new { version }, version);
-        links["transactions"] = new LinkDto { Href = $"/api/v{version}/seller/finance/transactions", Method = "GET" };
-        links["invoices"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices", Method = "GET" };
-        links["summary"] = new LinkDto { Href = $"/api/v{version}/seller/finance/summary", Method = "GET" };
-        return Ok(new { balance, _links = links });
+        return Ok(balance);
     }
 
+    /// <summary>
+    /// Kullanılabilir bakiye tutarını getirir
+    /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Kullanılabilir bakiye tutarı</returns>
+    /// <response code="200">Tutar başarıyla getirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("balance/available")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -81,14 +85,21 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetAvailableBalanceQuery(sellerId);
         var balance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetAvailableBalance", new { version }, version);
-        return Ok(new { availableBalance = balance, _links = links });
+        return Ok(balance);
     }
 
+    /// <summary>
+    /// Bekleyen bakiye tutarını getirir
+    /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Bekleyen bakiye tutarı</returns>
+    /// <response code="200">Tutar başarıyla getirildi</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="403">Yetki yok</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpGet("balance/pending")]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -98,9 +109,7 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetPendingBalanceQuery(sellerId);
         var balance = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetPendingBalance", new { version }, version);
-        return Ok(new { pendingBalance = balance, _links = links });
+        return Ok(balance);
     }
 
     [HttpGet("transactions")]
@@ -120,9 +129,7 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerTransactionsQuery(sellerId, transactionType, startDate, endDate, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetTransactions", page, pageSize, result.TotalPages, new { version, transactionType, startDate, endDate }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpGet("transactions/{id}")]
@@ -142,15 +149,13 @@ public class FinanceController(IMediator mediator) : BaseController
 
         if (transaction == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (transaction.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetTransaction", new { version, id }, version);
-        return Ok(new { transaction, _links = links });
+        return Ok(transaction);
     }
 
     [HttpGet("invoices")]
@@ -168,9 +173,7 @@ public class FinanceController(IMediator mediator) : BaseController
         var sellerId = GetUserId();
         var query = new GetSellerInvoicesQuery(sellerId, status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetInvoices", page, pageSize, result.TotalPages, new { version, status }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpGet("invoices/{id}")]
@@ -190,26 +193,13 @@ public class FinanceController(IMediator mediator) : BaseController
 
         if (invoice == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         if (invoice.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetInvoice", new { version, id }, version);
-        if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-        {
-            if (invoice.Status == SellerInvoiceStatus.Draft)
-            {
-                links["send"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{id}/send", Method = "POST" };
-            }
-            if (invoice.Status == SellerInvoiceStatus.Sent)
-            {
-                links["markPaid"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{id}/mark-paid", Method = "POST" };
-            }
-        }
-        return Ok(new { invoice, _links = links });
+        return Ok(invoice);
     }
 
     [HttpPost("invoices")]
@@ -227,10 +217,7 @@ public class FinanceController(IMediator mediator) : BaseController
         var command = new GenerateInvoiceCommand(dto);
         var invoice = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetInvoice", new { version, id = invoice.Id }, version);
-        links["send"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{invoice.Id}/send", Method = "POST" };
-        links["markPaid"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{invoice.Id}/mark-paid", Method = "POST" };
-        return CreatedAtAction(nameof(GetInvoice), new { version, id = invoice.Id }, new { invoice, _links = links });
+        return CreatedAtAction(nameof(GetInvoice), new { version, id = invoice.Id }, invoice);
     }
 
     [HttpPost("invoices/{id}/send")]
@@ -250,7 +237,7 @@ public class FinanceController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -272,7 +259,7 @@ public class FinanceController(IMediator mediator) : BaseController
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok();
     }

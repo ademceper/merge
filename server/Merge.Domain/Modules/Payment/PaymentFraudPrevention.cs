@@ -16,19 +16,15 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid PaymentId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string CheckType YASAK)
     public PaymentCheckType CheckType { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public VerificationStatus Status { get; private set; } = VerificationStatus.Pending;
     
     public bool IsBlocked { get; private set; } = false;
     public string? BlockReason { get; private set; }
     
-    // ✅ BOLUM 1.6: Invariant validation - RiskScore 0-100 arası
     private int _riskScore = 0;
     public int RiskScore 
     { 
@@ -46,18 +42,14 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
     public string? IpAddress { get; private set; }
     public string? UserAgent { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Payment Payment { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PaymentFraudPrevention() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    // ✅ BOLUM 12.0: Magic number'lar handler'da belirlenir, Domain entity configuration'a bağımlı değil
     public static PaymentFraudPrevention Create(
         Guid paymentId,
         PaymentCheckType checkType,
@@ -90,7 +82,6 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events
         check.AddDomainEvent(new PaymentFraudPreventionCreatedEvent(
             check.Id,
             paymentId,
@@ -101,7 +92,6 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         return check;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Block payment
     public void Block(string reason)
     {
         Guard.AgainstNullOrEmpty(reason, nameof(reason));
@@ -114,11 +104,9 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         Status = VerificationStatus.Failed;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new PaymentFraudPreventionBlockedEvent(Id, PaymentId, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Unblock payment
     public void Unblock()
     {
         if (!IsBlocked)
@@ -129,12 +117,9 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         Status = VerificationStatus.Verified;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new PaymentFraudPreventionUnblockedEvent(Id, PaymentId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update risk score
-    // ✅ BOLUM 12.0: Magic number'lar handler'da belirlenir, Domain entity configuration'a bağımlı değil
     // Bu method risk score'u günceller, ama isBlocked ve status'u güncellemez (handler'da yapılmalı)
     public void UpdateRiskScore(int riskScore)
     {
@@ -142,11 +127,9 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         _riskScore = riskScore;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentFraudPreventionUpdatedEvent
         AddDomainEvent(new PaymentFraudPreventionUpdatedEvent(Id, PaymentId, CheckType, riskScore, Status));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update status
     public void UpdateStatus(VerificationStatus status)
     {
         if (Status == status)
@@ -155,7 +138,6 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         Status = status;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentFraudPreventionUpdatedEvent
         AddDomainEvent(new PaymentFraudPreventionUpdatedEvent(Id, PaymentId, CheckType, _riskScore, status));
     }
 }

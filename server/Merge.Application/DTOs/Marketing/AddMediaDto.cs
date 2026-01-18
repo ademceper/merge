@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Marketing;
 
-/// <summary>
-/// Add Media DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public record AddMediaDto
 {
     [Required(ErrorMessage = "URL is required")]

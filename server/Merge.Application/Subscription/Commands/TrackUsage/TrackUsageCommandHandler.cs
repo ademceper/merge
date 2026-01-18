@@ -13,18 +13,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Commands.TrackUsage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrackUsageCommandHandler> logger) : IRequestHandler<TrackUsageCommand, SubscriptionUsageDto>
 {
 
     public async Task<SubscriptionUsageDto> Handle(TrackUsageCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Tracking subscription usage. SubscriptionId: {SubscriptionId}, Feature: {Feature}, Count: {Count}",
             request.UserSubscriptionId, request.Feature, request.Count);
 
-        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        // ✅ NOT: AsNoTracking() YOK - Subscription nesnesine ihtiyaç var (Create method için)
         var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.UserSubscriptionId, cancellationToken);
 
@@ -36,8 +32,6 @@ public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         var periodEnd = periodStart.AddMonths(1).AddDays(-1);
 
-        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        // ✅ NOT: Include UserSubscription - Domain event'te UserId'ye ihtiyaç var
         var usage = await context.Set<SubscriptionUsage>()
             .Include(u => u.UserSubscription)
             .FirstOrDefaultAsync(u => u.UserSubscriptionId == request.UserSubscriptionId &&
@@ -46,7 +40,6 @@ public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
         if (usage == null)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             usage = SubscriptionUsage.Create(
                 subscription: subscription,
                 feature: request.Feature,
@@ -56,13 +49,10 @@ public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             await context.Set<SubscriptionUsage>().AddAsync(usage, cancellationToken);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         usage.IncrementUsage(request.Count);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<SubscriptionUsageDto>(usage);
     }
 }

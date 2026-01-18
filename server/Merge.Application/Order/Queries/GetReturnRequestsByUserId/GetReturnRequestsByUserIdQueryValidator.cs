@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.GetReturnRequestsByUserId;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetReturnRequestsByUserIdQueryValidator : AbstractValidator<GetReturnRequestsByUserIdQuery>
 {
     public GetReturnRequestsByUserIdQueryValidator()

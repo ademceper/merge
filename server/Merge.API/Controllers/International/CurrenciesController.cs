@@ -22,9 +22,14 @@ using Merge.Application.International.Commands.SyncExchangeRates;
 
 namespace Merge.API.Controllers.International;
 
+/// <summary>
+/// Currencies API endpoints.
+/// Para birimi ve döviz kuru işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/international/currencies")]
+[Tags("Currencies")]
 public class CurrenciesController(IMediator mediator) : BaseController
 {
     /// <summary>
@@ -77,7 +82,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
 
         if (currency == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(currency);
@@ -101,7 +106,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
 
         if (currency == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(currency);
@@ -283,7 +288,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
     [HttpGet("format")]
     [AllowAnonymous]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<string>> FormatPrice(
@@ -293,7 +298,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
     {
         var query = new FormatPriceQuery(amount, currencyCode);
         var formatted = await mediator.Send(query, cancellationToken);
-        return Ok(new { formatted });
+        return Ok(formatted);
     }
 
     /// <summary>
@@ -350,7 +355,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
     [HttpGet("preference")]
     [Authorize]
     [RateLimit(60, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<string>> GetCurrencyPreference(
@@ -363,7 +368,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
 
         var query = new GetUserCurrencyPreferenceQuery(userId);
         var currencyCode = await mediator.Send(query, cancellationToken);
-        return Ok(new { currencyCode });
+        return Ok(currencyCode);
     }
 
     /// <summary>

@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.UpdatePreOrderCampaign;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdatePreOrderCampaignCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork) : IRequestHandler<UpdatePreOrderCampaignCommand, bool>
@@ -22,7 +20,6 @@ public class UpdatePreOrderCampaignCommandHandler(
         var campaign = await context.Set<PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (campaign is null) return false;
 
         campaign.UpdateBasicInfo(request.Name, request.Description, request.MaxQuantity);

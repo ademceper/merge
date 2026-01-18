@@ -5,7 +5,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Support.Commands.RecordKnowledgeBaseArticleView;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class RecordKnowledgeBaseArticleViewCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<RecordKnowledgeBaseArticleViewCommand>
 {
     private readonly SupportSettings config = settings.Value;

@@ -19,7 +19,6 @@ namespace Merge.Domain.Modules.Support;
 /// </summary>
 public class SupportTicket : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string TicketNumber { get; private set; } = string.Empty;
     public Guid UserId { get; private set; }
     public TicketCategory Category { get; private set; } = TicketCategory.Other;
@@ -41,21 +40,17 @@ public class SupportTicket : BaseEntity, IAggregateRoot
     public Product? Product { get; private set; }
     public User? AssignedTo { get; private set; }
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<TicketMessage> _messages = new();
     public IReadOnlyCollection<TicketMessage> Messages => _messages.AsReadOnly();
     
     private readonly List<TicketAttachment> _attachments = new();
     public IReadOnlyCollection<TicketAttachment> Attachments => _attachments.AsReadOnly();
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SupportTicket() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SupportTicket Create(
         string ticketNumber,
         Guid userId,
@@ -70,7 +65,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(subject, nameof(subject));
         Guard.AgainstNullOrEmpty(description, nameof(description));
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
         // Configuration değerleri: MaxCommunicationSubjectLength=200, MaxTicketMessageLength=10000
         Guard.AgainstLength(subject, 200, nameof(subject));
         Guard.AgainstLength(description, 5000, nameof(description));
@@ -91,7 +85,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - SupportTicketCreatedEvent
         ticket.AddDomainEvent(new SupportTicketCreatedEvent(
             ticket.Id,
             ticket.TicketNumber,
@@ -103,7 +96,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         return ticket;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Assign ticket
     public void AssignTo(Guid assignedToId)
     {
         Guard.AgainstDefault(assignedToId, nameof(assignedToId));
@@ -116,7 +108,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
             Status = TicketStatus.InProgress;
             UpdatedAt = DateTime.UtcNow;
 
-            // ✅ BOLUM 1.5: Domain Events - SupportTicketStatusChangedEvent
             AddDomainEvent(new SupportTicketStatusChangedEvent(
                 Id,
                 TicketNumber,
@@ -124,11 +115,9 @@ public class SupportTicket : BaseEntity, IAggregateRoot
                 Status.ToString()));
         }
 
-        // ✅ BOLUM 1.5: Domain Events - SupportTicketAssignedEvent
         AddDomainEvent(new SupportTicketAssignedEvent(Id, TicketNumber, assignedToId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update status
     public void UpdateStatus(TicketStatus newStatus)
     {
         if (Status == newStatus) return;
@@ -140,17 +129,14 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         if (newStatus == TicketStatus.Resolved && ResolvedAt == null)
         {
             ResolvedAt = DateTime.UtcNow;
-            // ✅ BOLUM 1.5: Domain Events - SupportTicketResolvedEvent
             AddDomainEvent(new SupportTicketResolvedEvent(Id, TicketNumber, UserId, ResolvedAt.Value));
         }
         else if (newStatus == TicketStatus.Closed && ClosedAt == null)
         {
             ClosedAt = DateTime.UtcNow;
-            // ✅ BOLUM 1.5: Domain Events - SupportTicketClosedEvent
             AddDomainEvent(new SupportTicketClosedEvent(Id, TicketNumber, UserId, ClosedAt.Value));
         }
 
-        // ✅ BOLUM 1.5: Domain Events - SupportTicketStatusChangedEvent
         AddDomainEvent(new SupportTicketStatusChangedEvent(
             Id,
             TicketNumber,
@@ -158,7 +144,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
             newStatus.ToString()));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update priority
     public void UpdatePriority(TicketPriority priority)
     {
         if (Priority == priority) return;
@@ -167,7 +152,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update category
     public void UpdateCategory(TicketCategory category)
     {
         if (Category == category) return;
@@ -176,7 +160,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update subject
     public void UpdateSubject(string subject)
     {
         Guard.AgainstNullOrEmpty(subject, nameof(subject));
@@ -186,7 +169,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update description
     public void UpdateDescription(string description)
     {
         Guard.AgainstNullOrEmpty(description, nameof(description));
@@ -196,7 +178,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Add message
     public void AddMessage()
     {
         ResponseCount++;
@@ -204,7 +185,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update status when message added
     public void UpdateStatusOnMessage(bool isStaffResponse)
     {
         if (Status == TicketStatus.Waiting && isStaffResponse)
@@ -217,7 +197,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Resolve ticket
     public void Resolve()
     {
         if (Status == TicketStatus.Resolved || Status == TicketStatus.Closed)
@@ -226,7 +205,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdateStatus(TicketStatus.Resolved);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Close ticket
     public void Close()
     {
         if (Status == TicketStatus.Closed)
@@ -235,7 +213,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         UpdateStatus(TicketStatus.Closed);
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reopen ticket
     public void Reopen()
     {
         if (Status != TicketStatus.Closed && Status != TicketStatus.Resolved)
@@ -247,7 +224,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         ResolvedAt = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - SupportTicketStatusChangedEvent
         AddDomainEvent(new SupportTicketStatusChangedEvent(
             Id,
             TicketNumber,
@@ -255,7 +231,6 @@ public class SupportTicket : BaseEntity, IAggregateRoot
             Status.ToString()));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -264,11 +239,9 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - SupportTicketDeletedEvent
         AddDomainEvent(new SupportTicketDeletedEvent(Id, TicketNumber, UserId));
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         base.AddDomainEvent(domainEvent);

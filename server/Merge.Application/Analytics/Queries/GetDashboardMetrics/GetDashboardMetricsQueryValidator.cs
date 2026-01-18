@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Analytics.Queries.GetDashboardMetrics;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetDashboardMetricsQueryValidator : AbstractValidator<GetDashboardMetricsQuery>
 {
     public GetDashboardMetricsQueryValidator()

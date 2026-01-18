@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.AddPoints;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class AddPointsCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -37,15 +35,12 @@ public class AddPointsCommandHandler(
             throw new NotFoundException("Sadakat hesabı", request.UserId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         account.AddPoints(request.Points, request.Description);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var transactionType = Enum.TryParse<LoyaltyTransactionType>(request.Type, true, out var type) 
             ? type 
             : LoyaltyTransactionType.Purchase;
         
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var expiresAt = DateTime.UtcNow.AddYears(marketingSettings.Value.PointsExpiryYears);
         var transaction = LoyaltyTransaction.Create(
             request.UserId,
@@ -59,7 +54,6 @@ public class AddPointsCommandHandler(
 
         await context.Set<LoyaltyTransaction>().AddAsync(transaction, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

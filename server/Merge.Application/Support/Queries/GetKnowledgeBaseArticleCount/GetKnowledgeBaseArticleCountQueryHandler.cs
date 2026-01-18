@@ -10,13 +10,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseArticleCount;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetKnowledgeBaseArticleCountQueryHandler(IDbContext context) : IRequestHandler<GetKnowledgeBaseArticleCountQuery, int>
 {
 
     public async Task<int> Handle(GetKnowledgeBaseArticleCountQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         IQueryable<KnowledgeBaseArticle> query = context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Where(a => a.Status == ContentStatus.Published);

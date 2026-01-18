@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetFinancialAnalytics;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetFinancialAnalyticsQueryHandler(
     IDbContext context,
     ILogger<GetFinancialAnalyticsQueryHandler> logger) : IRequestHandler<GetFinancialAnalyticsQuery, FinancialAnalyticsDto>
@@ -25,9 +23,6 @@ public class GetFinancialAnalyticsQueryHandler(
         logger.LogInformation("Fetching financial analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted and !r.IsDeleted checks (Global Query Filter handles it)
         var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate);
@@ -44,7 +39,6 @@ public class GetFinancialAnalyticsQueryHandler(
 
         var netProfit = grossRevenue - totalRefunds - totalShipping;
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         var revenueTimeSeries = await GetRevenueOverTimeAsync(request.StartDate, request.EndDate, cancellationToken);
         
         return new FinancialAnalyticsDto(

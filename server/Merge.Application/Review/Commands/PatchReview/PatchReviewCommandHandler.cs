@@ -38,7 +38,6 @@ public class PatchReviewCommandHandler(
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi review'lerini güncelleyebilmeli
         if (review.UserId != request.UserId)
         {
             throw new UnauthorizedAccessException("Bu değerlendirmeyi güncelleme yetkiniz yok.");
@@ -75,7 +74,6 @@ public class PatchReviewCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
@@ -89,7 +87,6 @@ public class PatchReviewCommandHandler(
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)

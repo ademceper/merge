@@ -15,9 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.CreateStockMovement;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class CreateStockMovementCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -30,12 +27,10 @@ public class CreateStockMovementCommandHandler(
         logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, MovementType: {MovementType}",
             request.ProductId, request.WarehouseId, request.Quantity, request.MovementType);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory update + StockMovement create)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // Get inventory
             var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
@@ -56,11 +51,9 @@ public class CreateStockMovementCommandHandler(
                 throw new ValidationException("Stok miktarı negatif olamaz.");
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             var quantityChange = quantityAfter - inventory.Quantity;
             inventory.AdjustQuantity(quantityChange);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var stockMovement = StockMovement.Create(
                 inventory.Id,
                 request.ProductId,
@@ -78,8 +71,6 @@ public class CreateStockMovementCommandHandler(
 
             await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
             
-            // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -100,7 +91,6 @@ public class CreateStockMovementCommandHandler(
                 throw new NotFoundException("Stok hareketi", stockMovement.Id);
             }
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<StockMovementDto>(createdMovement);
         }
         catch (Exception ex)

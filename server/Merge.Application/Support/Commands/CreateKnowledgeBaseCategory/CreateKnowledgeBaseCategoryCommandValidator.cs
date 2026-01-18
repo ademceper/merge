@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.CreateKnowledgeBaseCategory;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateKnowledgeBaseCategoryCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateKnowledgeBaseCategoryCommand>
 {
     private readonly SupportSettings config = settings.Value;

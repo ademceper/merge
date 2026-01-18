@@ -17,7 +17,6 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class OrderItem : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public Guid ProductId { get; private set; }
     
@@ -32,7 +31,6 @@ public class OrderItem : BaseEntity
         }
     }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
     private decimal _unitPrice;
     private decimal _totalPrice;
     
@@ -57,7 +55,6 @@ public class OrderItem : BaseEntity
         }
     }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [NotMapped]
     public Money UnitPriceMoney => new Money(_unitPrice);
     
@@ -68,13 +65,9 @@ public class OrderItem : BaseEntity
     public Order Order { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private OrderItem() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
-    /// <summary>
-    /// OrderItem oluşturur - BOLUM 1.1: Factory Method (ZORUNLU)
-    /// </summary>
+    
     public static OrderItem Create(
         Guid orderId,
         Guid productId,
@@ -91,7 +84,6 @@ public class OrderItem : BaseEntity
 
         var totalPrice = new Money(unitPrice.Amount * quantity);
 
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         if (totalPrice.Amount != unitPrice.Amount * quantity)
             throw new DomainException("Toplam fiyat hesaplama hatası");
 
@@ -110,7 +102,6 @@ public class OrderItem : BaseEntity
         return orderItem;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity (recalculates total)
     /// <summary>
     /// Miktarı günceller ve toplam fiyatı yeniden hesaplar
     /// </summary>
@@ -119,12 +110,10 @@ public class OrderItem : BaseEntity
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
 
         _quantity = newQuantity;
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update unit price (recalculates total)
     /// <summary>
     /// Birim fiyatı günceller ve toplam fiyatı yeniden hesaplar
     /// </summary>
@@ -134,7 +123,6 @@ public class OrderItem : BaseEntity
         Guard.AgainstNegative(newUnitPrice.Amount, nameof(newUnitPrice));
 
         _unitPrice = newUnitPrice.Amount;
-        // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
         _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }

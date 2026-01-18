@@ -16,11 +16,9 @@ namespace Merge.Domain.Modules.Marketing;
 /// </summary>
 public class Coupon : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Code { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money, Percentage
     private decimal _discountAmount;
     private decimal? _discountPercentage;
     private decimal? _minimumPurchaseAmount;
@@ -74,7 +72,6 @@ public class Coupon : BaseEntity, IAggregateRoot
     public DateTime StartDate { get; private set; }
     public DateTime EndDate { get; private set; }
     
-    // ✅ BOLUM 1.4: Invariant validation - UsageCount <= MaxUsage
     private int _usageLimit;
     private int _usedCount;
     
@@ -94,7 +91,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         private set 
         { 
             Guard.AgainstNegative(value, nameof(UsedCount));
-            // ✅ BOLUM 1.4: Invariant - UsageCount cannot exceed UsageLimit
             if (_usageLimit > 0 && value > _usageLimit)
                 throw new DomainException($"Kullanım sayısı limiti aşılamaz. Limit: {_usageLimit}");
             _usedCount = value;
@@ -104,7 +100,6 @@ public class Coupon : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public bool IsForNewUsersOnly { get; private set; } = false;
     
-    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
     private List<Guid>? _applicableCategoryIds;
     private List<Guid>? _applicableProductIds;
     
@@ -120,11 +115,9 @@ public class Coupon : BaseEntity, IAggregateRoot
         private set => _applicableProductIds = value; 
     }
 
-    // ✅ BOLUM 1.5: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.3: Value Object properties
     [NotMapped]
     public Money DiscountAmountMoney => new Money(_discountAmount);
     
@@ -143,10 +136,8 @@ public class Coupon : BaseEntity, IAggregateRoot
         ? new Money(_maximumDiscountAmount.Value) 
         : null;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Coupon() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Coupon Create(
         string code,
         string description,
@@ -185,16 +176,13 @@ public class Coupon : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - CouponCreatedEvent
         coupon.AddDomainEvent(new CouponCreatedEvent(coupon.Id, coupon.Code, coupon.DiscountAmount, coupon.DiscountPercentage));
 
         return coupon;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Increment usage count
     public void IncrementUsage()
     {
-        // ✅ BOLUM 1.4: Invariant validation - UsageCount <= MaxUsage
         if (_usageLimit > 0 && _usedCount >= _usageLimit)
             throw new DomainException("Kupon kullanım limitine ulaşıldı");
 
@@ -207,11 +195,9 @@ public class Coupon : BaseEntity, IAggregateRoot
         _usedCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CouponUsedEvent
         AddDomainEvent(new CouponUsedEvent(Id, Code, _usedCount, _usageLimit));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if coupon is valid
     public bool IsValid()
     {
         if (!IsActive)
@@ -226,7 +212,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         return true;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if coupon can be used for amount
     public bool CanBeUsedFor(decimal purchaseAmount)
     {
         if (!IsValid())
@@ -238,7 +223,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         return true;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate discount for purchase amount
     public Money CalculateDiscount(Money purchaseAmount)
     {
         if (!CanBeUsedFor(purchaseAmount.Amount))
@@ -264,7 +248,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         return discount;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate coupon
     public void Activate()
     {
         if (IsActive)
@@ -273,11 +256,9 @@ public class Coupon : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CouponActivatedEvent
         AddDomainEvent(new CouponActivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate coupon
     public void Deactivate()
     {
         if (!IsActive)
@@ -286,11 +267,9 @@ public class Coupon : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CouponDeactivatedEvent
         AddDomainEvent(new CouponDeactivatedEvent(Id, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update code
     public void UpdateCode(string newCode)
     {
         Guard.AgainstNullOrEmpty(newCode, nameof(newCode));
@@ -298,7 +277,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update description
     public void UpdateDescription(string newDescription)
     {
         Guard.AgainstNullOrEmpty(newDescription, nameof(newDescription));
@@ -306,35 +284,30 @@ public class Coupon : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set discount amount
     public void SetDiscountAmount(Money? discountAmount)
     {
         _discountAmount = discountAmount?.Amount ?? 0;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set discount percentage
     public void SetDiscountPercentage(Percentage? discountPercentage)
     {
         _discountPercentage = discountPercentage?.Value;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set minimum purchase amount
     public void SetMinimumPurchaseAmount(Money? minimumPurchaseAmount)
     {
         _minimumPurchaseAmount = minimumPurchaseAmount?.Amount;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set maximum discount amount
     public void SetMaximumDiscountAmount(Money? maximumDiscountAmount)
     {
         _maximumDiscountAmount = maximumDiscountAmount?.Amount;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set usage limit
     public void SetUsageLimit(int usageLimit)
     {
         Guard.AgainstNegative(usageLimit, nameof(usageLimit));
@@ -342,28 +315,24 @@ public class Coupon : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set applicable category IDs
     public void SetApplicableCategoryIds(List<Guid>? categoryIds)
     {
         _applicableCategoryIds = categoryIds;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set applicable product IDs
     public void SetApplicableProductIds(List<Guid>? productIds)
     {
         _applicableProductIds = productIds;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set for new users only
     public void SetForNewUsersOnly(bool isForNewUsersOnly)
     {
         IsForNewUsersOnly = isForNewUsersOnly;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update dates
     public void UpdateDates(DateTime startDate, DateTime endDate)
     {
         if (startDate >= endDate)
@@ -374,7 +343,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -383,7 +351,6 @@ public class Coupon : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CouponDeletedEvent
         AddDomainEvent(new CouponDeletedEvent(Id, Code));
     }
 }

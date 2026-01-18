@@ -2,7 +2,6 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Notifications;
 namespace Merge.Application.DTOs.User;
 
-// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
 public record UserPreferenceDto(
     Guid UserId,
     // Display Preferences

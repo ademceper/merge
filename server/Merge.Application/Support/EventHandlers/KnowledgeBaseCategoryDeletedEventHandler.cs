@@ -6,16 +6,12 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Support.EventHandlers;
 
-/// <summary>
-/// Knowledge Base Category Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class KnowledgeBaseCategoryDeletedEventHandler(ILogger<KnowledgeBaseCategoryDeletedEventHandler> logger) : INotificationHandler<KnowledgeBaseCategoryDeletedEvent>
 {
 
     public async Task Handle(KnowledgeBaseCategoryDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Knowledge base category deleted event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}, ParentCategoryId: {ParentCategoryId}",
             notification.CategoryId, notification.Name, notification.Slug, notification.ParentCategoryId);

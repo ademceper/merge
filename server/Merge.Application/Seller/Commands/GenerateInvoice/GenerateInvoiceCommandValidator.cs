@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Seller.Commands.GenerateInvoice;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GenerateInvoiceCommandValidator : AbstractValidator<GenerateInvoiceCommand>
 {
     public GenerateInvoiceCommandValidator()

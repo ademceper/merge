@@ -6,19 +6,13 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Domain.Modules.Catalog;
 
-/// <summary>
-/// RecentlyViewedProduct Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
-/// BOLUM 1.7: Concurrency Control (ZORUNLU)
-/// </summary>
+
 public class RecentlyViewedProduct : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public Guid ProductId { get; private set; }
     public DateTime ViewedAt { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -26,10 +20,8 @@ public class RecentlyViewedProduct : BaseEntity
     public User User { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private RecentlyViewedProduct() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static RecentlyViewedProduct Create(Guid userId, Guid productId)
     {
         Guard.AgainstDefault(userId, nameof(userId));
@@ -44,23 +36,19 @@ public class RecentlyViewedProduct : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
-        // ✅ BOLUM 1.4: Invariant validation
         recentlyViewed.ValidateInvariants();
         
         return recentlyViewed;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update viewed timestamp
     public void UpdateViewedAt()
     {
         ViewedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -68,11 +56,9 @@ public class RecentlyViewedProduct : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == UserId)

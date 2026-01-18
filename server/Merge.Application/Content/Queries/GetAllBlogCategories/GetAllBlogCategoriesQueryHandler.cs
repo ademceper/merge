@@ -53,7 +53,6 @@ public class GetAllBlogCategoriesQueryHandler(
             .Take(200)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var categoryIdsSubquery = from c in query.Take(200) select c.Id;
         var postCounts = await context.Set<BlogPost>()
             .AsNoTracking()

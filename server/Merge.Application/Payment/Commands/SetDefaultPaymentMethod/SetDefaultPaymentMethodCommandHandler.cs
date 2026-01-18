@@ -40,11 +40,9 @@ public class SetDefaultPaymentMethodCommandHandler(IDbContext context, IUnitOfWo
 
             foreach (var method in existingDefault)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 method.UnsetAsDefault();
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             paymentMethod.SetAsDefault();
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

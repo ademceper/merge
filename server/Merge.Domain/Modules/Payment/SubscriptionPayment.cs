@@ -18,13 +18,10 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class SubscriptionPayment : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserSubscriptionId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public PaymentStatus PaymentStatus { get; private set; } = PaymentStatus.Pending;
     
-    // ✅ BOLUM 1.3: Value Objects - Amount backing field (EF Core compatibility)
     private decimal _amount;
     public decimal Amount 
     { 
@@ -44,21 +41,17 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
     public int RetryCount { get; private set; } = 0;
     public DateTime? NextRetryDate { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money AmountMoney => new Money(_amount, UserSubscription?.SubscriptionPlan?.Currency ?? "TRY");
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public UserSubscription UserSubscription { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SubscriptionPayment() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static SubscriptionPayment Create(
         UserSubscription subscription,
         decimal amount,
@@ -84,7 +77,6 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionPaymentCreatedEvent
         payment.AddDomainEvent(new SubscriptionPaymentCreatedEvent(
             payment.Id,
             subscription.Id,
@@ -95,7 +87,6 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
         return payment;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark payment as completed
     public void MarkAsCompleted(string transactionId)
     {
         Guard.AgainstNullOrEmpty(transactionId, nameof(transactionId));
@@ -110,12 +101,9 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
         NextRetryDate = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
-        // ✅ ARCHITECTURE: Payment event'leri SubscriptionPayment üzerinden dispatch edilir
         AddDomainEvent(new SubscriptionPaymentCompletedEvent(Id, UserSubscriptionId, _amount, transactionId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark payment as failed
     public void MarkAsFailed(string reason)
     {
         Guard.AgainstNullOrEmpty(reason, nameof(reason));
@@ -126,16 +114,12 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
         PaymentStatus = PaymentStatus.Failed;
         FailureReason = reason;
         RetryCount++;
-        // ✅ BOLUM 12.0: Magic number - Retry delay (1 day) - Handler'da configuration olarak belirlenebilir
         NextRetryDate = DateTime.UtcNow.AddDays(1);
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
-        // ✅ ARCHITECTURE: Payment event'leri SubscriptionPayment üzerinden dispatch edilir
         AddDomainEvent(new SubscriptionPaymentFailedEvent(Id, UserSubscriptionId, _amount, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Retry payment
     public void Retry()
     {
         if (PaymentStatus != PaymentStatus.Failed)
@@ -147,13 +131,9 @@ public class SubscriptionPayment : BaseEntity, IAggregateRoot
         FailureReason = null;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
-        // ✅ ARCHITECTURE: Payment event'leri SubscriptionPayment üzerinden dispatch edilir
         AddDomainEvent(new SubscriptionPaymentRetriedEvent(Id, UserSubscriptionId, RetryCount));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Check if payment can be retried
-    // ✅ BOLUM 12.0: Magic number - Default maxRetries (3) - Handler'da configuration olarak belirlenebilir
     public bool CanRetry(int maxRetries = 3)
     {
         return PaymentStatus == PaymentStatus.Failed && RetryCount < maxRetries;

@@ -16,15 +16,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Commands.CreateNotificationFromTemplate;
 
-/// <summary>
-/// Create Notification From Template Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IMapper mapper, IMediator mediator, ILogger<CreateNotificationFromTemplateCommandHandler> logger) : IRequestHandler<CreateNotificationFromTemplateCommand, NotificationDto>
 {
 
     public async Task<NotificationDto> Handle(CreateNotificationFromTemplateCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await context.Set<NotificationTemplate>()
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Type == request.TemplateType && t.IsActive, cancellationToken);
@@ -35,14 +32,12 @@ public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IM
         }
 
         // Merge default data with provided variables
-        var allVariables = new Dictionary<string, object>();
+        Dictionary<string, object> allVariables = [];
         if (!string.IsNullOrEmpty(template.DefaultData))
         {
-            // ✅ FIX: template.DefaultData string olarak tutuluyor, deserialize etmemiz gerekiyor
             var defaultData = JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(template.DefaultData);
             if (defaultData != null)
             {
-                // ✅ FIX: Record'lar için reflection yerine direkt property'leri kullan
                 if (defaultData.DefaultLanguage != null) allVariables[nameof(defaultData.DefaultLanguage)] = defaultData.DefaultLanguage;
                 if (defaultData.DefaultSubject != null) allVariables[nameof(defaultData.DefaultSubject)] = defaultData.DefaultSubject;
                 if (defaultData.SenderName != null) allVariables[nameof(defaultData.SenderName)] = defaultData.SenderName;
@@ -56,7 +51,6 @@ public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IM
         }
         if (request.Variables != null)
         {
-            // ✅ FIX: Record'lar için reflection yerine direkt property'leri kullan
             if (request.Variables.CustomerName != null) allVariables[nameof(request.Variables.CustomerName)] = request.Variables.CustomerName;
             if (request.Variables.CustomerEmail != null) allVariables[nameof(request.Variables.CustomerEmail)] = request.Variables.CustomerEmail;
             if (request.Variables.OrderNumber != null) allVariables[nameof(request.Variables.OrderNumber)] = request.Variables.OrderNumber;
@@ -77,7 +71,6 @@ public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IM
             ? ReplaceVariables(template.LinkTemplate, allVariables) 
             : null;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - CreateNotificationCommand kullan
         var createCommand = new CreateNotificationCommand(
             request.UserId,
             request.TemplateType,

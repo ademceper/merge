@@ -16,7 +16,6 @@ namespace Merge.Domain.Modules.Notifications;
 /// </summary>
 public class EmailTemplate : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _name = string.Empty;
     public string Name 
     { 
@@ -73,16 +72,13 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
     }
     
     public string? Variables { get; private set; } // JSON array of available variables like {{customer_name}}, {{order_number}}
-    public ICollection<EmailCampaign> Campaigns { get; private set; } = new List<EmailCampaign>();
+    public ICollection<EmailCampaign> Campaigns { get; private set; } = [];
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private EmailTemplate() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static EmailTemplate Create(
         string name,
         string description,
@@ -112,13 +108,11 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
             IsActive = true
         };
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         template.AddDomainEvent(new EmailTemplateCreatedEvent(template.Id, name, type));
 
         return template;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update details
     public void UpdateDetails(
         string? name = null,
         string? description = null,
@@ -161,11 +155,9 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateUpdatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate
     public void Activate()
     {
         if (IsActive)
@@ -174,11 +166,9 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateActivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate
     public void Deactivate()
     {
         if (!IsActive)
@@ -187,11 +177,9 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateDeactivatedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -201,7 +189,6 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateDeletedEvent(Id, Name));
     }
 }

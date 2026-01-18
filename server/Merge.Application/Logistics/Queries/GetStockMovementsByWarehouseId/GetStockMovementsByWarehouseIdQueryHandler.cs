@@ -17,9 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetStockMovementsByWarehouseId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetStockMovementsByWarehouseIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -32,16 +29,11 @@ public class GetStockMovementsByWarehouseIdQueryHandler(
     {
         logger.LogInformation("Getting stock movements by warehouse. WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}", request.WarehouseId, request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize > _shippingSettings.QueryLimits.MaxPageSize 
             ? _shippingSettings.QueryLimits.MaxPageSize 
             : request.PageSize;
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
         var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
@@ -60,7 +52,6 @@ public class GetStockMovementsByWarehouseIdQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
         var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>

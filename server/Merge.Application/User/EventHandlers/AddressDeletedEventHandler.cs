@@ -4,13 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.User.EventHandlers;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddressDeletedEventHandler(ILogger<AddressDeletedEventHandler> logger) : INotificationHandler<AddressDeletedEvent>
 {
 
     public async Task Handle(AddressDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation(
             "Address deleted event received. AddressId: {AddressId}, UserId: {UserId}",

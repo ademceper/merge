@@ -17,17 +17,14 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class UserPreference : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
 
     // Display Preferences
-    // ✅ BOLUM 1.2: Enum kullanımı (string Theme YASAK)
     public Theme Theme { get; private set; } = Theme.Light;
     public string DefaultLanguage { get; private set; } = "tr-TR";
     public string DefaultCurrency { get; private set; } = "TRY";
     public int ItemsPerPage { get; private set; } = 20;
     public string DateFormat { get; private set; } = "dd/MM/yyyy";
-    // ✅ BOLUM 1.2: Enum kullanımı (string TimeFormat YASAK)
     public TimeFormat TimeFormat { get; private set; } = TimeFormat.TwentyFourHour;
 
     // Notification Preferences
@@ -58,7 +55,6 @@ public class UserPreference : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -67,7 +63,6 @@ public class UserPreference : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
         if (domainEvent == null)
@@ -76,10 +71,8 @@ public class UserPreference : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private UserPreference() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static UserPreference Create(Guid userId)
     {
         Guard.AgainstDefault(userId, nameof(userId));
@@ -91,13 +84,11 @@ public class UserPreference : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         preference.AddDomainEvent(new UserPreferenceCreatedEvent(preference.Id, userId));
 
         return preference;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update preferences
     public void UpdatePreferences(
         Theme? theme = null,
         string? defaultLanguage = null,
@@ -185,11 +176,9 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new UserPreferenceUpdatedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Reset to defaults
     public void ResetToDefaults()
     {
         Theme = Theme.Light;
@@ -223,7 +212,6 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
         AddDomainEvent(new UserPreferenceUpdatedEvent(Id, UserId));
     }
 }

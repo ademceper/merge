@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Queries.GetReviewById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetReviewByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetReviewByIdQueryHandler> logger) : IRequestHandler<GetReviewByIdQuery, ReviewDto?>
 {
 
@@ -34,7 +33,6 @@ public class GetReviewByIdQueryHandler(IDbContext context, IMapper mapper, ILogg
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<ReviewDto>(review);
     }
 }

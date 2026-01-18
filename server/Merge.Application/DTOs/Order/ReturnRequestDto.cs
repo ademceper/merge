@@ -15,6 +15,6 @@ public class ReturnRequestDto
     public string? TrackingNumber { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
-    public List<Guid> OrderItemIds { get; set; } = new List<Guid>();
+    public List<Guid> OrderItemIds { get; set; } = [];
     public DateTime CreatedAt { get; set; }
 }

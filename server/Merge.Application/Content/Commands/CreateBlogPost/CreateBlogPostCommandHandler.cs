@@ -18,8 +18,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.CreateBlogPost;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateBlogPostCommandHandler(
     IRepository postRepository,
     IDbContext context,
@@ -37,7 +35,6 @@ public class CreateBlogPostCommandHandler(
         logger.LogInformation("Creating blog post. AuthorId: {AuthorId}, CategoryId: {CategoryId}, Title: {Title}",
             request.AuthorId, request.CategoryId, request.Title);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -70,7 +67,6 @@ public class CreateBlogPostCommandHandler(
             // Convert tags list to comma-separated string
             var tags = request.Tags != null ? string.Join(",", request.Tags) : null;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var post = BlogPost.Create(
                 request.CategoryId,
                 request.AuthorId,
@@ -93,7 +89,6 @@ public class CreateBlogPostCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPost = await context.Set<BlogPost>()
                 .AsNoTracking()
                 .Include(p => p.Category)
@@ -106,7 +101,6 @@ public class CreateBlogPostCommandHandler(
                 throw new NotFoundException("Blog Post", post.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync(CACHE_KEY_ALL_POSTS, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_FEATURED_POSTS, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_RECENT_POSTS, cancellationToken);
@@ -127,7 +121,6 @@ public class CreateBlogPostCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error creating blog post with Title: {Title}", request.Title);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class UpdateKnowledgeBaseArticleCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<UpdateKnowledgeBaseArticleCommand>
 {
     private readonly SupportSettings config = settings.Value;

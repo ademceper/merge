@@ -10,7 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.UnblockPayment;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UnblockPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UnblockPaymentCommandHandler> logger) : IRequestHandler<UnblockPaymentCommand, bool>
 {
 
@@ -21,9 +20,7 @@ public class UnblockPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
 
         if (check == null) return false;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         check.Unblock();
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Payment unblocked. CheckId: {CheckId}", request.CheckId);

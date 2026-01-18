@@ -23,12 +23,11 @@ namespace Merge.Application.Services.Logistics;
 public class StockMovementService(IRepository stockMovementRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<StockMovementService> logger) : IStockMovementService
 {
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<StockMovementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-
         var movement = await context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -36,17 +35,11 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Include(sm => sm.ToWarehouse)
             .FirstOrDefaultAsync(sm => sm.Id == id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return movement == null ? null : mapper.Map<StockMovementDto>(movement);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
     public async Task<IEnumerable<StockMovementDto>> GetByInventoryIdAsync(Guid inventoryId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var movements = await context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -60,20 +53,14 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Take(100) // ✅ Güvenlik: Maksimum 100 hareket
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<StockMovementDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (page < 1) page = 1;
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -92,7 +79,6 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
@@ -104,16 +90,11 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<StockMovementDto>> GetByWarehouseIdAsync(Guid warehouseId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (page < 1) page = 1;
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -132,7 +113,6 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
@@ -144,17 +124,12 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
     public async Task<IEnumerable<StockMovementDto>> GetFilteredAsync(StockMovementFilterDto filter, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         // Init-only property'ler için yeni filter oluştur
         var pageSize = filter.PageSize > 100 ? 100 : filter.PageSize;
         var page = filter.Page < 1 ? 1 : filter.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<StockMovement> query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -195,16 +170,11 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<StockMovementDto> CreateAsync(CreateStockMovementDto createDto, Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory update + StockMovement create)
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         
         try
@@ -212,8 +182,6 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}",
                 createDto.ProductId, createDto.WarehouseId, createDto.Quantity);
 
-            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
             // Get inventory
             var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
@@ -261,6 +229,7 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
 
             stockMovement = await context.Set<StockMovement>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)
                 .Include(sm => sm.User)
@@ -268,7 +237,6 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
                 .Include(sm => sm.ToWarehouse)
                 .FirstOrDefaultAsync(sm => sm.Id == stockMovement.Id, cancellationToken);
 
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return mapper.Map<StockMovementDto>(stockMovement!);
         }
         catch (Exception ex)

@@ -9,6 +9,6 @@ public class OrderStatisticsDto
     public int PendingOrders { get; set; }
     public int CompletedOrders { get; set; }
     public int CancelledOrders { get; set; }
-    public Dictionary<string, int> OrdersByStatus { get; set; } = new Dictionary<string, int>();
-    public Dictionary<string, decimal> RevenueByMonth { get; set; } = new Dictionary<string, decimal>();
+    public Dictionary<string, int> OrdersByStatus { get; set; } = [];
+    public Dictionary<string, decimal> RevenueByMonth { get; set; } = [];
 }

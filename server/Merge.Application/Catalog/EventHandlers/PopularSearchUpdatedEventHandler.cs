@@ -4,17 +4,13 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Catalog.EventHandlers;
 
-/// <summary>
-/// Popular Search Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class PopularSearchUpdatedEventHandler(
     ILogger<PopularSearchUpdatedEventHandler> logger) : INotificationHandler<PopularSearchUpdatedEvent>
 {
 
     public async Task Handle(PopularSearchUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Popular search updated event received. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}, SearchCount: {SearchCount}, ClickThroughCount: {ClickThroughCount}, ClickThroughRate: {ClickThroughRate}",
             notification.PopularSearchId, notification.SearchTerm, notification.SearchCount, notification.ClickThroughCount, notification.ClickThroughRate);
@@ -31,7 +27,6 @@ public class PopularSearchUpdatedEventHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling PopularSearchUpdatedEvent. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}",
                 notification.PopularSearchId, notification.SearchTerm);

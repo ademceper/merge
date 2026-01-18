@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateOrderFromCartCommandValidator : AbstractValidator<CreateOrderFromCartCommand>
 {
     public CreateOrderFromCartCommandValidator()

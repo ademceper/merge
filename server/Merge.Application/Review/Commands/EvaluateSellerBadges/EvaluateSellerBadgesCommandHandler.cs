@@ -18,7 +18,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.EvaluateSellerBadges;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateSellerBadgesCommandHandler> logger) : IRequestHandler<EvaluateSellerBadgesCommand>
 {
 
@@ -26,27 +25,23 @@ public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator me
     {
         logger.LogInformation("Evaluating seller badges. SellerId: {SellerId}", request.SellerId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Seller")
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var seller = await context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
         if (seller == null) return;
 
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get seller metrics
         var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var totalRevenue = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Product.SellerId == request.SellerId &&
@@ -84,13 +79,11 @@ public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator me
 
             if (qualifies)
             {
-                // ✅ PERFORMANCE: Removed manual !stb.IsDeleted (Global Query Filter)
                 var existing = await context.Set<SellerTrustBadge>()
                     .FirstOrDefaultAsync(stb => stb.SellerId == request.SellerId && stb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
                 {
-                    // ✅ BOLUM 2.0: MediatR + CQRS pattern - Command çağrısı
                     var awardCommand = new AwardSellerBadgeCommand(
                         request.SellerId,
                         badge.Id,

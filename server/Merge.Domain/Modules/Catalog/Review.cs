@@ -17,14 +17,11 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class Review : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public Guid ProductId { get; private set; }
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Rating (1-5 arası)
     private int _rating;
     
-    // ✅ BOLUM 1.4: Invariant validation - Rating 1-5 arası
     public int Rating 
     { 
         get => _rating; 
@@ -42,11 +39,9 @@ public class Review : BaseEntity, IAggregateRoot
     public int HelpfulCount { get; private set; } = 0;
     public int UnhelpfulCount { get; private set; } = 0;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.3: Value Object property
     [NotMapped]
     public Rating RatingValueObject => new Rating(_rating);
 
@@ -54,17 +49,14 @@ public class Review : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<ReviewHelpfulness> _helpfulnessVotes = new();
     public IReadOnlyCollection<ReviewHelpfulness> HelpfulnessVotes => _helpfulnessVotes.AsReadOnly();
     
     private readonly List<ReviewMedia> _media = new();
     public IReadOnlyCollection<ReviewMedia> Media => _media.AsReadOnly();
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Review() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Review Create(
         Guid userId,
         Guid productId,
@@ -94,10 +86,8 @@ public class Review : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         review.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewCreatedEvent
         review.AddDomainEvent(new ReviewCreatedEvent(
             review.Id,
             review.UserId,
@@ -108,7 +98,6 @@ public class Review : BaseEntity, IAggregateRoot
         return review;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update rating
     public void UpdateRating(Rating newRating)
     {
         Guard.AgainstNull(newRating, nameof(newRating));
@@ -116,45 +105,36 @@ public class Review : BaseEntity, IAggregateRoot
         _rating = newRating.Value;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewUpdatedEvent
         if (oldRating != _rating)
         {
             AddDomainEvent(new ReviewUpdatedEvent(Id, UserId, ProductId, oldRating, _rating));
         }
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update title
     public void UpdateTitle(string newTitle)
     {
         Guard.AgainstNullOrEmpty(newTitle, nameof(newTitle));
         Title = newTitle;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ReviewUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ReviewUpdatedEvent(Id, UserId, ProductId, _rating, _rating));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update comment
     public void UpdateComment(string newComment)
     {
         Guard.AgainstNullOrEmpty(newComment, nameof(newComment));
         Comment = newComment;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ReviewUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ReviewUpdatedEvent(Id, UserId, ProductId, _rating, _rating));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Approve review
     public void Approve(Guid approvedByUserId)
     {
         if (IsApproved)
@@ -163,14 +143,11 @@ public class Review : BaseEntity, IAggregateRoot
         IsApproved = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewApprovedEvent
         AddDomainEvent(new ReviewApprovedEvent(Id, UserId, ProductId, Rating, approvedByUserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Reject review
     public void Reject(Guid rejectedByUserId, string? reason = null)
     {
         if (!IsApproved)
@@ -179,75 +156,59 @@ public class Review : BaseEntity, IAggregateRoot
         IsApproved = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewRejectedEvent
         AddDomainEvent(new ReviewRejectedEvent(Id, UserId, ProductId, rejectedByUserId, reason));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as helpful
     public void MarkAsHelpful()
     {
         HelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
         // Note: UserId will be set by the service layer when marking helpfulness
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as unhelpful
     public void MarkAsUnhelpful()
     {
         UnhelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
         // Note: UserId will be set by the service layer when marking helpfulness
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Unmark as helpful
     public void UnmarkAsHelpful()
     {
         if (HelpfulCount > 0)
             HelpfulCount--;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Unmark as unhelpful
     public void UnmarkAsUnhelpful()
     {
         if (UnhelpfulCount > 0)
             UnhelpfulCount--;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set verified purchase
     public void SetVerifiedPurchase(bool isVerified)
     {
         IsVerifiedPurchase = isVerified;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - ReviewUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ReviewUpdatedEvent(Id, UserId, ProductId, _rating, _rating));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Add helpfulness vote (collection manipulation)
     public void AddHelpfulnessVote(ReviewHelpfulness helpfulness)
     {
         Guard.AgainstNull(helpfulness, nameof(helpfulness));
@@ -270,11 +231,9 @@ public class Review : BaseEntity, IAggregateRoot
         }
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
     public void RemoveHelpfulnessVote(Guid voteId)
     {
         Guard.AgainstDefault(voteId, nameof(voteId));
@@ -286,11 +245,9 @@ public class Review : BaseEntity, IAggregateRoot
         _helpfulnessVotes.Remove(vote);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Add media (collection manipulation)
     public void AddMedia(ReviewMedia media)
     {
         Guard.AgainstNull(media, nameof(media));
@@ -305,11 +262,9 @@ public class Review : BaseEntity, IAggregateRoot
         _media.Add(media);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove media (collection manipulation)
     public void RemoveMedia(Guid mediaId)
     {
         Guard.AgainstDefault(mediaId, nameof(mediaId));
@@ -321,11 +276,9 @@ public class Review : BaseEntity, IAggregateRoot
         _media.Remove(media);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -334,14 +287,11 @@ public class Review : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - ReviewDeletedEvent
         AddDomainEvent(new ReviewDeletedEvent(Id, UserId, ProductId));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (Guid.Empty == UserId)

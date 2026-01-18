@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetPendingReturns;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetPendingReturnsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetPendingReturnsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

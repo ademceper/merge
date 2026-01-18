@@ -17,9 +17,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Support;
 
+/// <summary>
+/// FAQs API endpoints.
+/// Sık sorulan soruları yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/faqs")]
+[Tags("FAQs")]
 public class FaqsController(IMediator mediator, IOptions<SupportSettings> supportSettings) : BaseController
 {
     private readonly SupportSettings _supportSettings = supportSettings.Value;
@@ -146,7 +151,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         var faq = await mediator.Send(query, cancellationToken);
         if (faq == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         // Görüntülenme sayısını artır
@@ -215,7 +220,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         var faq = await mediator.Send(command, cancellationToken);
         if (faq == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -250,7 +255,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         var faq = await mediator.Send(command, cancellationToken);
         if (faq == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -275,7 +280,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

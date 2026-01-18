@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace Merge.Application.Support.Commands.CreateLiveChatSession;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
 public class CreateLiveChatSessionCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateLiveChatSessionCommand>
 {
     private readonly SupportSettings config = settings.Value;

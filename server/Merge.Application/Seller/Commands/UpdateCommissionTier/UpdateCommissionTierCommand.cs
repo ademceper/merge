@@ -3,7 +3,6 @@ using Merge.Application.DTOs.Seller;
 
 namespace Merge.Application.Seller.Commands.UpdateCommissionTier;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record UpdateCommissionTierCommand(
     Guid TierId,
     string Name,

@@ -24,7 +24,6 @@ public class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> options) : 
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("AnalyticsDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -38,7 +37,6 @@ public class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> options) : 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnalyticsDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Analytics");
 
-        // ✅ HIGH-DB-003 FIX: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

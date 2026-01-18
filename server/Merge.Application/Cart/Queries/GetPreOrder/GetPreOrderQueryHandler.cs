@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetPreOrder;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPreOrderQueryHandler(
     IDbContext context,
     IMapper mapper) : IRequestHandler<GetPreOrderQuery, PreOrderDto?>
@@ -26,7 +24,6 @@ public class GetPreOrderQueryHandler(
             .Include(po => po.Product)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         return preOrder is not null ? mapper.Map<PreOrderDto>(preOrder) : null;
     }
 }

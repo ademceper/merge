@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.UpdateProductTemplate;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateProductTemplateCommandHandler> logger, ICacheService cache, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<UpdateProductTemplateCommand, bool>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -43,7 +42,6 @@ public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             // Store old category ID for cache invalidation
             var oldCategoryId = template.CategoryId;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             template.Update(
                 request.Name,
                 request.Description,
@@ -60,7 +58,6 @@ public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             await cache.RemoveAsync($"{CACHE_KEY_TEMPLATE_BY_ID}{request.Id}", cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_ALL_TEMPLATES, cancellationToken);
             if (request.CategoryId.HasValue && request.CategoryId.Value != oldCategoryId)
@@ -74,7 +71,6 @@ public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             }
             await cache.RemoveAsync(CACHE_KEY_TEMPLATES_ACTIVE, cancellationToken);
             // Invalidate popular templates cache (all possible limits)
-            // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
             for (int limit = paginationConfig.DefaultPageSize; limit <= paginationConfig.MaxPageSize; limit += paginationConfig.DefaultPageSize)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_POPULAR_TEMPLATES}{limit}", cancellationToken);

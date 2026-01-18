@@ -17,10 +17,15 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Support;
 
+/// <summary>
+/// Customer Communications API endpoints.
+/// Müşteri iletişimlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/communications")]
 [Authorize]
+[Tags("CustomerCommunications")]
 public class CustomerCommunicationsController(IMediator mediator, IOptions<SupportSettings> supportSettings) : BaseController
 {
     private readonly SupportSettings _supportSettings = supportSettings.Value;
@@ -96,7 +101,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         var communication = await mediator.Send(query, cancellationToken);
         if (communication == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
                 if (!isAdmin && communication.UserId != userId)
@@ -240,7 +245,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -281,7 +286,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

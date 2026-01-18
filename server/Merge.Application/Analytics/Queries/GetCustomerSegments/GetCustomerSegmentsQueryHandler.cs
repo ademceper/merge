@@ -13,8 +13,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Analytics.Queries.GetCustomerSegments;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetCustomerSegmentsQueryHandler(
     IDbContext context,
     ILogger<GetCustomerSegmentsQueryHandler> logger,
@@ -25,11 +23,7 @@ public class GetCustomerSegmentsQueryHandler(
     {
         logger.LogInformation("Fetching customer segments");
 
-        // ✅ PERFORMANCE: Database'de customer segmentation yap (memory'de değil)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var vipThreshold = settings.Value.VipCustomerThreshold ?? 10000m; // Default VIP threshold
         var activeDaysThreshold = settings.Value.ActiveCustomerDaysThreshold ?? 90; // Son 90 gün içinde aktif
         var newCustomerDays = settings.Value.NewCustomerDaysThreshold ?? 30; // Son 30 gün içinde kayıt olanlar
@@ -112,7 +106,6 @@ public class GetCustomerSegmentsQueryHandler(
             : 0;
         var newAvgOrderValue = newOrderCount > 0 ? newRevenue / newOrderCount : 0m;
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         var segments = new List<CustomerSegmentDto>
         {
             new CustomerSegmentDto("VIP", vipCount, vipRevenue, vipAvgOrderValue),

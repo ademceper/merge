@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.UpdatePickPackItemStatus;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdatePickPackItemStatusCommandValidator : AbstractValidator<UpdatePickPackItemStatusCommand>
 {
     public UpdatePickPackItemStatusCommandValidator()

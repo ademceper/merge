@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Commands.ReserveStock;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class ReserveStockCommandValidator : AbstractValidator<ReserveStockCommand>
 {
     public ReserveStockCommandValidator()

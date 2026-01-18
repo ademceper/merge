@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Commands.DeleteQuestion;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class DeleteQuestionCommandValidator : AbstractValidator<DeleteQuestionCommand>
 {
     public DeleteQuestionCommandValidator()

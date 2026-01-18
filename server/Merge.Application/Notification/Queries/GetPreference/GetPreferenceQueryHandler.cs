@@ -12,22 +12,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Queries.GetPreference;
 
-/// <summary>
-/// Get Preference Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class GetPreferenceQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetPreferenceQuery, NotificationPreferenceDto?>
 {
 
     public async Task<NotificationPreferenceDto?> Handle(GetPreferenceQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == request.UserId && 
                                       np.NotificationType == request.NotificationType && 
                                       np.Channel == request.Channel, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return preference != null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
     }
 }

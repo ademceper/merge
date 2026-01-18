@@ -1,8 +1,6 @@
 namespace Merge.Domain.Enums;
 
-/// <summary>
-/// Two Factor Purpose Enum - BOLUM 1.2: Enum kullanımı (string Purpose YASAK)
-/// </summary>
+
 public enum TwoFactorPurpose
 {
     Login = 0,

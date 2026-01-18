@@ -10,15 +10,9 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Return Request Rejected Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReturnRequestRejectedEventHandler(ILogger<ReturnRequestRejectedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestRejectedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(ReturnRequestRejectedEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation(
@@ -28,7 +22,7 @@ public class ReturnRequestRejectedEventHandler(ILogger<ReturnRequestRejectedEven
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -37,7 +31,7 @@ public class ReturnRequestRejectedEventHandler(ILogger<ReturnRequestRejectedEven
                     $"İade talebiniz reddedildi. İade Talebi No: {notification.ReturnRequestId}. Sebep: {notification.RejectionReason ?? "Belirtilmedi"}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -45,7 +39,6 @@ public class ReturnRequestRejectedEventHandler(ILogger<ReturnRequestRejectedEven
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReturnRequestRejectedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);

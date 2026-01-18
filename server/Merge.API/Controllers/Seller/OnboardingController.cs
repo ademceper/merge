@@ -17,9 +17,14 @@ using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Seller;
 
-[ApiController]
+/// <summary>
+/// Seller Onboarding API endpoints.
+/// Satıcı başvuru sürecini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
+[ApiController]
 [Route("api/v{version:apiVersion}/seller/onboarding")]
+[Tags("SellerOnboarding")]
 public class OnboardingController(IMediator mediator) : BaseController
 {
 
@@ -40,10 +45,7 @@ public class OnboardingController(IMediator mediator) : BaseController
         var userId = GetUserId();
         var command = new SubmitSellerApplicationCommand(userId, applicationDto);
         var application = await mediator.Send(command, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetMyApplication", new { version }, version);
-        links["application"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{application.Id}", Method = "GET" };
-        return CreatedAtAction(nameof(GetMyApplication), new { version }, new { application, _links = links });
+        return CreatedAtAction(nameof(GetMyApplication), new { version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0" }, application);
     }
 
     [HttpGet("my-application")]
@@ -62,12 +64,9 @@ public class OnboardingController(IMediator mediator) : BaseController
 
         if (application == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetMyApplication", new { version }, version);
-        links["application"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{application.Id}", Method = "GET" };
-        return Ok(new { application, _links = links });
+        return Ok(application);
     }
 
     [HttpGet("{id}")]
@@ -87,14 +86,9 @@ public class OnboardingController(IMediator mediator) : BaseController
 
         if (application == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetApplication", new { version, id }, version);
-        links["review"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/review", Method = "POST" };
-        links["approve"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/approve", Method = "POST" };
-        links["reject"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/reject", Method = "POST" };
-        return Ok(new { application, _links = links });
+        return Ok(application);
     }
 
     [HttpGet]
@@ -112,9 +106,7 @@ public class OnboardingController(IMediator mediator) : BaseController
     {
         var query = new GetAllSellerApplicationsQuery(status, page, pageSize);
         var result = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreatePaginationLinks(Url, "GetApplications", page, pageSize, result.TotalPages, new { version, status }, version);
-        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
+        return Ok(result);
     }
 
     [HttpPost("{id}/review")]
@@ -145,11 +137,9 @@ public class OnboardingController(IMediator mediator) : BaseController
 
         if (application == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetApplication", new { version, id }, version);
-        return Ok(new { application, _links = links });
+        return Ok(application);
     }
 
     [HttpPost("{id}/approve")]
@@ -170,7 +160,7 @@ public class OnboardingController(IMediator mediator) : BaseController
 
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -198,7 +188,7 @@ public class OnboardingController(IMediator mediator) : BaseController
 
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -215,8 +205,6 @@ public class OnboardingController(IMediator mediator) : BaseController
     {
         var query = new GetSellerOnboardingStatsQuery();
         var stats = await mediator.Send(query, cancellationToken);
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateSelfLink(Url, "GetStats", new { version }, version);
-        return Ok(new { stats, _links = links });
+        return Ok(stats);
     }
 }

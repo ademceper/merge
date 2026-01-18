@@ -23,7 +23,7 @@ public class SetUserCurrencyPreferenceCommandHandler(
             request.UserId, request.CurrencyCode);
 
         var currency = await context.Set<Currency>()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.CurrencyCode.ToUpper() && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode) && c.IsActive, cancellationToken);
 
         if (currency == null)
         {

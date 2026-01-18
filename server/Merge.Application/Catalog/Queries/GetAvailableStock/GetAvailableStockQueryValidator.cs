@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Catalog.Queries.GetAvailableStock;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAvailableStockQueryValidator : AbstractValidator<GetAvailableStockQuery>
 {
     public GetAvailableStockQueryValidator()

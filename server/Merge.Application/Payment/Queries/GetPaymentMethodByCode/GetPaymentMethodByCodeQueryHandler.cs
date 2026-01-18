@@ -21,7 +21,6 @@ public class GetPaymentMethodByCodeQueryHandler(IDbContext context, IMapper mapp
     {
         logger.LogInformation("Retrieving payment method by code. Code: {Code}", request.Code);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         var paymentMethod = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Code == request.Code && pm.IsActive, cancellationToken);
@@ -32,7 +31,6 @@ public class GetPaymentMethodByCodeQueryHandler(IDbContext context, IMapper mapp
             return null;
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<PaymentMethodDto>(paymentMethod);
     }
 }

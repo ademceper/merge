@@ -11,8 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.ExportReport;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ExportReportQueryHandler(
     IDbContext context,
     ILogger<ExportReportQueryHandler> logger) : IRequestHandler<ExportReportQuery, byte[]?>
@@ -22,7 +20,6 @@ public class ExportReportQueryHandler(
     {
         logger.LogInformation("Exporting report. ReportId: {ReportId}, UserId: {UserId}", request.Id, request.UserId);
         
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var report = await context.Set<Report>()
             .AsNoTracking()
             .Include(r => r.GeneratedByUser)
@@ -34,7 +31,6 @@ public class ExportReportQueryHandler(
             throw new NotFoundException("Rapor", request.Id);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only export their own reports unless Admin
         if (report.GeneratedBy != request.UserId)
         {
             logger.LogWarning("Unauthorized report export attempt. ReportId: {ReportId}, UserId: {UserId}, ReportOwner: {ReportOwner}",

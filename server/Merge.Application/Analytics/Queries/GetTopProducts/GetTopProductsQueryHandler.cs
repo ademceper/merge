@@ -15,8 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetTopProducts;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetTopProductsQueryHandler(
     IDbContext context,
     ILogger<GetTopProductsQueryHandler> logger,
@@ -28,12 +26,8 @@ public class GetTopProductsQueryHandler(
         logger.LogInformation("Fetching top products. StartDate: {StartDate}, EndDate: {EndDate}, Limit: {Limit}",
             request.StartDate, request.EndDate, request.Limit);
 
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
         var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
         return await context.Set<OrderItem>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -41,7 +35,6 @@ public class GetTopProductsQueryHandler(
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= request.StartDate && oi.Order.CreatedAt <= request.EndDate)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.SKU })
-            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
             .Select(g => new TopProductDto(
                 g.Key.ProductId,
                 g.Key.Name,

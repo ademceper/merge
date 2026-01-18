@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.CreateTrustBadge;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateTrustBadgeCommandHandler> logger) : IRequestHandler<CreateTrustBadgeCommand, TrustBadgeDto>
 {
 
@@ -25,7 +24,6 @@ public class CreateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
             "Creating trust badge. Name: {Name}, BadgeType: {BadgeType}",
             request.Name, request.BadgeType);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var criteriaJson = request.Criteria != null ? JsonSerializer.Serialize(request.Criteria) : string.Empty;
         var badge = TrustBadge.Create(
             request.Name,
@@ -48,7 +46,6 @@ public class CreateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
             "Trust badge created successfully. BadgeId: {BadgeId}, Name: {Name}",
             badge.Id, badge.Name);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<TrustBadgeDto>(badge);
     }
 }

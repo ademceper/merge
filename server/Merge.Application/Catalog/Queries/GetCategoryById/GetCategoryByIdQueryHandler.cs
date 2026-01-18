@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetCategoryById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetCategoryByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -29,7 +27,6 @@ public class GetCategoryByIdQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_CATEGORY_BY_ID}{request.Id}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for single category
         var cachedCategory = await cache.GetAsync<CategoryDto>(cacheKey, cancellationToken);
         if (cachedCategory != null)
         {
@@ -39,8 +36,6 @@ public class GetCategoryByIdQueryHandler(
 
         logger.LogInformation("Cache miss for category. CategoryId: {CategoryId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var category = await context.Set<Category>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
@@ -56,7 +51,6 @@ public class GetCategoryByIdQueryHandler(
         logger.LogInformation("Successfully retrieved category {CategoryId} with Name: {Name}",
             request.Id, category.Name);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var categoryDto = mapper.Map<CategoryDto>(category);
         
         // Cache the result

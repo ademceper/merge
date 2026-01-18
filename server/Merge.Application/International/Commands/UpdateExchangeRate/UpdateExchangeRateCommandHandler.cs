@@ -23,7 +23,7 @@ public class UpdateExchangeRateCommandHandler(
             request.CurrencyCode, request.NewRate, request.Source);
 
         var currency = await context.Set<Currency>()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.CurrencyCode.ToUpper(), cancellationToken);
+            .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode), cancellationToken);
 
         if (currency == null)
         {

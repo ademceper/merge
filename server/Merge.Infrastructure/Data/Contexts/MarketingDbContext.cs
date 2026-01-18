@@ -34,7 +34,6 @@ public class MarketingDbContext(DbContextOptions<MarketingDbContext> options) : 
     // IDbContext explicit implementations (if any missing from base DbContext)
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("MarketingDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -48,7 +47,6 @@ public class MarketingDbContext(DbContextOptions<MarketingDbContext> options) : 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MarketingDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Marketing");
 
-        // ✅ HIGH-DB-003 FIX: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

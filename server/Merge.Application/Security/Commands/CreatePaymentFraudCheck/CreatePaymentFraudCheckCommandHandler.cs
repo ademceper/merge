@@ -20,7 +20,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.CreatePaymentFraudCheck;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreatePaymentFraudCheckCommandHandler> logger, IOptions<SecuritySettings> securitySettings) : IRequestHandler<CreatePaymentFraudCheckCommand, PaymentFraudPreventionDto>
 {
     private readonly SecuritySettings securityConfig = securitySettings.Value;
@@ -59,7 +58,6 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
             ? parsedType
             : throw new BusinessException($"Invalid CheckType: {request.CheckType}");
 
-        // ✅ BOLUM 12.0: Magic number config'den - Risk score'a göre isBlocked ve status belirleme
         var isBlocked = riskScore >= securityConfig.PaymentFraudHighRiskThreshold;
         var status = isBlocked 
             ? VerificationStatus.Failed 
@@ -68,7 +66,6 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
                 : VerificationStatus.Verified);
         var blockReason = isBlocked ? $"High risk score: {riskScore} (threshold: {securityConfig.PaymentFraudHighRiskThreshold})" : null;
 
-        // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         var checkResultDto = new FraudDetectionMetadataDto
         {
             RiskScore = (decimal)riskScore, // int'ten decimal'e cast
@@ -79,8 +76,6 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
         };
         var checkResult = JsonSerializer.Serialize(checkResultDto);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ BOLUM 12.0: Magic number config'den - Handler'da belirlenen isBlocked ve status Create method'una geçiriliyor
         var check = PaymentFraudPrevention.Create(
             paymentId: request.PaymentId,
             checkType: checkType,
@@ -94,10 +89,8 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
             userAgent: request.UserAgent);
 
         await context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         check = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)

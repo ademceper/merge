@@ -31,7 +31,6 @@ public class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbCo
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
     DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("ContentDbContext does not support Users. Use ApplicationDbContext for identity operations.");
     DbSet<Role> IDbContext.Roles =>
@@ -45,7 +44,6 @@ public class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbCo
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ContentDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Content");
 
-        // ✅ HIGH-DB-003 FIX: Global Query Filter - Soft Delete (ZORUNLU)
         ConfigureGlobalQueryFilters(modelBuilder);
     }
 

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Catalog.Queries.GetInventoriesByWarehouseId;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetInventoriesByWarehouseIdQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetInventoriesByWarehouseIdQuery>
 {
     private readonly PaginationSettings config = paginationSettings.Value;

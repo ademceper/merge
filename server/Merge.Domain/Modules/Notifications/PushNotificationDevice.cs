@@ -12,7 +12,6 @@ namespace Merge.Domain.Modules.Notifications;
 /// </summary>
 public class PushNotificationDevice : BaseEntity
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
     private string _deviceToken = string.Empty;
@@ -84,17 +83,14 @@ public class PushNotificationDevice : BaseEntity
     public bool IsActive { get; private set; } = true;
     public DateTime? LastUsedAt { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PushNotificationDevice() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PushNotificationDevice Create(
         Guid userId,
         string deviceToken,
@@ -135,7 +131,6 @@ public class PushNotificationDevice : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update device token
     public void UpdateDeviceToken(string deviceToken)
     {
         Guard.AgainstNullOrEmpty(deviceToken, nameof(deviceToken));
@@ -145,7 +140,6 @@ public class PushNotificationDevice : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update device info
     public void UpdateDeviceInfo(string? deviceModel = null, string? appVersion = null)
     {
         if (deviceModel != null)
@@ -161,7 +155,6 @@ public class PushNotificationDevice : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate device
     public void Activate()
     {
         if (IsActive)
@@ -171,7 +164,6 @@ public class PushNotificationDevice : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Deactivate device
     public void Deactivate()
     {
         if (!IsActive)
@@ -181,14 +173,12 @@ public class PushNotificationDevice : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Record last used
     public void RecordLastUsed()
     {
         LastUsedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete device (soft delete)
     public void Delete()
     {
         if (IsDeleted)

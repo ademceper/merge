@@ -20,15 +20,12 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class Payment : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public string PaymentMethod { get; private set; } = string.Empty;
     public string PaymentProvider { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public PaymentStatus Status { get; private set; } = PaymentStatus.Pending;
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Money
     private decimal _amount;
     
     public decimal Amount 
@@ -47,21 +44,17 @@ public class Payment : BaseEntity, IAggregateRoot
     public string? FailureReason { get; private set; }
     public string? Metadata { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.3: Value Object property
     [NotMapped]
     public Money AmountMoney => new Money(_amount);
 
     // Navigation properties
     public Order Order { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Payment() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Payment Create(
         Guid orderId,
         string paymentMethod,
@@ -84,7 +77,6 @@ public class Payment : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentCreatedEvent yayınla
         payment.AddDomainEvent(new PaymentCreatedEvent(
             payment.Id,
             orderId,
@@ -95,7 +87,6 @@ public class Payment : BaseEntity, IAggregateRoot
         return payment;
     }
 
-    // ✅ BOLUM 1.1: State Machine Pattern - Transition to new status
     private static readonly Dictionary<PaymentStatus, PaymentStatus[]> AllowedTransitions = new()
     {
         { PaymentStatus.Pending, new[] { PaymentStatus.Processing, PaymentStatus.Cancelled } },
@@ -122,7 +113,6 @@ public class Payment : BaseEntity, IAggregateRoot
             PaidAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Convenience methods for common transitions
     public void Process()
     {
         if (Status != PaymentStatus.Pending)
@@ -130,7 +120,6 @@ public class Payment : BaseEntity, IAggregateRoot
 
         TransitionTo(PaymentStatus.Processing);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentProcessingEvent yayınla
         AddDomainEvent(new PaymentProcessingEvent(
             Id,
             OrderId,
@@ -150,7 +139,6 @@ public class Payment : BaseEntity, IAggregateRoot
         PaymentReference = paymentReference;
         TransitionTo(PaymentStatus.Completed);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentCompletedEvent yayınla
         AddDomainEvent(new PaymentCompletedEvent(
             Id,
             OrderId,
@@ -169,7 +157,6 @@ public class Payment : BaseEntity, IAggregateRoot
         FailureReason = failureReason;
         TransitionTo(PaymentStatus.Failed);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentFailedEvent yayınla
         AddDomainEvent(new PaymentFailedEvent(
             Id,
             OrderId,
@@ -186,7 +173,6 @@ public class Payment : BaseEntity, IAggregateRoot
 
         TransitionTo(PaymentStatus.Cancelled);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentCancelledEvent yayınla
         AddDomainEvent(new PaymentCancelledEvent(
             Id,
             OrderId,
@@ -200,7 +186,6 @@ public class Payment : BaseEntity, IAggregateRoot
 
         TransitionTo(PaymentStatus.Refunded);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentRefundedEvent yayınla
         AddDomainEvent(new PaymentRefundedEvent(
             Id,
             OrderId,
@@ -220,7 +205,6 @@ public class Payment : BaseEntity, IAggregateRoot
 
         TransitionTo(PaymentStatus.PartiallyRefunded);
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentRefundedEvent yayınla
         AddDomainEvent(new PaymentRefundedEvent(
             Id,
             OrderId,
@@ -228,35 +212,29 @@ public class Payment : BaseEntity, IAggregateRoot
             IsFullRefund: false));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set transaction ID
     public void SetTransactionId(string transactionId)
     {
         Guard.AgainstNullOrEmpty(transactionId, nameof(transactionId));
         TransactionId = transactionId;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
         AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, transactionId, PaymentReference, Metadata));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set payment reference
     public void SetPaymentReference(string paymentReference)
     {
         Guard.AgainstNullOrEmpty(paymentReference, nameof(paymentReference));
         PaymentReference = paymentReference;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
         AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, TransactionId, paymentReference, Metadata));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set metadata
     public void SetMetadata(string metadata)
     {
         Metadata = metadata;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
         AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, TransactionId, PaymentReference, metadata));
     }
 }

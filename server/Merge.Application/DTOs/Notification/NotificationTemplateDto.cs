@@ -3,9 +3,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.DTOs.Notification;
 
-/// <summary>
-/// Notification Template DTO - BOLUM 7.1.5: Records (C# 12 modern features)
-/// </summary>
+
 public record NotificationTemplateDto(
     Guid Id,
     string Name,

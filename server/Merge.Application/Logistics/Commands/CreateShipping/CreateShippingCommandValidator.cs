@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.CreateShipping;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateShippingCommandValidator : AbstractValidator<CreateShippingCommand>
 {
     public CreateShippingCommandValidator()

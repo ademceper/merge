@@ -16,8 +16,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Queries.GetStockReportByProduct;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetStockReportByProductQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -33,7 +31,6 @@ public class GetStockReportByProductQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_STOCK_REPORT_BY_PRODUCT}{request.ProductId}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache for stock reports
         var cachedReport = await cache.GetAsync<StockReportDto>(cacheKey, cancellationToken);
         if (cachedReport != null)
         {
@@ -43,8 +40,6 @@ public class GetStockReportByProductQueryHandler(
 
         logger.LogInformation("Cache miss for stock report. ProductId: {ProductId}", request.ProductId);
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
@@ -55,7 +50,6 @@ public class GetStockReportByProductQueryHandler(
             return null;
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stock report'una erişebilmeli
         if (request.PerformedBy.HasValue && product.SellerId != request.PerformedBy.Value)
         {
             logger.LogWarning("Unauthorized attempt to access stock report for product {ProductId} by user {UserId}. Product belongs to {SellerId}",
@@ -63,7 +57,6 @@ public class GetStockReportByProductQueryHandler(
             throw new BusinessException("Bu ürünün stok raporuna erişim yetkiniz bulunmamaktadır.");
         }
 
-        // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         var inventoryCount = await context.Set<Inventory>()
             .AsNoTracking()
             .CountAsync(i => i.ProductId == request.ProductId, cancellationToken);
@@ -74,7 +67,6 @@ public class GetStockReportByProductQueryHandler(
             return null;
         }
 
-        // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var totalQuantity = await context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == request.ProductId)
@@ -95,7 +87,6 @@ public class GetStockReportByProductQueryHandler(
             .Where(i => i.ProductId == request.ProductId)
             .SumAsync(i => i.Quantity * i.UnitCost, cancellationToken);
 
-        // ✅ PERFORMANCE: Warehouse breakdown için inventory'leri yükle (AutoMapper için gerekli)
         var inventories = await context.Set<Inventory>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -107,7 +98,6 @@ public class GetStockReportByProductQueryHandler(
         logger.LogInformation("Successfully retrieved stock report for ProductId: {ProductId}. TotalQuantity: {TotalQuantity}",
             request.ProductId, totalQuantity);
 
-        // ✅ BOLUM 7.1.5: Records - Positional constructor kullanımı
         var stockReportDto = new StockReportDto(
             request.ProductId,
             product.Name,

@@ -19,7 +19,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.CreateOrderVerification;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateOrderVerificationCommandHandler> logger, IOptions<SecuritySettings> securitySettings) : IRequestHandler<CreateOrderVerificationCommand, OrderVerificationDto>
 {
     private readonly SecuritySettings securityConfig = securitySettings.Value;
@@ -54,7 +53,6 @@ public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWo
             ? parsedType
             : throw new BusinessException($"Invalid VerificationType: {request.VerificationType}");
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var verification = OrderVerification.Create(
             orderId: request.OrderId,
             verificationType: verificationType,
@@ -64,7 +62,6 @@ public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWo
             requiresManualReview: request.RequiresManualReview || riskScore >= securityConfig.OrderVerificationManualReviewThreshold);
 
         await context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         verification = await context.Set<OrderVerification>()

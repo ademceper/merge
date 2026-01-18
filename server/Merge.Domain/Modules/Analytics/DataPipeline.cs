@@ -17,10 +17,8 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class DataPipeline : BaseAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
-    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public EntityStatus Status { get; private set; } = EntityStatus.Inactive;
     public string? SourceType { get; private set; } // Database, API, File, Stream
     public string? TargetType { get; private set; } // Database, DataWarehouse, API, File
@@ -35,14 +33,11 @@ public class DataPipeline : BaseAggregateRoot
     public string? ErrorMessage { get; private set; }
     public bool IsRealTime { get; private set; } = false;
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private DataPipeline() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static DataPipeline Create(
         string name,
         string description,
@@ -74,7 +69,6 @@ public class DataPipeline : BaseAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - DataPipelineCreatedEvent yayınla
         pipeline.AddDomainEvent(new DataPipelineCreatedEvent(
             pipeline.Id,
             name,
@@ -84,7 +78,6 @@ public class DataPipeline : BaseAggregateRoot
         return pipeline;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate pipeline
     public void Activate()
     {
         if (Status == EntityStatus.Active)
@@ -93,11 +86,9 @@ public class DataPipeline : BaseAggregateRoot
         Status = EntityStatus.Active;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataPipelineActivatedEvent yayınla
         AddDomainEvent(new DataPipelineActivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Deactivate pipeline
     public void Deactivate()
     {
         if (Status == EntityStatus.Inactive)
@@ -106,11 +97,9 @@ public class DataPipeline : BaseAggregateRoot
         Status = EntityStatus.Inactive;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataPipelineDeactivatedEvent yayınla
         AddDomainEvent(new DataPipelineDeactivatedEvent(Id));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update configuration
     public void UpdateConfiguration(string? sourceConfig, string? targetConfig, string? transformationRules)
     {
         SourceConfig = sourceConfig;
@@ -119,10 +108,8 @@ public class DataPipeline : BaseAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as run
     public void MarkAsRun(int recordsProcessed, int recordsFailed = 0, string? errorMessage = null)
     {
-        // ✅ BOLUM 1.6: Invariant Validation - RecordsProcessed >= 0, RecordsFailed >= 0
         if (recordsProcessed < 0)
             throw new DomainException("İşlenen kayıt sayısı negatif olamaz");
         if (recordsFailed < 0)
@@ -134,7 +121,6 @@ public class DataPipeline : BaseAggregateRoot
         ErrorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataPipelineRunCompletedEvent yayınla
         AddDomainEvent(new DataPipelineRunCompletedEvent(
             Id,
             recordsProcessed,
@@ -142,7 +128,6 @@ public class DataPipeline : BaseAggregateRoot
             errorMessage));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Schedule next run
     public void ScheduleNextRun(DateTime nextRunAt)
     {
         if (nextRunAt <= DateTime.UtcNow)
@@ -152,7 +137,6 @@ public class DataPipeline : BaseAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if pipeline is due
     public bool IsDue()
     {
         return Status == EntityStatus.Active && 
@@ -160,13 +144,11 @@ public class DataPipeline : BaseAggregateRoot
                NextRunAt.Value <= DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - DataPipelineDeletedEvent yayınla
         AddDomainEvent(new DataPipelineDeletedEvent(Id));
     }
 }

@@ -4,19 +4,15 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Infrastructure.Data.Configurations.Payment;
 
-/// <summary>
-/// CreditTerm Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
-/// </summary>
+
 public class CreditTermConfiguration : IEntityTypeConfiguration<CreditTerm>
 {
     public void Configure(EntityTypeBuilder<CreditTerm> builder)
     {
-        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.OrganizationId);
         builder.HasIndex(e => e.IsActive);
         builder.HasIndex(e => new { e.OrganizationId, e.IsActive });
         
-        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
         builder.Property(e => e.RowVersion)
             .IsRowVersion()
             .IsRequired(false);
@@ -35,7 +31,6 @@ public class CreditTermConfiguration : IEntityTypeConfiguration<CreditTerm>
         builder.Property(e => e.Terms)
             .HasMaxLength(1000);
         
-        // ✅ BOLUM 6.1: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_CreditTerm_PaymentDays_Positive", "\"PaymentDays\" > 0");

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetAutocompleteSuggestions;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAutocompleteSuggestionsQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetAutocompleteSuggestionsQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

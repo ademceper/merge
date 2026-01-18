@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.GenerateShareCode;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GenerateShareCodeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<GenerateShareCodeCommandHandler> logger, ICacheService cache) : IRequestHandler<GenerateShareCodeCommand, string>
 {
 
@@ -38,15 +37,12 @@ public class GenerateShareCodeCommandHandler(IDbContext context, IUnitOfWork uni
                 return comparison.ShareCode;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Domain method içinde zaten unique share code generation var
             comparison.GenerateShareCode();
 
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation
             if (!string.IsNullOrEmpty(comparison.ShareCode))
             {
                 await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_SHARE_CODE}{comparison.ShareCode}", cancellationToken);

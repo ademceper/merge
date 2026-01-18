@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetEnabledChannels;
 
-/// <summary>
-/// Get Enabled Channels Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class GetEnabledChannelsQueryValidator : AbstractValidator<GetEnabledChannelsQuery>
 {
     public GetEnabledChannelsQueryValidator()

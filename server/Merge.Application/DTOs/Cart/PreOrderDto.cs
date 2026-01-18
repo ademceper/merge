@@ -3,10 +3,7 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.DTOs.Cart;
 
-/// <summary>
-/// PreOrder DTO - BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
-/// BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
-/// </summary>
+
 public record PreOrderDto(
     Guid Id,
     Guid UserId,

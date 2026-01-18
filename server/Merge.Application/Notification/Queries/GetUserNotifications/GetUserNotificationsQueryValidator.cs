@@ -6,9 +6,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetUserNotifications;
 
-/// <summary>
-/// Get User Notifications Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class GetUserNotificationsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetUserNotificationsQuery>
 {
     private readonly PaginationSettings settings = paginationSettings.Value;

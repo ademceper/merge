@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetAllSellerApplications;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetAllSellerApplicationsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllSellerApplicationsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllSellerApplicationsQuery, PagedResult<SellerApplicationDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -25,18 +24,14 @@ public class GetAllSellerApplicationsQueryHandler(IDbContext context, IMapper ma
 
     public async Task<PagedResult<SellerApplicationDto>> Handle(GetAllSellerApplicationsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting all seller applications. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<SellerApplication> query = context.Set<SellerApplication>()
             .AsNoTracking()
             .Include(a => a.User);

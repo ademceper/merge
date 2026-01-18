@@ -20,10 +20,9 @@ public class InvoiceDto
     public decimal ShippingCost { get; set; }
     public decimal Discount { get; set; }
     public decimal TotalAmount { get; set; }
-    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public InvoiceStatus Status { get; set; }
     public string? PdfUrl { get; set; }
     public string? Notes { get; set; }
     public AddressDto? BillingAddress { get; set; }
-    public List<OrderItemDto> Items { get; set; } = new List<OrderItemDto>();
+    public List<OrderItemDto> Items { get; set; } = [];
 }

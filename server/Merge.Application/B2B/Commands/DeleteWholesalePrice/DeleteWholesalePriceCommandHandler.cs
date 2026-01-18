@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.DeleteWholesalePrice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteWholesalePriceCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -22,7 +20,6 @@ public class DeleteWholesalePriceCommandHandler(
     {
         logger.LogInformation("Deleting wholesale price. WholesalePriceId: {WholesalePriceId}", request.Id);
 
-        // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var price = await context.Set<WholesalePrice>()
             .FirstOrDefaultAsync(wp => wp.Id == request.Id, cancellationToken);
 
@@ -32,7 +29,6 @@ public class DeleteWholesalePriceCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
         price.Delete();
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

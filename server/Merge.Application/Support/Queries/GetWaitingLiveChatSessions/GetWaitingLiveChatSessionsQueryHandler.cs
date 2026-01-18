@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetWaitingLiveChatSessions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetWaitingLiveChatSessionsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetWaitingLiveChatSessionsQuery, IEnumerable<LiveChatSessionDto>>
 {
 
     public async Task<IEnumerable<LiveChatSessionDto>> Handle(GetWaitingLiveChatSessionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         // Not: Şu anda sadece 1 Include var ama gelecekte ek Include'lar eklenebilir
         var sessions = await context.Set<LiveChatSession>()
             .AsNoTracking()
@@ -28,7 +26,6 @@ public class GetWaitingLiveChatSessionsQueryHandler(IDbContext context, IMapper 
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return mapper.Map<IEnumerable<LiveChatSessionDto>>(sessions);
     }
 }

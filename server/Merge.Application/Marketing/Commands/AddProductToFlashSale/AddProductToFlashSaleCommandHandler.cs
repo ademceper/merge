@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.AddProductToFlashSale;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class AddProductToFlashSaleCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -57,7 +55,6 @@ public class AddProductToFlashSaleCommandHandler(
             throw new BusinessException("Bu ürün flash sale'de zaten mevcut.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var salePrice = new Money(request.SalePrice);
         var flashSaleProduct = FlashSaleProduct.Create(
             request.FlashSaleId,
@@ -68,7 +65,6 @@ public class AddProductToFlashSaleCommandHandler(
 
         await context.Set<FlashSaleProduct>().AddAsync(flashSaleProduct, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

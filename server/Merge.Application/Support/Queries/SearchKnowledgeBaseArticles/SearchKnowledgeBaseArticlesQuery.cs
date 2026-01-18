@@ -4,7 +4,6 @@ using Merge.Application.Common;
 
 namespace Merge.Application.Support.Queries.SearchKnowledgeBaseArticles;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record SearchKnowledgeBaseArticlesQuery(
     string? Query = null,
     Guid? CategoryId = null,

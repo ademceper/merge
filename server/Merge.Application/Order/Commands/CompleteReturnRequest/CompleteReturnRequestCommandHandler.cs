@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CompleteReturnRequest;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class CompleteReturnRequestCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CompleteReturnRequestCommandHandler> logger) : IRequestHandler<CompleteReturnRequestCommand, bool>
 {
 
@@ -25,10 +24,8 @@ public class CompleteReturnRequestCommandHandler(IDbContext context, IUnitOfWork
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         returnRequest.Complete(request.TrackingNumber);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Return request completed. ReturnRequestId: {ReturnRequestId}, TrackingNumber: {TrackingNumber}", 

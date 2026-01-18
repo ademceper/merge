@@ -13,8 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.ApplyReferralCode;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class ApplyReferralCodeCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -49,10 +47,8 @@ public class ApplyReferralCodeCommandHandler(
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         referralCode.IncrementUsage();
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var referral = Referral.Create(
             referralCode.UserId,
             request.NewUserId,
@@ -61,7 +57,6 @@ public class ApplyReferralCodeCommandHandler(
 
         await context.Set<Referral>().AddAsync(referral, cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

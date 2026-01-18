@@ -5,14 +5,11 @@ using Merge.Domain.Enums;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
 
-/// <summary>
-/// EmailCampaign EF Core Configuration - BOLUM 8.0: EF Core Configuration (ZORUNLU)
-/// </summary>
+
 public class EmailCampaignConfiguration : IEntityTypeConfiguration<EmailCampaign>
 {
     public void Configure(EntityTypeBuilder<EmailCampaign> builder)
     {
-        // ✅ BOLUM 8.1: Property Configuration
         builder.Property(e => e.Name)
             .IsRequired()
             .HasMaxLength(200);
@@ -54,7 +51,6 @@ public class EmailCampaignConfiguration : IEntityTypeConfiguration<EmailCampaign
         builder.Property(e => e.Tags)
             .HasMaxLength(1000);
 
-        // ✅ BOLUM 8.2: Index Configuration
         builder.HasIndex(e => e.Status);
         builder.HasIndex(e => e.Type);
         builder.HasIndex(e => e.ScheduledAt);
@@ -62,19 +58,16 @@ public class EmailCampaignConfiguration : IEntityTypeConfiguration<EmailCampaign
         builder.HasIndex(e => new { e.Status, e.Type });
         builder.HasIndex(e => new { e.Status, e.ScheduledAt });
 
-        // ✅ BOLUM 8.3: Relationship Configuration
         builder.HasOne(e => e.Template)
             .WithMany()
             .HasForeignKey(e => e.TemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Backing field mapping for encapsulated collection
         builder.HasMany(e => e.Recipients)
             .WithOne(r => r.Campaign)
             .HasForeignKey(r => r.CampaignId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("CK_EmailCampaign_TotalRecipients_NonNegative", "\"TotalRecipients\" >= 0");

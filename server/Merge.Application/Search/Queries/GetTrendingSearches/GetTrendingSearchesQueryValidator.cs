@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetTrendingSearches;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetTrendingSearchesQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetTrendingSearchesQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

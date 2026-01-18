@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Queries.GetCustomerAnalytics;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetCustomerAnalyticsQueryValidator : AbstractValidator<GetCustomerAnalyticsQuery>
 {
     public GetCustomerAnalyticsQueryValidator()

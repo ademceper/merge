@@ -17,7 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetProductComparisonById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetProductComparisonByIdQueryHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -36,8 +35,6 @@ public class GetProductComparisonByIdQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_COMPARISON_BY_ID}{request.Id}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
-        // ✅ FIX: CS8634 - Nullable type için GetOrCreateNullableAsync kullan
         var cachedResult = await cache.GetOrCreateNullableAsync(
             cacheKey,
             async () =>
@@ -56,7 +53,6 @@ public class GetProductComparisonByIdQueryHandler(
                     return null;
                 }
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                 return await MapToDto(comparison, cancellationToken);
             },
             TimeSpan.FromMinutes(cacheConfig.ProductComparisonCacheExpirationMinutes),
@@ -68,7 +64,6 @@ public class GetProductComparisonByIdQueryHandler(
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
         // ProductComparisonService'deki MapToDto mantığını kullan
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
@@ -80,7 +75,6 @@ public class GetProductComparisonByIdQueryHandler(
                 .ThenInclude(p => p.Category)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
         var reviews = await context.Set<ReviewEntity>()
@@ -96,8 +90,7 @@ public class GetProductComparisonByIdQueryHandler(
             .ToListAsync(cancellationToken);
         reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
-        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
-        var products = new List<ComparisonProductDto>();
+        List<ComparisonProductDto> products = [];
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
@@ -108,7 +101,7 @@ public class GetProductComparisonByIdQueryHandler(
                 Rating = hasReviewStats ? (decimal?)stats.Rating : null,
                 ReviewCount = hasReviewStats ? stats.Count : 0,
                 Specifications = new Dictionary<string, string>().AsReadOnly(),
-                Features = new List<string>().AsReadOnly()
+                Features = Array.Empty<string>()
             };
             products.Add(compProduct);
         }

@@ -12,8 +12,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Content.Commands.TrackLandingPageConversion;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class TrackLandingPageConversionCommandHandler(
     IRepository landingPageRepository,
     IUnitOfWork unitOfWork,
@@ -24,7 +22,6 @@ public class TrackLandingPageConversionCommandHandler(
     {
         logger.LogInformation("Tracking conversion for landing page. LandingPageId: {LandingPageId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -35,7 +32,6 @@ public class TrackLandingPageConversionCommandHandler(
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             landingPage.TrackConversion();
 
             await landingPageRepository.UpdateAsync(landingPage, cancellationToken);
@@ -55,7 +51,6 @@ public class TrackLandingPageConversionCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error tracking conversion for landing page {LandingPageId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

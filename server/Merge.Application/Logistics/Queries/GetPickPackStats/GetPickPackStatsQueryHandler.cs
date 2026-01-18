@@ -11,9 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetPickPackStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetPickPackStatsQueryHandler(
     IDbContext context,
     ILogger<GetPickPackStatsQueryHandler> logger) : IRequestHandler<GetPickPackStatsQuery, Dictionary<string, int>>
@@ -24,7 +21,6 @@ public class GetPickPackStatsQueryHandler(
         logger.LogInformation("Getting pick-pack stats. WarehouseId: {WarehouseId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.WarehouseId, request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var query = context.Set<PickPack>()
             .AsNoTracking();
 
@@ -43,8 +39,6 @@ public class GetPickPackStatsQueryHandler(
             query = query.Where(pp => pp.CreatedAt <= request.EndDate.Value);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        // ✅ PERFORMANCE: Tek sorguda tüm status'leri GroupBy ile al (8 ayrı CountAsync yerine)
         var total = await query.CountAsync(cancellationToken);
         
         var statusCounts = await query
@@ -52,11 +46,8 @@ public class GetPickPackStatsQueryHandler(
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Memory'de minimal işlem (sadece Dictionary oluşturma)
-        // ✅ PERFORMANCE: ToDictionary kullanarak FirstOrDefault overhead'ini önle
         var statusCountsDict = statusCounts.ToDictionary(s => s.Status, s => s.Count);
         
-        // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - Modern C# feature kullanımı
         Dictionary<string, int> result = new()
         {
             ["Total"] = total,

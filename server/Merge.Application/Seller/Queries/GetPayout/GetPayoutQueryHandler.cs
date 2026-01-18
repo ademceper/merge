@@ -13,13 +13,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetPayout;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetPayoutQueryHandler(IDbContext context, IMapper mapper, ILogger<GetPayoutQueryHandler> logger) : IRequestHandler<GetPayoutQuery, CommissionPayoutDto?>
 {
 
     public async Task<CommissionPayoutDto?> Handle(GetPayoutQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting payout. PayoutId: {PayoutId}", request.PayoutId);
 
         var payout = await context.Set<CommissionPayout>()
@@ -30,7 +28,6 @@ public class GetPayoutQueryHandler(IDbContext context, IMapper mapper, ILogger<G
                     .ThenInclude(c => c.Order)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return payout != null ? mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 }

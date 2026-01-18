@@ -18,9 +18,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Marketing;
 
+/// <summary>
+/// Coupons API endpoints.
+/// Kupon işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/coupons")]
+[Tags("Coupons")]
 public class CouponsController(
     IMediator mediator,
     IOptions<MarketingSettings> marketingSettings) : BaseController
@@ -59,7 +64,7 @@ public class CouponsController(
         
         if (coupon == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return Ok(coupon);
@@ -80,15 +85,25 @@ public class CouponsController(
         
         if (coupon == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return Ok(coupon);
     }
 
+    /// <summary>
+    /// Kupon kodunu doğrular ve indirim tutarını hesaplar
+    /// </summary>
+    /// <param name="dto">Kupon doğrulama parametreleri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İndirim tutarı</returns>
+    /// <response code="200">Kupon doğrulandı ve indirim hesaplandı</response>
+    /// <response code="400">Geçersiz parametreler</response>
+    /// <response code="401">Kimlik doğrulama gerekli</response>
+    /// <response code="429">Rate limit aşıldı</response>
     [HttpPost("validate")]
     [RateLimit(30, 60)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -103,7 +118,7 @@ public class CouponsController(
             dto.ProductIds);
         
         var discount = await mediator.Send(command, cancellationToken);
-        return Ok(new { discount });
+        return Ok(discount);
     }
 
     [HttpPost]
@@ -210,7 +225,7 @@ public class CouponsController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return NoContent();

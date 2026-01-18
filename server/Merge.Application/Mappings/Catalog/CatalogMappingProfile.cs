@@ -13,7 +13,6 @@ public class CatalogMappingProfile : Profile
 {
     public CatalogMappingProfile()
     {
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductEntity, ProductDto>()
             .ConstructUsing(src => new ProductDto(
                 src.Id,

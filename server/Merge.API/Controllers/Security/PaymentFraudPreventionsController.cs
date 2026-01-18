@@ -15,10 +15,15 @@ using Merge.Application.Security.Queries.GetAllChecks;
 
 namespace Merge.API.Controllers.Security;
 
+/// <summary>
+/// Payment Fraud Prevention API endpoints.
+/// Ödeme dolandırıcılığı önleme işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/security/payment-fraud-prevention")]
 [Authorize]
+[Tags("PaymentFraudPrevention")]
 public class PaymentFraudPreventionsController(IMediator mediator, IOptions<PaginationSettings> paginationSettings) : BaseController
 {
     private readonly PaginationSettings _paginationSettings = paginationSettings.Value;
@@ -68,7 +73,7 @@ public class PaymentFraudPreventionsController(IMediator mediator, IOptions<Pagi
         var check = await mediator.Send(query, cancellationToken);
         if (check == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return Ok(check);
     }
@@ -128,7 +133,7 @@ public class PaymentFraudPreventionsController(IMediator mediator, IOptions<Pagi
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -149,7 +154,7 @@ public class PaymentFraudPreventionsController(IMediator mediator, IOptions<Pagi
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

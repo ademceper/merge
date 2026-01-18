@@ -14,10 +14,15 @@ using Merge.Application.Analytics.Commands.GenerateReport;
 
 namespace Merge.API.Controllers.Analytics.Reports;
 
+/// <summary>
+/// Reports Analytics API endpoints.
+/// Rapor analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/reports")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("ReportsAnalytics")]
 public class ReportsAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -37,13 +42,11 @@ public class ReportsAnalyticsController(
         [FromBody] CreateReportDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateReportCommand(
             userId,
             dto.Name,
@@ -77,17 +80,14 @@ public class ReportsAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportQuery(id, userId);
         var report = await mediator.Send(query, cancellationToken);
 
         if (report == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
-        // ✅ SECURITY: Authorization check - Users can only view their own reports unless Admin
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
         {
             return Forbid();
@@ -118,18 +118,14 @@ public class ReportsAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR Protection - Users can only view their own reports unless Admin/Manager
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             userId = currentUserId; // Force current user's ID
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportsQuery(userId, type, page, pageSize);
         var reports = await mediator.Send(query, cancellationToken);
         return Ok(reports);
@@ -154,12 +150,11 @@ public class ReportsAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ SECURITY: Authorization check - Users can only export their own reports unless Admin
         var reportQuery = new GetReportQuery(id, userId);
         var report = await mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
@@ -167,14 +162,12 @@ public class ReportsAnalyticsController(
             return Forbid();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new ExportReportQuery(id, userId);
         var data = await mediator.Send(query, cancellationToken);
         
         if (data == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         
         return File(data, "application/json", $"report_{id}.json");
@@ -199,12 +192,11 @@ public class ReportsAnalyticsController(
             return Unauthorized();
         }
 
-        // ✅ SECURITY: Authorization check - Users can only delete their own reports unless Admin
         var reportQuery = new GetReportQuery(id, userId);
         var report = await mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
@@ -212,14 +204,12 @@ public class ReportsAnalyticsController(
             return Forbid();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new DeleteReportCommand(id, userId);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok();

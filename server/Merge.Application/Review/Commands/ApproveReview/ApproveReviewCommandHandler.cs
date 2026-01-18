@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Review.Commands.ApproveReview;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ApproveReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveReviewCommandHandler> logger) : IRequestHandler<ApproveReviewCommand, bool>
 {
 
@@ -29,13 +28,11 @@ public class ApproveReviewCommandHandler(IDbContext context, IUnitOfWork unitOfW
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         review.Approve(request.ApprovedByUserId);
 
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Review approved successfully. ReviewId: {ReviewId}, ProductId: {ProductId}", 
@@ -45,7 +42,6 @@ public class ApproveReviewCommandHandler(IDbContext context, IUnitOfWork unitOfW
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
         var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)

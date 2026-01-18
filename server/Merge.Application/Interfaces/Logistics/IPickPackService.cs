@@ -1,7 +1,6 @@
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Logistics;
 
 public interface IPickPackService
@@ -10,7 +9,6 @@ public interface IPickPackService
     Task<PickPackDto?> GetPickPackByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<PickPackDto?> GetPickPackByPackNumberAsync(string packNumber, CancellationToken cancellationToken = default);
     Task<IEnumerable<PickPackDto>> GetPickPacksByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     Task<PagedResult<PickPackDto>> GetAllPickPacksAsync(string? status = null, Guid? warehouseId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<bool> UpdatePickPackStatusAsync(Guid id, UpdatePickPackStatusDto dto, Guid? userId = null, CancellationToken cancellationToken = default);
     Task<bool> StartPickingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);

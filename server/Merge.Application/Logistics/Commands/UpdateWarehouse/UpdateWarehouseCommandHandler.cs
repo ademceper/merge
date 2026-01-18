@@ -14,9 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Commands.UpdateWarehouse;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class UpdateWarehouseCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -28,7 +25,6 @@ public class UpdateWarehouseCommandHandler(
     {
         logger.LogInformation("Updating warehouse. WarehouseId: {WarehouseId}", request.Id);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var warehouse = await context.Set<Warehouse>()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
@@ -38,7 +34,6 @@ public class UpdateWarehouseCommandHandler(
             throw new NotFoundException("Depo", request.Id);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         warehouse.UpdateDetails(
             request.Name,
             request.Address,
@@ -61,11 +56,8 @@ public class UpdateWarehouseCommandHandler(
             warehouse.Deactivate();
         }
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
         var updatedWarehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
@@ -78,7 +70,6 @@ public class UpdateWarehouseCommandHandler(
 
         logger.LogInformation("Warehouse updated successfully. WarehouseId: {WarehouseId}", request.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<WarehouseDto>(updatedWarehouse);
     }
 }

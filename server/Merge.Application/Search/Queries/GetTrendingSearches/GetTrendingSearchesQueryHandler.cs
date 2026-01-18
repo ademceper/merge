@@ -13,14 +13,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Search.Queries.GetTrendingSearches;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTrendingSearchesQueryHandler(IDbContext context, ILogger<GetTrendingSearchesQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetTrendingSearchesQuery, IReadOnlyList<SearchSuggestionDto>>
 {
     private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<SearchSuggestionDto>> Handle(GetTrendingSearchesQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Trending searches isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
@@ -34,8 +32,6 @@ public class GetTrendingSearchesQueryHandler(IDbContext context, ILogger<GetTren
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sh.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         var trendingSearches = await context.Set<SearchHistory>()
             .AsNoTracking()
             .Where(sh => sh.CreatedAt >= startDate)
@@ -51,7 +47,6 @@ public class GetTrendingSearchesQueryHandler(IDbContext context, ILogger<GetTren
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Trending searches tamamlandı. Days: {Days}, Count: {Count}",
             days, trendingSearches.Count);

@@ -16,11 +16,9 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class Category : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     
-    // ✅ BOLUM 1.3: Value Objects kullanımı - Slug
     private string _slug = string.Empty;
     public string Slug 
     { 
@@ -31,28 +29,23 @@ public class Category : BaseEntity, IAggregateRoot
     public string ImageUrl { get; private set; } = string.Empty;
     public Guid? ParentCategoryId { get; private set; }
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // ✅ BOLUM 1.3: Value Object property (computed from string)
     [NotMapped]
     public Slug SlugValueObject => new Slug(_slug);
     
     // Navigation properties
     public Category? ParentCategory { get; private set; }
     
-    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
     private readonly List<Category> _subCategories = new();
     public IReadOnlyCollection<Category> SubCategories => _subCategories.AsReadOnly();
     
     private readonly List<Product> _products = new();
     public IReadOnlyCollection<Product> Products => _products.AsReadOnly();
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Category() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Category Create(
         string name,
         string description,
@@ -76,68 +69,54 @@ public class Category : BaseEntity, IAggregateRoot
             UpdatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.4: Invariant validation
         category.ValidateInvariants();
 
-        // ✅ BOLUM 1.5: Domain Events - CategoryCreatedEvent yayınla (ÖNERİLİR)
         category.AddDomainEvent(new CategoryCreatedEvent(category.Id, name, slug.Value, parentCategoryId));
 
         return category;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update name
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
         Name = newName;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryUpdatedEvent(Id, newName, _slug));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update description
     public void UpdateDescription(string newDescription)
     {
         Guard.AgainstNull(newDescription, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryUpdatedEvent(Id, Name, _slug));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update slug
     public void UpdateSlug(Slug newSlug)
     {
         Guard.AgainstNull(newSlug, nameof(newSlug));
         _slug = newSlug.Value;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryUpdatedEvent(Id, Name, _slug));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update image URL
     public void UpdateImageUrl(string? newImageUrl)
     {
         ImageUrl = newImageUrl ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set parent category
     public void SetParentCategory(Guid? parentCategoryId)
     {
         if (parentCategoryId.HasValue && parentCategoryId.Value == Id)
@@ -147,11 +126,9 @@ public class Category : BaseEntity, IAggregateRoot
         ParentCategoryId = parentCategoryId;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Add subcategory (collection manipulation)
     public void AddSubCategory(Category subCategory)
     {
         Guard.AgainstNull(subCategory, nameof(subCategory));
@@ -166,11 +143,9 @@ public class Category : BaseEntity, IAggregateRoot
         _subCategories.Add(subCategory);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove subcategory (collection manipulation)
     public void RemoveSubCategory(Guid subCategoryId)
     {
         Guard.AgainstDefault(subCategoryId, nameof(subCategoryId));
@@ -182,11 +157,9 @@ public class Category : BaseEntity, IAggregateRoot
         _subCategories.Remove(subCategory);
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted) return;
@@ -194,14 +167,11 @@ public class Category : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
-        // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
         
-        // ✅ BOLUM 1.5: Domain Events - CategoryDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
         if (string.IsNullOrWhiteSpace(Name))

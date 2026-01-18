@@ -16,10 +16,15 @@ using Merge.Application.Analytics.Queries.GetSalesByCategory;
 
 namespace Merge.API.Controllers.Analytics.Dashboard;
 
+/// <summary>
+/// Dashboard Analytics API endpoints.
+/// Dashboard analitiklerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics/dashboard")]
 [Authorize(Roles = "Admin,Manager")]
+[Tags("DashboardAnalytics")]
 public class DashboardAnalyticsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -136,12 +141,9 @@ public class DashboardAnalyticsController(
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
         if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopProductsQuery(startDate, endDate, limit);
         var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
@@ -162,8 +164,6 @@ public class DashboardAnalyticsController(
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetSalesByCategoryQuery(startDate, endDate);
         var sales = await mediator.Send(query, cancellationToken);
         return Ok(sales);

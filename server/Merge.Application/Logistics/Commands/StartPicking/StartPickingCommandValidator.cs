@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Logistics.Commands.StartPicking;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class StartPickingCommandValidator : AbstractValidator<StartPickingCommand>
 {
     public StartPickingCommandValidator()

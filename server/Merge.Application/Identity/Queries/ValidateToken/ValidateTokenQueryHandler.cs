@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.Application.Identity.Queries.ValidateToken;
 
@@ -15,13 +16,12 @@ public class ValidateTokenQueryHandler(
 
     public Task<bool> Handle(ValidateTokenQuery request, CancellationToken cancellationToken)
     {
-        // ✅ SECURITY FIX: Token'ı loglama - PII/Secret exposure riski
         logger.LogInformation("Token validation attempt");
 
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new InvalidOperationException("JWT Key bulunamadı"));
+            var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new ConfigurationException("JWT Key bulunamadı"));
 
             tokenHandler.ValidateToken(request.Token, new TokenValidationParameters
             {
@@ -35,13 +35,11 @@ public class ValidateTokenQueryHandler(
                 ClockSkew = TimeSpan.FromSeconds(jwtSettings.Value.ClockSkewSeconds)
             }, out _);
 
-            // ✅ SECURITY FIX: Token'ı loglama
             logger.LogInformation("Token validation successful");
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            // ✅ SECURITY FIX: Token'ı loglama - sadece hata tipini logla
             logger.LogWarning(ex, "Token validation failed. Error: {ErrorType}", ex.GetType().Name);
             return Task.FromResult(false);
         }

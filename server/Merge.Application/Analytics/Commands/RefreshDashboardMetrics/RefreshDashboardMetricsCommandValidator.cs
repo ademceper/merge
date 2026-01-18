@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Analytics.Commands.RefreshDashboardMetrics;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class RefreshDashboardMetricsCommandValidator : AbstractValidator<RefreshDashboardMetricsCommand>
 {
     public RefreshDashboardMetricsCommandValidator()

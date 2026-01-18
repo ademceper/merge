@@ -3,7 +3,6 @@ using Merge.Application.DTOs.B2B;
 
 namespace Merge.Application.B2B.Commands.CreateCreditTerm;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class CreateCreditTermCommandValidator : AbstractValidator<CreateCreditTermCommand>
 {
     public CreateCreditTermCommandValidator()

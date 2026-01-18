@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.B2B.Commands.UpdateCreditUsage;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class UpdateCreditUsageCommandValidator : AbstractValidator<UpdateCreditUsageCommand>
 {
     public UpdateCreditUsageCommandValidator()

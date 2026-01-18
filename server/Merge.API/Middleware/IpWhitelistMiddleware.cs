@@ -17,7 +17,6 @@ public class IpWhitelistMiddleware(RequestDelegate next, ILogger<IpWhitelistMidd
 
             if (remoteIp == null || !IsIpAllowed(remoteIp))
             {
-                // ✅ LOGGING FIX: Structured logging kullan (string interpolation yerine)
                 logger.LogWarning("Forbidden request from IP {RemoteIp}. Endpoint: {Endpoint}",
                     remoteIp, context.Request.Path);
                 context.Response.StatusCode = (int)HttpStatusCode.Forbidden;

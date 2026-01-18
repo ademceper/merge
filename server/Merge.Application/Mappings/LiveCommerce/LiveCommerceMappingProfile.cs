@@ -11,7 +11,6 @@ public class LiveCommerceMappingProfile : Profile
     public LiveCommerceMappingProfile()
     {
         // LiveCommerce mappings
-        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<LiveStream, LiveStreamDto>()
         .ConstructUsing(src => new LiveStreamDto(
         src.Id,

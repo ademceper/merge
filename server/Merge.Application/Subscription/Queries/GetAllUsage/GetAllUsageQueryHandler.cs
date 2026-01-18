@@ -13,20 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetAllUsage;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public class GetAllUsageQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllUsageQueryHandler> logger) : IRequestHandler<GetAllUsageQuery, PagedResult<SubscriptionUsageDto>>
 {
 
     public async Task<PagedResult<SubscriptionUsageDto>> Handle(GetAllUsageQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var pageSize = request.PageSize > 100 ? 100 : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
         IQueryable<SubscriptionUsage> query = context.Set<SubscriptionUsage>()
             .AsNoTracking()
             .Where(u => u.UserSubscriptionId == request.UserSubscriptionId &&
@@ -40,7 +36,6 @@ public class GetAllUsageQueryHandler(IDbContext context, IMapper mapper, ILogger
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var usageDtos = mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages).ToList();
 
         return new PagedResult<SubscriptionUsageDto>

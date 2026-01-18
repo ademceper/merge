@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Commands.CreatePolicy;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreatePolicyCommand(
     Guid CreatedByUserId, // Controller'dan set edilecek
     string PolicyType,

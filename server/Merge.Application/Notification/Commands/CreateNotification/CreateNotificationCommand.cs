@@ -5,9 +5,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.CreateNotification;
 
-/// <summary>
-/// Create Notification Command - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public record CreateNotificationCommand(
     Guid UserId,
     NotificationType Type,

@@ -4,7 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Search.Queries.GetNewArrivals;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetNewArrivalsQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetNewArrivalsQuery>
 {
     private readonly SearchSettings config = searchSettings.Value;

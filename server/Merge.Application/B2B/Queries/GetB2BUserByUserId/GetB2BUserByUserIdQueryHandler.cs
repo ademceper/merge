@@ -12,8 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetB2BUserByUserId;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetB2BUserByUserIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -28,7 +26,6 @@ public class GetB2BUserByUserIdQueryHandler(
             .Include(b => b.Organization)
             .FirstOrDefaultAsync(b => b.UserId == request.UserId, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return b2bUser != null ? mapper.Map<B2BUserDto>(b2bUser) : null;
     }
 }

@@ -16,10 +16,8 @@ namespace Merge.Domain.Modules.Notifications;
 /// </summary>
 public class Notification : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     
-    // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
     public NotificationType Type { get; private set; }
     
     private string _title = string.Empty;
@@ -65,17 +63,14 @@ public class Notification : BaseEntity, IAggregateRoot
     
     public string? Data { get; private set; } // JSON formatında ek veriler
     
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public User User { get; private set; } = null!;
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Notification() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Notification Create(
         Guid userId,
         NotificationType type,
@@ -108,13 +103,11 @@ public class Notification : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationCreatedEvent
         notification.AddDomainEvent(new NotificationCreatedEvent(notification.Id, userId, type, title));
 
         return notification;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Mark as read
     public void MarkAsRead()
     {
         if (IsRead)
@@ -125,11 +118,9 @@ public class Notification : BaseEntity, IAggregateRoot
         ReadAt = readAt;
         UpdatedAt = readAt;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationReadEvent
         AddDomainEvent(new NotificationReadEvent(Id, UserId, readAt));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Delete notification
     public void Delete()
     {
         if (IsDeleted)
@@ -138,7 +129,6 @@ public class Notification : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - NotificationDeletedEvent
         AddDomainEvent(new NotificationDeletedEvent(Id, UserId));
     }
 }

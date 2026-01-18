@@ -10,8 +10,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetWholesalePrice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetWholesalePriceQueryHandler(
     IDbContext context,
     ILogger<GetWholesalePriceQueryHandler> logger) : IRequestHandler<GetWholesalePriceQuery, decimal?>
@@ -19,8 +17,6 @@ public class GetWholesalePriceQueryHandler(
 
     public async Task<decimal?> Handle(GetWholesalePriceQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !wp.IsDeleted check (Global Query Filter handles it)
         // First try organization-specific pricing
         if (request.OrganizationId.HasValue)
         {

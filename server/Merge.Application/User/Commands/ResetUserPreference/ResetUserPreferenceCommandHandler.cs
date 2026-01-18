@@ -12,13 +12,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.ResetUserPreference;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ResetUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ResetUserPreferenceCommandHandler> logger) : IRequestHandler<ResetUserPreferenceCommand, UserPreferenceDto>
 {
 
     public async Task<UserPreferenceDto> Handle(ResetUserPreferenceCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
         logger.LogInformation("Resetting preferences to defaults for user: {UserId}", request.UserId);
 
@@ -39,11 +37,9 @@ public class ResetUserPreferenceCommandHandler(IDbContext context, IUnitOfWork u
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         logger.LogInformation("Preferences reset to defaults successfully for user: {UserId}", request.UserId);
 
-                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<UserPreferenceDto>(preferences);
     }
 }

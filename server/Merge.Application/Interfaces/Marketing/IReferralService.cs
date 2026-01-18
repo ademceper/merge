@@ -1,7 +1,6 @@
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Marketing;
 
 public interface IReferralService
@@ -15,7 +14,6 @@ public interface IReferralService
     Task<ReferralStatsDto> GetReferralStatsAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface IReviewMediaService
 {
     Task<ReviewMediaDto> AddMediaToReviewAsync(Guid reviewId, string url, string mediaType, string? thumbnailUrl = null, CancellationToken cancellationToken = default);
@@ -23,7 +21,6 @@ public interface IReviewMediaService
     Task DeleteReviewMediaAsync(Guid mediaId, CancellationToken cancellationToken = default);
 }
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface ISharedWishlistService
 {
     Task<SharedWishlistDto> CreateSharedWishlistAsync(

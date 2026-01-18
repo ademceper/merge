@@ -19,10 +19,14 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Abandoned Carts API endpoints.
+/// Terk edilmiş sepetleri yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/abandoned")]
+[Tags("AbandonedCarts")]
 public class AbandonedCartsController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -57,8 +61,6 @@ public class AbandonedCartsController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
@@ -90,14 +92,12 @@ public class AbandonedCartsController(
         Guid cartId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAbandonedCartByIdQuery(cartId);
         var cart = await mediator.Send(query, cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return Ok(cart);
@@ -124,7 +124,6 @@ public class AbandonedCartsController(
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRecoveryStatsQuery(days);
         var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
@@ -157,8 +156,6 @@ public class AbandonedCartsController(
         [FromBody] SendRecoveryEmailDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var command = new SendRecoveryEmailCommand(
             cartId,
             dto.EmailType,
@@ -192,8 +189,6 @@ public class AbandonedCartsController(
         [FromQuery] AbandonedCartEmailType emailType = AbandonedCartEmailType.First,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var command = new SendBulkRecoveryEmailsCommand(minHours, emailType);
         await mediator.Send(command, cancellationToken);
         return NoContent();
@@ -216,7 +211,6 @@ public class AbandonedCartsController(
         Guid emailId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new TrackEmailOpenCommand(emailId);
         await mediator.Send(command, cancellationToken);
 
@@ -242,7 +236,6 @@ public class AbandonedCartsController(
         Guid emailId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new TrackEmailClickCommand(emailId);
         await mediator.Send(command, cancellationToken);
         return Redirect("/cart"); // Redirect to cart page
@@ -276,14 +269,12 @@ public class AbandonedCartsController(
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetAbandonedCartByIdQuery(cartId);
         var cart = await mediator.Send(cartQuery, cancellationToken);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -291,7 +282,6 @@ public class AbandonedCartsController(
             return Forbid();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new MarkCartAsRecoveredCommand(cartId);
         await mediator.Send(command, cancellationToken);
         return NoContent();
@@ -324,12 +314,9 @@ public class AbandonedCartsController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
         if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         // Admin/Manager rolü varsa tüm cart email history'lerini görebilir
         // Normal kullanıcı sadece kendi cart'ının email history'sini görebilir
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -342,7 +329,6 @@ public class AbandonedCartsController(
             var cartQuery = new GetAbandonedCartByIdQuery(cartId);
             var cart = await mediator.Send(cartQuery, cancellationToken);
             
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (cart is null || cart.UserId != userId)
             {
                 return Forbid();

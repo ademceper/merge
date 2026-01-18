@@ -13,8 +13,6 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Catalog.Commands.DeleteCategory;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteCategoryCommandHandler(
     IRepository categoryRepository,
     IDbContext context,
@@ -31,7 +29,6 @@ public class DeleteCategoryCommandHandler(
     {
         logger.LogInformation("Deleting category with Id: {CategoryId}", request.Id);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -62,16 +59,12 @@ public class DeleteCategoryCommandHandler(
                 throw new BusinessException("Ürünleri olan bir kategori silinemez.");
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             category.MarkAsDeleted();
             await categoryRepository.UpdateAsync(category, cancellationToken);
             
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ BOLUM 10.2: Cache invalidation - Remove all category-related cache
             await cache.RemoveAsync(CACHE_KEY_ALL_CATEGORIES, cancellationToken);
             await cache.RemoveAsync(CACHE_KEY_MAIN_CATEGORIES, cancellationToken);
             await cache.RemoveAsync($"category_{request.Id}", cancellationToken); // Single category cache
@@ -91,7 +84,6 @@ public class DeleteCategoryCommandHandler(
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex, "Error deleting category Id: {CategoryId}", request.Id);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;

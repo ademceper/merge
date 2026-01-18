@@ -14,14 +14,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Queries.GetTicketByNumber;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetTicketByNumberQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetTicketByNumberQuery, SupportTicketDto?>
 {
 
     public async Task<SupportTicketDto?> Handle(GetTicketByNumberQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking()
             .AsSplitQuery()
@@ -45,11 +42,9 @@ public class GetTicketByNumberQueryHandler(IDbContext context, IMapper mapper) :
 
         var dto = mapper.Map<SupportTicketDto>(ticket);
         
-        // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
         var messages = mapper.Map<List<TicketMessageDto>>(ticket.Messages).AsReadOnly();
         var attachments = mapper.Map<List<TicketAttachmentDto>>(ticket.Attachments).AsReadOnly();
         
-        // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
         return dto with { Messages = messages, Attachments = attachments };
     }
 }

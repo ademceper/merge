@@ -2,7 +2,6 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Organization;
 
-// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 /// <summary>
 /// Organization DTO - Immutable record
 /// </summary>

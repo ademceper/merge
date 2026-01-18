@@ -11,7 +11,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetEmailCampaignById;
 
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class GetEmailCampaignByIdQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetEmailCampaignByIdQuery, EmailCampaignDto?>
 {
     public async Task<EmailCampaignDto?> Handle(GetEmailCampaignByIdQuery request, CancellationToken cancellationToken)
@@ -21,7 +20,6 @@ public class GetEmailCampaignByIdQueryHandler(IDbContext context, IMapper mapper
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return campaign != null ? mapper.Map<EmailCampaignDto>(campaign) : null;
     }
 }

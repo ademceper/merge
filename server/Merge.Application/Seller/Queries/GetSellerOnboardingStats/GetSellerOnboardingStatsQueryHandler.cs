@@ -12,16 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerOnboardingStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerOnboardingStatsQueryHandler(IDbContext context, ILogger<GetSellerOnboardingStatsQueryHandler> logger) : IRequestHandler<GetSellerOnboardingStatsQuery, SellerOnboardingStatsDto>
 {
 
     public async Task<SellerOnboardingStatsDto> Handle(GetSellerOnboardingStatsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller onboarding stats");
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var stats = await context.Set<SellerApplication>()
             .AsNoTracking()
             .GroupBy(a => 1)

@@ -28,9 +28,14 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Support;
 
+/// <summary>
+/// Support Tickets API endpoints.
+/// Destek taleplerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/tickets")]
+[Tags("SupportTickets")]
 public class SupportTicketsController(IMediator mediator, IOptions<SupportSettings> supportSettings) : BaseController
 {
     private readonly SupportSettings _supportSettings = supportSettings.Value;
@@ -89,7 +94,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var ticket = await mediator.Send(query, cancellationToken);
         if (ticket == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -117,7 +122,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var ticket = await mediator.Send(query, cancellationToken);
         if (ticket == null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
@@ -243,7 +248,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -282,7 +287,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -309,7 +314,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -331,7 +336,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();
@@ -352,7 +357,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
 
         if (!success)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         return NoContent();

@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Product.Queries.GetUserQuestions;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetUserQuestionsQueryValidator : AbstractValidator<GetUserQuestionsQuery>
 {
     public GetUserQuestionsQueryValidator()

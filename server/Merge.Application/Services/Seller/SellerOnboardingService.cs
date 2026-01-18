@@ -27,8 +27,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Marketplace.SellerApplication>;
 
-// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-// ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
 public class SellerOnboardingService(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IMapper mapper, IEmailService emailService, IUnitOfWork unitOfWork, ILogger<SellerOnboardingService> logger, IOptions<SellerSettings> sellerSettings, IOptions<PaginationSettings> paginationSettings) : ISellerOnboardingService
@@ -36,11 +34,8 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
     private readonly SellerSettings sellerConfig = sellerSettings.Value;
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SellerApplicationDto> SubmitApplicationAsync(Guid userId, CreateSellerApplicationDto applicationDto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Processing seller application submission for user {UserId}, Business: {BusinessName}",
             userId, applicationDto.BusinessName);
 
@@ -63,8 +58,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         var application = SellerApplication.Create(
             userId: userId,
             businessName: applicationDto.BusinessName,
@@ -105,9 +98,9 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             cancellationToken
         );
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         application = await context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
@@ -115,11 +108,11 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         return mapper.Map<SellerApplicationDto>(application);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerApplicationDto?> GetApplicationByIdAsync(Guid applicationId, CancellationToken cancellationToken = default)
     {
         var application = await context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
@@ -127,11 +120,11 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         return application == null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var application = await context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .Where(a => a.UserId == userId)
@@ -141,20 +134,15 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         return application == null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<SellerApplicationDto>> GetAllApplicationsAsync(
         SellerApplicationStatus? status = null,
         int page = 1,
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
         if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<SellerApplication> query = context.Set<SellerApplication>()
             .AsNoTracking()
             .Include(a => a.User);
@@ -183,15 +171,12 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         };
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SellerApplicationDto> ReviewApplicationAsync(
         Guid applicationId,
         ReviewSellerApplicationDto reviewDto,
         Guid reviewerId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Reviewing seller application {ApplicationId} by reviewer {ReviewerId}, Status: {Status}",
             applicationId, reviewerId, reviewDto.Status);
 
@@ -206,7 +191,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
                 throw new NotFoundException("Başvuru", applicationId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (reviewDto.Status == SellerApplicationStatus.Approved)
             {
                 application.Approve(reviewerId);
@@ -245,9 +229,9 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
                 await emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, true, cancellationToken);
             }
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             application = await context.Set<SellerApplication>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(a => a.User)
                 .Include(a => a.Reviewer)
                 .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
@@ -262,11 +246,8 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         }
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<bool> ApproveApplicationAsync(Guid applicationId, Guid reviewerId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Approving seller application {ApplicationId} by reviewer {ReviewerId}",
             applicationId, reviewerId);
 
@@ -281,7 +262,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
                 return false;
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             application.Approve(reviewerId);
 
             await applicationRepository.UpdateAsync(application);
@@ -323,11 +303,8 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         }
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<bool> RejectApplicationAsync(Guid applicationId, string reason, Guid reviewerId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Rejecting seller application {ApplicationId} by reviewer {ReviewerId}, Reason: {Reason}",
             applicationId, reviewerId, reason);
 
@@ -338,7 +315,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         application.Reject(reviewerId, reason);
 
         await applicationRepository.UpdateAsync(application);
@@ -363,7 +339,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
         return true;
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerOnboardingStatsDto> GetOnboardingStatsAsync(CancellationToken cancellationToken = default)
     {
         var stats = await context.Set<SellerApplication>()
@@ -399,7 +374,6 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
     }
 
     // Helper methods
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task CreateSellerProfileAsync(SellerApplication application, CancellationToken cancellationToken = default)
     {
         // Check if seller profile already exists
@@ -413,14 +387,11 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             return;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var profile = SellerProfile.Create(
             userId: application.UserId,
             storeName: application.BusinessName,
             commissionRate: sellerConfig.DefaultCommissionRate);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         profile.Verify();
         profile.Activate();
 

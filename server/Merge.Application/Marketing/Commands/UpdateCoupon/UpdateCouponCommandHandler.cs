@@ -14,8 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.UpdateCoupon;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 public class UpdateCouponCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -35,12 +33,11 @@ public class UpdateCouponCommandHandler(
             throw new NotFoundException("Kupon", request.Id);
         }
 
-        // ✅ PERFORMANCE: AsNoTracking - Check if code already exists (if changed)
-        if (coupon.Code.ToUpper() != request.Code.ToUpper())
+        if (!string.Equals(coupon.Code, request.Code, StringComparison.OrdinalIgnoreCase))
         {
             var existingCoupon = await context.Set<Coupon>()
                 .AsNoTracking()
-                .AnyAsync(c => c.Code.ToUpper() == request.Code.ToUpper() && c.Id != request.Id, cancellationToken);
+                .AnyAsync(c => EF.Functions.ILike(c.Code, request.Code) && c.Id != request.Id, cancellationToken);
 
             if (existingCoupon)
             {
@@ -49,7 +46,6 @@ public class UpdateCouponCommandHandler(
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         coupon.UpdateCode(request.Code);
         coupon.UpdateDescription(request.Description);
 
@@ -104,11 +100,9 @@ public class UpdateCouponCommandHandler(
             coupon.Deactivate();
         }
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking ile tek query'de getir
         var updatedCoupon = await context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
@@ -121,7 +115,6 @@ public class UpdateCouponCommandHandler(
 
         logger.LogInformation("Coupon updated successfully. CouponId: {CouponId}", request.Id);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<CouponDto>(updatedCoupon);
     }
 }

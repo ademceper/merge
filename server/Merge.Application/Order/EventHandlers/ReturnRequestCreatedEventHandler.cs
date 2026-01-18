@@ -10,15 +10,9 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Order.EventHandlers;
 
-/// <summary>
-/// Return Request Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
+
 public class ReturnRequestCreatedEventHandler(ILogger<ReturnRequestCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestCreatedEvent>
 {
-    
-    private readonly INotificationService? _notificationService;
-
     public async Task Handle(ReturnRequestCreatedEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation(
@@ -28,7 +22,7 @@ public class ReturnRequestCreatedEventHandler(ILogger<ReturnRequestCreatedEventH
         try
         {
             // Email bildirimi gönder
-            if (_notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -37,7 +31,7 @@ public class ReturnRequestCreatedEventHandler(ILogger<ReturnRequestCreatedEventH
                     $"İade talebiniz başarıyla oluşturuldu. İade Talebi No: {notification.ReturnRequestId}, İade Tutarı: {notification.RefundAmount} TL",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -45,7 +39,6 @@ public class ReturnRequestCreatedEventHandler(ILogger<ReturnRequestCreatedEventH
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling ReturnRequestCreatedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);

@@ -4,9 +4,7 @@ using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.UpdatePreference;
 
-/// <summary>
-/// Update Preference Command Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
-/// </summary>
+
 public class UpdatePreferenceCommandValidator : AbstractValidator<UpdatePreferenceCommand>
 {
     public UpdatePreferenceCommandValidator()

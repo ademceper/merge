@@ -18,11 +18,15 @@ using Merge.API.Extensions;
 
 namespace Merge.API.Controllers.Cart;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+/// <summary>
+/// Cart API endpoints.
+/// Sepet işlemlerini yönetir.
+/// </summary>
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart")]
 [Authorize]
+[Tags("Cart")]
 public class CartController(
     IMediator mediator,
     IOptions<PaginationSettings> paginationSettings) : BaseController
@@ -44,12 +48,10 @@ public class CartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CartDto>> GetCart(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var query = new GetCartByUserIdQuery(userId);
         var cart = await mediator.Send(query, cancellationToken);
         
-        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
         var cartJson = System.Text.Json.JsonSerializer.Serialize(cart);
         Response.SetETag(cartJson);
         Response.SetCacheControl(maxAgeSeconds: 30, isPublic: false); // Cache for 30 seconds (private - user-specific)
@@ -61,11 +63,7 @@ public class CartController(
             return StatusCode(StatusCodes.Status304NotModified);
         }
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateCartLinks(Url, cart.Id, cart.UserId, version);
-        
-        return Ok(new { cart, _links = links });
+        return Ok(cart);
     }
 
     /// <summary>
@@ -88,17 +86,11 @@ public class CartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CartItemDto>> AddItem([FromBody] AddCartItemDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
         var command = new AddItemToCartCommand(userId, dto.ProductId, dto.Quantity);
         var cartItem = await mediator.Send(command, cancellationToken);
         
-        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
-        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
-        var links = HateoasHelper.CreateCartItemLinks(Url, cartItem.Id, cartItem.ProductId, version);
-        
-        return Ok(new { cartItem, _links = links });
+        return Ok(cartItem);
     }
 
     /// <summary>
@@ -126,18 +118,14 @@ public class CartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
         var cart = await mediator.Send(cartQuery, cancellationToken);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -150,7 +138,7 @@ public class CartController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -178,13 +166,12 @@ public class CartController(
 
         var userId = GetUserId();
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
         var cart = await mediator.Send(cartQuery, cancellationToken);
 
         if (cart is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -197,7 +184,7 @@ public class CartController(
 
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -222,17 +209,14 @@ public class CartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RemoveItem(Guid cartItemId, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
         var cart = await mediator.Send(cartQuery, cancellationToken);
         
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -245,7 +229,7 @@ public class CartController(
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }
@@ -267,14 +251,13 @@ public class CartController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ClearCart(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new ClearCartCommand(userId);
         var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
-            return NotFound();
+            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         return NoContent();
     }

@@ -15,7 +15,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerTransactions;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class GetSellerTransactionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerTransactionsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSellerTransactionsQuery, PagedResult<SellerTransactionDto>>
 {
     private readonly PaginationSettings paginationConfig = paginationSettings.Value;
@@ -23,24 +22,19 @@ public class GetSellerTransactionsQueryHandler(IDbContext context, IMapper mappe
 
     public async Task<PagedResult<SellerTransactionDto>> Handle(GetSellerTransactionsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Getting seller transactions. SellerId: {SellerId}, Type: {TransactionType}, Page: {Page}, PageSize: {PageSize}",
             request.SellerId, request.TransactionType?.ToString() ?? "All", request.Page, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        // ✅ BOLUM 12.0: Magic number config'den
         var pageSize = request.PageSize > paginationConfig.MaxPageSize 
             ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<SellerTransaction> query = context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .Where(t => t.SellerId == request.SellerId);
 
-        // ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         if (request.TransactionType.HasValue)
         {
             query = query.Where(t => t.TransactionType == request.TransactionType.Value);
@@ -64,7 +58,6 @@ public class GetSellerTransactionsQueryHandler(IDbContext context, IMapper mappe
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var transactionDtos = mapper.Map<IEnumerable<SellerTransactionDto>>(transactions).ToList();
 
         return new PagedResult<SellerTransactionDto>

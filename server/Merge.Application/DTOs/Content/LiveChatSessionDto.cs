@@ -26,7 +26,6 @@ public class LiveChatSessionDto
     public List<LiveChatMessageDto> RecentMessages { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     
-    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
     [JsonPropertyName("_links")]
     public Dictionary<string, object>? Links { get; set; }
 }

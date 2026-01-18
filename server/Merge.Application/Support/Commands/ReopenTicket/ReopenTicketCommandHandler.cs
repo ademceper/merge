@@ -11,13 +11,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.ReopenTicket;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ReopenTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ReopenTicketCommandHandler> logger) : IRequestHandler<ReopenTicketCommand, bool>
 {
 
     public async Task<bool> Handle(ReopenTicketCommand request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation("Reopening ticket {TicketId}", request.TicketId);
 
         var ticket = await context.Set<SupportTicket>()
@@ -29,10 +27,8 @@ public class ReopenTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             throw new NotFoundException("Destek bileti", request.TicketId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         ticket.Reopen();
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Ticket {TicketNumber} reopened", ticket.TicketNumber);

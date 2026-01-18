@@ -15,7 +15,6 @@ namespace Merge.Domain.Modules.Payment;
 /// </summary>
 public class PaymentMethod : BaseEntity, IAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Code { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
@@ -31,14 +30,11 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
     public int DisplayOrder { get; private set; } = 0;
     public bool IsDefault { get; private set; } = false;
 
-    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PaymentMethod() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static PaymentMethod Create(
         string name,
         string code,
@@ -93,7 +89,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodCreatedEvent yayınla
         paymentMethod.AddDomainEvent(new PaymentMethodCreatedEvent(
             paymentMethod.Id,
             name,
@@ -104,7 +99,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         return paymentMethod;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update method
     public void Update(
         string? name = null,
         string? description = null,
@@ -176,17 +170,14 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
 
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodUpdatedEvent yayınla
         AddDomainEvent(new PaymentMethodUpdatedEvent(Id, Name, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
     public void Activate()
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodActivatedEvent yayınla
         AddDomainEvent(new PaymentMethodActivatedEvent(Id, Name, Code));
     }
 
@@ -196,11 +187,9 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         IsDefault = false; // Deactivated methods cannot be default
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodDeactivatedEvent yayınla
         AddDomainEvent(new PaymentMethodDeactivatedEvent(Id, Name, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Set as default
     public void SetAsDefault()
     {
         if (!IsActive)
@@ -209,7 +198,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         IsDefault = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodSetDefaultEvent yayınla
         AddDomainEvent(new PaymentMethodSetDefaultEvent(Id, Name, Code));
     }
 
@@ -221,11 +209,9 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodUnsetDefaultEvent yayınla
         AddDomainEvent(new PaymentMethodUnsetDefaultEvent(Id, Name, Code));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate processing fee
     public decimal CalculateProcessingFee(decimal amount)
     {
         if (!IsActive)
@@ -246,7 +232,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         return Math.Round(fee, 2);
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if amount is valid
     public bool IsAmountValid(decimal amount)
     {
         if (!IsActive)
@@ -261,7 +246,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         return true;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
@@ -275,7 +259,6 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - PaymentMethodDeletedEvent
         AddDomainEvent(new PaymentMethodDeletedEvent(Id, Name, Code));
     }
 }

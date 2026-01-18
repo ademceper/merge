@@ -14,9 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Logistics.Queries.GetStockMovementById;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetStockMovementByIdQueryHandler(
     IDbContext context,
     IMapper mapper,
@@ -36,7 +33,6 @@ public class GetStockMovementByIdQueryHandler(
             .Include(sm => sm.ToWarehouse)
             .FirstOrDefaultAsync(sm => sm.Id == request.Id, cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan
         return movement != null ? mapper.Map<StockMovementDto>(movement) : null;
     }
 }

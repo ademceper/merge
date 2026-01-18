@@ -18,7 +18,6 @@ namespace Merge.Domain.Modules.Analytics;
 /// </summary>
 public class Report : BaseAggregateRoot
 {
-    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public ReportType Type { get; private set; } = ReportType.Sales;
@@ -34,14 +33,11 @@ public class Report : BaseAggregateRoot
     public DateTime? CompletedAt { get; private set; }
     public string? ErrorMessage { get; private set; }
 
-    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Report() { }
 
-    // ✅ BOLUM 1.1: Factory Method with validation
     public static Report Create(
         string name,
         string description,
@@ -55,7 +51,6 @@ public class Report : BaseAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstDefault(generatedBy, nameof(generatedBy));
 
-        // ✅ BOLUM 1.6: Invariant Validation - StartDate < EndDate
         if (startDate >= endDate)
             throw new DomainException("Başlangıç tarihi bitiş tarihinden önce olmalıdır");
 
@@ -77,7 +72,6 @@ public class Report : BaseAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
-        // ✅ BOLUM 1.5: Domain Events - ReportCreatedEvent yayınla
         report.AddDomainEvent(new ReportCreatedEvent(
             report.Id,
             generatedBy,
@@ -88,7 +82,6 @@ public class Report : BaseAggregateRoot
         return report;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark report as processing
     public void MarkAsProcessing()
     {
         if (Status != ReportStatus.Pending)
@@ -98,7 +91,6 @@ public class Report : BaseAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Complete report
     public void Complete(string data, string? filePath = null)
     {
         if (Status != ReportStatus.Processing)
@@ -112,7 +104,6 @@ public class Report : BaseAggregateRoot
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportCompletedEvent yayınla
         AddDomainEvent(new ReportCompletedEvent(
             Id,
             GeneratedBy,
@@ -120,7 +111,6 @@ public class Report : BaseAggregateRoot
             CompletedAt.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Fail report
     public void Fail(string errorMessage)
     {
         if (Status == ReportStatus.Completed)
@@ -132,7 +122,6 @@ public class Report : BaseAggregateRoot
         ErrorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportFailedEvent yayınla
         AddDomainEvent(new ReportFailedEvent(
             Id,
             GeneratedBy,
@@ -140,19 +129,16 @@ public class Report : BaseAggregateRoot
             errorMessage));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Check if report is ready for export
     public bool IsReadyForExport()
     {
         return Status == ReportStatus.Completed && !string.IsNullOrEmpty(Data);
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - ReportDeletedEvent yayınla
         AddDomainEvent(new ReportDeletedEvent(
             Id,
             GeneratedBy,

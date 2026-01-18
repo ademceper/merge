@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.Security.Commands.AcknowledgeAlert;
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 public class AcknowledgeAlertCommandValidator : AbstractValidator<AcknowledgeAlertCommand>
 {
     public AcknowledgeAlertCommandValidator()
