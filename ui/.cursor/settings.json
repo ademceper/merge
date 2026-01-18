@@ -1,0 +1,16 @@
+{
+  "cursor.ai.enabled": true,
+  "cursor.ai.model": "claude-3-5-sonnet",
+  "cursor.ai.contextMode": "intelligent",
+  "cursor.ai.suggestions": {
+    "enabled": true,
+    "autoAccept": false
+  },
+  "files.associations": {
+    "*.mdc": "markdown"
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

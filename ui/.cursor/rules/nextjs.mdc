@@ -1,0 +1,95 @@
+---
+description: Next.js 16 specific rules
+globs: ["apps/web/**/*.tsx", "apps/web/**/*.ts"]
+---
+
+# Next.js 16 Rules
+
+## App Router Structure
+```
+apps/web/app/
+├── (auth)/           # Auth routes (login, register)
+├── (shop)/           # E-commerce (products, cart, checkout)
+├── (account)/        # User dashboard (orders, profile)
+├── layout.tsx        # Root layout
+├── page.tsx          # Home page
+├── error.tsx         # Error boundary (must be 'use client')
+├── loading.tsx       # Loading UI
+└── not-found.tsx     # 404 page
+```
+
+## Server Components (Default)
+- Fetch data directly in components
+- No useState/useEffect for data
+- Use async/await
+
+## Client Components
+Add `'use client'` only when needed:
+- useState, useEffect, useContext
+- Event handlers (onClick, onChange)
+- Browser APIs
+- Third-party client libraries
+
+## Server Actions
+```tsx
+'use server'
+import { getProducts } from '@merge/api'
+
+export async function fetchProducts() {
+  return getProducts() // BFF pattern - proxy to backend
+}
+```
+
+## Images
+ALWAYS use next/image:
+```tsx
+import Image from 'next/image'
+
+<Image
+  src="/product.jpg"
+  alt="Product"
+  width={400}
+  height={300}
+  priority // for LCP images
+/>
+```
+
+## Error Boundaries
+Every route group should have `error.tsx`:
+```tsx
+'use client'
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  )
+}
+```
+
+## Metadata
+```tsx
+export const metadata = {
+  title: 'Page Title',
+  description: 'Page description',
+}
+```
+
+## Security Headers
+Configure in next.config.mjs:
+- Content-Security-Policy
+- X-Frame-Options: SAMEORIGIN
+- X-Content-Type-Options: nosniff
+
+## Performance
+- Use dynamic imports for heavy components
+- Implement loading.tsx for Suspense
+- Use React.memo for expensive renders

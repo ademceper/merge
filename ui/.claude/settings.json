@@ -1,0 +1,85 @@
+{
+  "$schema": "https://claude.ai/schemas/claude-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(expo:*)",
+      "Bash(eas:*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf .)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(git push --force)",
+      "Bash(git reset --hard)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const cmd = JSON.parse(process.argv[1]).command; const blocked = ['rm -rf /', 'rm -rf ~', 'git push --force', 'DROP TABLE', 'DELETE FROM']; if (blocked.some(b => cmd.includes(b))) { console.error('BLOCKED: Dangerous command detected'); process.exit(2); }\" \"$TOOL_INPUT\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const input = JSON.parse(process.argv[1]); const blocked = ['.env', '.env.local', 'credentials.json', 'secrets']; const file = input.file_path || input.filePath || ''; if (blocked.some(b => file.includes(b))) { console.error('BLOCKED: Cannot modify sensitive file: ' + file); process.exit(2); }\" \"$TOOL_INPUT\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const input = JSON.parse(process.argv[1]); const file = input.file_path || input.filePath || ''; if (file.endsWith('.ts') || file.endsWith('.tsx')) { require('child_process').execSync('pnpm exec prettier --write ' + file, {stdio: 'inherit'}); }\" \"$TOOL_INPUT\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '✅ Claude Code task completed' && date"
+          }
+        ]
+      }
+    ]
+  },
+  "preferences": {
+    "autoCommit": false,
+    "testBeforeCommit": true
+  }
+}

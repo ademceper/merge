@@ -1,0 +1,106 @@
+---
+description: Testing rules and patterns
+globs: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts"]
+---
+
+# Testing Rules
+
+## Test Structure
+```
+packages/ui/__tests__/
+apps/web/__tests__/
+apps/mobile/__tests__/
+```
+
+## Unit Tests (Vitest)
+```tsx
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { Button } from '../components/button'
+
+describe('Button', () => {
+  it('renders children correctly', () => {
+    render(<Button>Click me</Button>)
+    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument()
+  })
+
+  it('handles click events', async () => {
+    const user = userEvent.setup()
+    const handleClick = vi.fn()
+
+    render(<Button onClick={handleClick}>Click</Button>)
+    await user.click(screen.getByRole('button'))
+
+    expect(handleClick).toHaveBeenCalledOnce()
+  })
+
+  it('applies variant classes', () => {
+    render(<Button variant="outline">Outline</Button>)
+    expect(screen.getByRole('button')).toHaveClass('border')
+  })
+})
+```
+
+## React Testing Library Best Practices
+- Use `getByRole` over `getByTestId`
+- Use `userEvent` over `fireEvent`
+- Test user behavior, not implementation
+- Query by accessible names
+
+## Async Testing
+```tsx
+it('loads data', async () => {
+  render(<ProductList />)
+
+  expect(screen.getByText(/loading/i)).toBeInTheDocument()
+
+  await waitFor(() => {
+    expect(screen.getByText('Product 1')).toBeInTheDocument()
+  })
+})
+```
+
+## Mocking
+```tsx
+// Mock module
+vi.mock('@merge/api', () => ({
+  getProducts: vi.fn().mockResolvedValue([{ id: '1', name: 'Product' }]),
+}))
+
+// Mock hook
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: '1' }, isAuthenticated: true }),
+}))
+```
+
+## E2E Tests
+
+### Web (Playwright)
+```tsx
+// apps/web/e2e/checkout.spec.ts
+import { test, expect } from '@playwright/test'
+
+test('complete checkout flow', async ({ page }) => {
+  await page.goto('/products')
+  await page.click('[data-testid="add-to-cart"]')
+  await page.goto('/checkout')
+  await expect(page.locator('h1')).toContainText('Checkout')
+})
+```
+
+### Mobile (Maestro)
+```yaml
+# apps/mobile/.maestro/checkout.yaml
+appId: com.merge.app
+---
+- launchApp
+- tapOn: "Products"
+- tapOn: "Add to Cart"
+- assertVisible: "Checkout"
+```
+
+## Coverage Target
+- Minimum 80% for utilities and hooks
+- Focus on critical paths for components
+- 100% for validation schemas

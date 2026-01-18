@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Camera Pre-Permission Screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "background-light": "#ffffff",
+                        "background-dark": "#000000",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-primary dark:text-white transition-colors duration-200">
+<div class="relative flex min-h-screen w-full flex-col overflow-hidden font-display">
+<!-- Top Bar: Minimal close icon -->
+<div class="flex items-center p-4 pt-12 pb-2 justify-end z-10">
+<button class="flex items-center justify-center rounded-full w-10 h-10 bg-transparent text-primary dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined !text-[28px] font-light">close</span>
+</button>
+</div>
+<!-- Main Content Area -->
+<div class="flex flex-1 flex-col items-center justify-center px-6 -mt-10">
+<!-- Hero Icon -->
+<div class="mb-10 flex items-center justify-center">
+<!-- Minimalist large camera icon -->
+<div class="relative flex h-32 w-32 items-center justify-center rounded-2xl border-[1.5px] border-primary dark:border-white">
+<span class="material-symbols-outlined !text-[64px] font-light text-primary dark:text-white">photo_camera</span>
+<!-- Decorative accent line -->
+<div class="absolute -right-2 -top-2 h-4 w-4 border-r-[1.5px] border-t-[1.5px] border-primary dark:border-white"></div>
+<div class="absolute -bottom-2 -left-2 h-4 w-4 border-b-[1.5px] border-l-[1.5px] border-primary dark:border-white"></div>
+</div>
+</div>
+<!-- Headline -->
+<h1 class="text-primary dark:text-white text-[32px] font-bold leading-tight tracking-wider uppercase text-center mb-4">
+                Visual Search
+            </h1>
+<!-- Body Text -->
+<p class="text-primary/80 dark:text-white/80 text-base font-normal leading-relaxed text-center max-w-xs mb-10">
+                Snap a photo of any device to find it or similar premium products instantly.
+            </p>
+<!-- Feature List -->
+<div class="w-full max-w-xs space-y-4 mb-12">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined !text-[20px] font-light">center_focus_strong</span>
+<p class="text-base font-medium">Search by photo</p>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined !text-[20px] font-light">qr_code_scanner</span>
+<p class="text-base font-medium">Scan barcodes for specs</p>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined !text-[20px] font-light">add_a_photo</span>
+<p class="text-base font-medium">Add review photos</p>
+</div>
+</div>
+</div>
+<!-- Sticky Bottom Actions -->
+<div class="w-full px-6 pb-8 pt-4 bg-background-light dark:bg-background-dark">
+<button class="w-full bg-primary dark:bg-white text-white dark:text-black font-bold h-14 rounded-lg text-lg tracking-wide hover:opacity-90 transition-opacity mb-4">
+                Grant Camera Access
+            </button>
+<button class="w-full bg-transparent text-primary/60 dark:text-white/60 font-medium text-sm h-10 hover:text-primary dark:hover:text-white transition-colors">
+                Not Now
+            </button>
+</div>
+</div>
+</body></html>

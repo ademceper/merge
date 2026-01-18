@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Premium Onboarding Welcome</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#111111", // Overridden for this specific B&W request, originally #0d0da5
+                        "primary-accent": "#0d0da5", // Keeping original primary as accent if absolutely needed
+                        "background-light": "#ffffff",
+                        "background-dark": "#101022",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-[#111118] h-screen w-full flex flex-col overflow-hidden">
+<div class="absolute top-0 right-0 z-20 w-full pt-12 pr-6 flex justify-end">
+<button class="text-sm font-medium tracking-wide text-white/60 hover:text-white/80 transition-colors uppercase">
+            Skip
+        </button>
+</div>
+<div class="flex-1 flex flex-col h-full relative">
+<div class="relative w-full h-[60%] bg-black overflow-hidden rounded-b-[2rem]">
+<div class="absolute inset-0 bg-center bg-cover bg-no-repeat opacity-90 grayscale contrast-175" data-alt="Abstract black and white premium headphones curve and texture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC_Ut-KHF1qiELT8FKyXUTkB49BCelIRoPUeJFLSe_-VFZX8j8nCAP-XNYZu1PDiiFTZfRNRZX7rPHsQXpFoKVzVnwZGB8_N3eSqMQqB2mbRFrq6TOzpt0x5K4KUW86yTWqY1xj2WPu-kSgeJZEuA5fMhMaKvGBQfh6lLLAkQSYOanYT1cLAPhRrNcbARHqF24efJ-3VmL1k7S6txZxPq1M2m0h_ClruxeJE4dwulFBP32GpxdoUrC0vrIJ742pNhUkIqZlwVWuuYo');"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/10"></div>
+</div>
+<div class="flex-1 flex flex-col justify-between px-8 pt-10 pb-10 bg-background-light dark:bg-background-dark">
+<div class="space-y-4 text-center">
+<h1 class="text-[#111118] dark:text-white tracking-tight text-3xl font-bold leading-none uppercase">
+                    SONIC: A NEW STANDARD
+                </h1>
+<p class="text-[#111118]/70 dark:text-white/70 text-base font-light leading-relaxed max-w-xs mx-auto">
+                    Where innovative engineering meets minimalist elegance. Prepare for an unparalleled experience.
+                </p>
+</div>
+<div class="flex flex-col items-center gap-8 w-full">
+<div class="flex flex-row items-center justify-center gap-3">
+<div class="h-2.5 w-2.5 rounded-full bg-[#111118] dark:bg-white"></div>
+<div class="h-2.5 w-2.5 rounded-full border border-[#111118]/30 dark:border-white/30"></div>
+<div class="h-2.5 w-2.5 rounded-full border border-[#111118]/30 dark:border-white/30"></div>
+</div>
+<button class="w-full h-14 bg-[#111118] dark:bg-white text-white dark:text-[#111118] rounded-xl flex items-center justify-center gap-2 group hover:bg-black/90 active:scale-[0.98] transition-all duration-200">
+<span class="text-base font-bold tracking-wider uppercase">Next</span>
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

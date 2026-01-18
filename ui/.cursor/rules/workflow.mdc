@@ -1,0 +1,71 @@
+---
+description: Cursor workflow and productivity rules
+alwaysApply: true
+---
+
+# Cursor Workflow Best Practices
+
+## Plan Mode (CRITICAL)
+Before coding ANY non-trivial feature:
+1. Press `Shift+Tab` to enter Plan Mode
+2. Let agent create a reviewable plan
+3. Edit the plan markdown if needed
+4. Execute only after plan approval
+
+## Agent Mode vs Ask Mode
+- **Agent Mode**: Autonomous coding, file edits, terminal commands
+- **Ask Mode**: Q&A, exploration, understanding code
+- Use Ask mode first to understand, then Agent mode to implement
+
+## Effective Prompting
+```
+BAD:  "Fix the bug"
+GOOD: "Fix the cart total calculation bug in packages/store/cart.ts
+       where quantities aren't being summed correctly"
+```
+
+Be specific:
+- File paths
+- Function names
+- Expected vs actual behavior
+- Error messages
+
+## Context Management
+1. **@files** - Reference specific files: `@packages/ui/src/components/button.tsx`
+2. **@folders** - Reference directories: `@apps/web/`
+3. **@docs** - Reference indexed documentation
+4. **@codebase** - Search entire codebase
+5. **@web** - Search the web
+6. **@rules** - Reference specific rules
+
+## Indexing External Docs
+Add to Cursor settings → Features → Docs:
+- React 19: https://react.dev
+- Next.js 16: https://nextjs.org/docs
+- Expo: https://docs.expo.dev
+- TanStack Query: https://tanstack.com/query
+- Zustand: https://zustand.docs.pmnd.rs
+- Tailwind CSS: https://tailwindcss.com/docs
+
+## Interrupting Agent
+- Press `Escape` if agent goes wrong direction
+- Redirect with clearer instructions
+- Watch diff view as changes happen
+
+## Verification Loop
+Agent can't fix what it doesn't know about:
+1. TypeScript errors → `pnpm typecheck`
+2. Lint errors → `pnpm lint`
+3. Test failures → `pnpm test`
+4. Run these after significant changes
+
+## Periodic Rule Reinforcement
+After long conversations, agent may forget rules.
+Add: "Remember to follow the project rules" or "@core.mdc"
+
+## Keyboard Shortcuts
+- `Cmd+L` - Open chat
+- `Cmd+K` - Inline edit
+- `Cmd+Shift+L` - Add selection to chat
+- `Shift+Tab` - Toggle Plan Mode
+- `Escape` - Interrupt agent

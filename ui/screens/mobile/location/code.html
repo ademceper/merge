@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Location Permission Screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#191919",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "sans": ["Noto Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Material Symbol settings for thin, premium outline look */
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 300,
+            'GRAD' 0,
+            'opsz' 48
+        }
+        /* Heavier weight for smaller icons */
+        .icon-sm {
+             font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display antialiased text-primary bg-white dark:bg-background-dark dark:text-white transition-colors duration-200">
+<div class="relative flex h-screen w-full flex-col justify-between overflow-hidden p-6 md:p-8 max-w-md mx-auto">
+<!-- Top Spacer (Can be used for a skip button if needed, keeping empty for minimalism) -->
+<div class="h-10 w-full flex justify-end">
+<!-- Optional Top Action -->
+</div>
+<!-- Main Content -->
+<div class="flex flex-col items-center w-full flex-grow justify-center -mt-10">
+<!-- Hero Icon -->
+<div class="mb-8 flex items-center justify-center p-6 rounded-full border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
+<span class="material-symbols-outlined text-[64px] text-primary dark:text-white">location_on</span>
+</div>
+<!-- Headlines -->
+<div class="text-center space-y-4 mb-12">
+<h1 class="text-primary dark:text-white text-3xl md:text-4xl font-bold tracking-tight leading-tight uppercase">
+                    Find Nearby Stores
+                </h1>
+<p class="text-primary/70 dark:text-white/70 text-base font-normal leading-relaxed max-w-[280px] mx-auto">
+                    Share your location to discover the closest SONIC showrooms and unlock same-day delivery.
+                </p>
+</div>
+<!-- Benefits List -->
+<div class="w-full max-w-xs space-y-6">
+<!-- List Item 1 -->
+<div class="flex items-center gap-4">
+<div class="flex items-center justify-center shrink-0 size-8 text-primary dark:text-white">
+<span class="material-symbols-outlined icon-sm text-[24px]">my_location</span>
+</div>
+<p class="text-primary dark:text-white text-base font-medium leading-normal flex-1">
+                        Nearest store locator
+                    </p>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center gap-4">
+<div class="flex items-center justify-center shrink-0 size-8 text-primary dark:text-white">
+<span class="material-symbols-outlined icon-sm text-[24px]">edit_location_alt</span>
+</div>
+<p class="text-primary dark:text-white text-base font-medium leading-normal flex-1">
+                        Faster address entry
+                    </p>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center gap-4">
+<div class="flex items-center justify-center shrink-0 size-8 text-primary dark:text-white">
+<span class="material-symbols-outlined icon-sm text-[24px]">verified</span>
+</div>
+<p class="text-primary dark:text-white text-base font-medium leading-normal flex-1">
+                        Local exclusives
+                    </p>
+</div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="w-full space-y-4 pt-8 pb-4">
+<button class="w-full bg-primary hover:bg-primary/90 text-white dark:bg-white dark:text-primary dark:hover:bg-gray-100 rounded-lg h-14 px-6 text-base font-bold tracking-wide transition-all shadow-lg shadow-primary/20 dark:shadow-none flex items-center justify-center gap-2 group">
+                Share Location
+                <span class="material-symbols-outlined text-[20px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+<button class="w-full py-2 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white text-sm font-medium transition-colors">
+                Not Now
+            </button>
+</div>
+</div>
+</body></html>

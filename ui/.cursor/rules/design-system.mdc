@@ -1,0 +1,243 @@
+---
+description: Merge Design System - Monochrome minimalist design patterns for Web & Mobile
+alwaysApply: true
+---
+
+# Merge Design System
+
+## Design DNA (Both Platforms)
+1. **Monochrome**: Black & white only, no colors except destructive red
+2. **Minimalist**: Less is more, negative space is design
+3. **Geometric**: Sharp, mathematical forms
+4. **Flat Design**: No gradients, minimal shadows, no depth
+5. **Typography as Hero**: Font is the identity
+6. **Native Feel**: Platform conventions respected
+
+## Reference Designs
+Design templates are in `/screens/` directory:
+- `/screens/mobile/` - Mobile screen designs (HTML)
+- `/screens/web/` - Web screen designs (HTML)
+- `/screens/MOBILE_STITCH_PROMPT_TEMPLATE.md` - Mobile design guide
+- `/screens/WEB_STITCH_PROMPT_TEMPLATE.md` - Web design guide
+
+**ALWAYS** check these files before creating new screens!
+
+## Color Palette
+
+### Light Mode
+```
+background: #ffffff (pure white)
+foreground: #111118 or #000000 (pure black)
+muted: foreground with opacity (70%, 60%, 30%)
+border: foreground/10
+```
+
+### Dark Mode
+```
+background: #101022 or #000000 (OLED optimized)
+foreground: #ffffff (pure white)
+muted: white with opacity (70%, 60%, 30%)
+border: white/10
+```
+
+### Usage Pattern
+```tsx
+// Text
+className="text-primary dark:text-white"
+className="text-primary/70 dark:text-white/70"  // Muted
+
+// Backgrounds
+className="bg-white dark:bg-background-dark"
+className="bg-primary dark:bg-white"  // Inverted buttons
+
+// Borders
+className="border-primary/10 dark:border-white/10"
+```
+
+## Typography
+
+### Font
+- **Family**: Space Grotesk
+- **Weights**: 300 (Light), 400 (Regular), 500 (Medium), 700 (Bold)
+- **Web**: `font-display` class, loaded via next/font
+- **Mobile**: `@expo-google-fonts/space-grotesk`
+
+### Hierarchy
+```
+H1: text-3xl/text-4xl font-bold uppercase tracking-tight leading-tight
+H2: text-2xl/text-3xl font-bold tracking-tight
+Body: text-base font-normal leading-relaxed
+Small: text-sm font-medium
+Caption: text-xs
+```
+
+### Text Colors
+```tsx
+// Primary text
+className="text-[#111118] dark:text-white"
+
+// Secondary/muted text
+className="text-[#111118]/70 dark:text-white/70"
+
+// Subtle text
+className="text-primary/60 dark:text-white/60"
+```
+
+## Button Patterns
+
+### Primary Button (CTA)
+```tsx
+// Light mode: black bg, white text
+// Dark mode: white bg, black text
+className="w-full h-14 bg-[#111118] dark:bg-white text-white dark:text-[#111118] rounded-xl font-bold tracking-wider uppercase"
+```
+
+### Secondary Button (Text)
+```tsx
+className="text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white text-sm font-medium"
+```
+
+### Icon Button
+```tsx
+className="flex items-center justify-center rounded-full w-10 h-10 bg-transparent hover:bg-black/5 dark:hover:bg-white/10"
+```
+
+## Layout Patterns
+
+### Screen Container (Mobile)
+```tsx
+<View className="flex-1 flex-col bg-background dark:bg-background-dark">
+  {/* Safe area handled by useSafeAreaInsets() */}
+</View>
+```
+
+### Page Container (Web)
+```tsx
+<main className="min-h-screen bg-white dark:bg-background-dark">
+  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {/* Content */}
+  </div>
+</main>
+```
+
+### Centered Content
+```tsx
+<View className="flex flex-col items-center justify-center px-6 flex-1">
+  {/* Centered content */}
+</View>
+```
+
+### Sticky Bottom Actions
+```tsx
+<View className="w-full px-6 pb-8 pt-4 space-y-4">
+  <Button>Primary Action</Button>
+  <Button variant="ghost">Secondary</Button>
+</View>
+```
+
+## Hero Icon Pattern
+```tsx
+// Large icon with border
+<View className="flex items-center justify-center p-6 rounded-full border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5">
+  <Icon size={64} />
+</View>
+
+// Or with geometric accents
+<View className="relative flex h-32 w-32 items-center justify-center rounded-2xl border-[1.5px] border-primary dark:border-white">
+  <Icon size={64} />
+  {/* Corner accents */}
+  <View className="absolute -right-2 -top-2 h-4 w-4 border-r-[1.5px] border-t-[1.5px]" />
+</View>
+```
+
+## Feature List Pattern
+```tsx
+<View className="w-full max-w-xs space-y-4">
+  <View className="flex items-center gap-4">
+    <Icon size={24} />
+    <Text className="text-base font-medium">Feature description</Text>
+  </View>
+</View>
+```
+
+## Page Indicators
+```tsx
+<View className="flex flex-row items-center justify-center gap-3">
+  {pages.map((_, idx) => (
+    <View
+      key={idx}
+      className={cn(
+        "h-2.5 w-2.5 rounded-full",
+        idx === currentPage
+          ? "bg-[#111118] dark:bg-white"
+          : "border border-[#111118]/30 dark:border-white/30"
+      )}
+    />
+  ))}
+</View>
+```
+
+## Spacing System
+- **Base unit**: 8px
+- **Padding**: p-4 (16px), p-6 (24px), p-8 (32px)
+- **Gap**: gap-4 (16px), gap-6 (24px)
+- **Touch targets**: min 44×44 (iOS), 48×48 (Android)
+
+## Responsive Breakpoints (Web)
+```
+Mobile:  < 768px   → Single column, bottom nav, full-width CTAs
+Tablet:  768-1024px → 2 columns, collapsible sidebar
+Desktop: > 1024px  → Multi-column, persistent sidebar, hover states
+```
+
+## Animation Guidelines
+
+### Web (Framer Motion)
+```tsx
+// Subtle, quick transitions
+<motion.div
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.2, ease: "easeOut" }}
+/>
+```
+
+### Mobile (Reanimated)
+```tsx
+// Use spring physics for native feel
+const animatedStyle = useAnimatedStyle(() => ({
+  transform: [{ scale: withSpring(pressed.value ? 0.96 : 1) }],
+}));
+```
+
+## Card Pattern
+```tsx
+// Web
+<div className="rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+
+// Mobile
+<View className="rounded-xl border border-primary/10 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+```
+
+## Input Pattern
+```tsx
+// Both platforms
+className="h-12 w-full rounded-lg border border-primary/10 dark:border-white/10 bg-transparent px-4 text-base placeholder:text-primary/40 dark:placeholder:text-white/40 focus:border-primary dark:focus:border-white"
+```
+
+## DO's
+- ✓ Use monochrome palette only
+- ✓ Use Space Grotesk font everywhere
+- ✓ Use uppercase for headings and CTAs
+- ✓ Use generous negative space
+- ✓ Use subtle opacity (10%, 30%, 60%, 70%) for hierarchy
+- ✓ Check /screens/ directory before creating new screens
+- ✓ Follow platform conventions (iOS/Android/Web)
+
+## DON'Ts
+- ✗ No gradients
+- ✗ No colored accents (except destructive red for errors)
+- ✗ No heavy shadows (use border or subtle bg instead)
+- ✗ No rounded-full on rectangular buttons (use rounded-lg/xl)
+- ✗ No decorative elements
+- ✗ No depth/3D effects

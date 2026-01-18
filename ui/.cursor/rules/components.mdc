@@ -1,0 +1,82 @@
+---
+description: Component development rules
+globs: ["packages/ui/**/*.tsx", "packages/uim/**/*.tsx"]
+---
+
+# Component Library Rules
+
+## packages/ui (Web - 54 components)
+Based on shadcn/ui + Radix UI + Phosphor Icons
+
+## packages/uim (Mobile - 32 components)
+Based on rn-primitives + NativeWind
+
+## Component Structure
+```tsx
+import * as React from 'react'
+import { cn } from '@merge/ui/lib/utils'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+// 1. Variants (if needed)
+export const buttonVariants = cva(
+  'inline-flex items-center justify-center rounded-md font-medium',
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground',
+        outline: 'border border-input bg-background',
+      },
+      size: {
+        sm: 'h-8 px-3 text-sm',
+        md: 'h-10 px-4',
+        lg: 'h-12 px-6 text-lg',
+      },
+    },
+    defaultVariants: { variant: 'default', size: 'md' },
+  }
+)
+
+// 2. Props interface
+interface ButtonProps
+  extends React.ComponentProps<'button'>,
+    VariantProps<typeof buttonVariants> {}
+
+// 3. Component (export function, not const)
+export function Button({ className, variant, size, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  )
+}
+```
+
+## Key Rules
+1. **ALWAYS** `export function` - never `export const` for components
+2. **React 19** - No forwardRef needed, refs auto-forward
+3. **Props** - Extend `React.ComponentProps<'element'>`
+4. **Styling** - Use cn() for class merging
+5. **Variants** - Use CVA for type-safe variants
+6. **data-slot** - Add for styling hooks in compound components
+
+## Compound Components
+```tsx
+export function Card({ className, ...props }: CardProps) {
+  return <div data-slot="card" className={cn('...', className)} {...props} />
+}
+
+export function CardHeader({ className, ...props }: CardHeaderProps) {
+  return <div data-slot="card-header" className={cn('...', className)} {...props} />
+}
+```
+
+## Mobile-Specific
+- Use `Text` from `@merge/uim/components/text` for typography
+- Use NativeWind className prop
+- Test on both iOS and Android
+
+## Accessibility
+- Add aria-label to icon-only buttons
+- Ensure proper focus states
+- Use semantic elements

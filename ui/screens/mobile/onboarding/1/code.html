@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Premium Onboarding Welcome</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#111111", // Overridden for this specific B&W request, originally #0d0da5
+                        "primary-accent": "#0d0da5", // Keeping original primary as accent if absolutely needed
+                        "background-light": "#ffffff",
+                        "background-dark": "#101022",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-[#111118] h-screen w-full flex flex-col overflow-hidden">
+<div class="flex-1 flex flex-col h-full relative">
+<div class="relative w-full h-[60%] bg-black overflow-hidden rounded-b-[2rem]">
+<div class="absolute inset-0 bg-center bg-cover bg-no-repeat opacity-90 grayscale contrast-125" data-alt="Black and white artistic photo of a person absorbed in music through premium headphones" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCVtEr3vAdt6DqVknFsqutJ5mcJyjwIIqGLXi-MYdFXWXrvmU3KnACp-XaF5OPLcPimTACC4KdRsFi2xrmiBQ_MihHUHAMDOH880LLd4tGQDh9HXKxVlBzMdn5TcOkX5KaeG1JvaJCgtOgRgZvcIRq1077PlU532TsJ5kh4qqDNqSh3cDmxymc_rT0ax50ssHLnad7CVcFIDMKFCL6XZBbySClF8AiDVWu0fWVaqbCgXg5v-aKv9HjukHmbyILJYi5v3x6K6VEVpe4');"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/10"></div>
+</div>
+<div class="flex-1 flex flex-col justify-between px-8 pt-10 pb-10 bg-background-light dark:bg-background-dark">
+<div class="space-y-4 text-center">
+<h1 class="text-[#111118] dark:text-white tracking-tight text-3xl font-bold leading-none uppercase">
+                    Begin Your Journey
+                </h1>
+<p class="text-[#111118]/70 dark:text-white/70 text-base font-light leading-relaxed max-w-xs mx-auto">
+                    Your personalized world of premium audio awaits. Tap 'Enter' to explore.
+                </p>
+</div>
+<div class="flex flex-col items-center gap-8 w-full">
+<div class="flex flex-row items-center justify-center gap-3">
+<div class="h-2.5 w-2.5 rounded-full border border-[#111118]/30 dark:border-white/30"></div>
+<div class="h-2.5 w-2.5 rounded-full border border-[#111118]/30 dark:border-white/30"></div>
+<div class="h-2.5 w-2.5 rounded-full bg-[#111118] dark:bg-white"></div>
+</div>
+<button class="w-full h-14 bg-[#111118] dark:bg-white text-white dark:text-[#111118] rounded-xl flex items-center justify-center group hover:bg-black/90 active:scale-[0.98] transition-all duration-200">
+<span class="text-base font-bold tracking-wider uppercase">Enter App</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

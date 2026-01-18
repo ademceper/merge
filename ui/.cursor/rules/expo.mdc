@@ -1,0 +1,108 @@
+---
+description: Expo and React Native specific rules
+globs: ["apps/mobile/**/*.tsx", "apps/mobile/**/*.ts"]
+---
+
+# Expo 54 & React Native Rules
+
+## Expo Router Structure
+```
+apps/mobile/app/
+├── (auth)/           # Auth screens
+│   ├── _layout.tsx
+│   ├── login.tsx
+│   └── register.tsx
+├── (tabs)/           # Tab navigation
+│   ├── _layout.tsx   # Tab bar config
+│   ├── home.tsx
+│   ├── search.tsx
+│   ├── cart.tsx
+│   └── profile.tsx
+├── (stack)/          # Stack screens
+│   ├── product/[id].tsx
+│   ├── checkout.tsx
+│   └── orders/[id].tsx
+├── _layout.tsx       # Root layout
+├── index.tsx         # Entry/splash
+└── +not-found.tsx    # 404
+```
+
+## Screen Template
+```tsx
+import { View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Text } from '@merge/uim/components/text'
+
+export default function Screen() {
+  const insets = useSafeAreaInsets()
+
+  return (
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      <Text>Content</Text>
+    </View>
+  )
+}
+```
+
+## Server Functions (BFF)
+```tsx
+'use server'
+import { getProducts } from '@merge/api'
+
+export async function fetchProducts() {
+  return getProducts()
+}
+```
+
+## Lists - Use FlatList
+NEVER use ScrollView for lists >10 items:
+```tsx
+import { FlatList } from 'react-native'
+
+<FlatList
+  data={items}
+  renderItem={({ item }) => <Item {...item} />}
+  keyExtractor={(item) => item.id}
+  removeClippedSubviews={true}
+  maxToRenderPerBatch={10}
+/>
+```
+
+## Animations
+Use react-native-reanimated (runs on UI thread):
+```tsx
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated'
+
+const animatedStyle = useAnimatedStyle(() => ({
+  transform: [{ translateX: withSpring(position.value) }],
+}))
+```
+
+## Secure Storage
+```tsx
+import * as SecureStore from 'expo-secure-store'
+
+await SecureStore.setItemAsync('token', value)
+const token = await SecureStore.getItemAsync('token')
+```
+
+## Deep Linking
+Universal Links configuration in app.json:
+```json
+{
+  "expo": {
+    "scheme": "merge",
+    "android": { "intentFilters": [...] },
+    "ios": { "associatedDomains": ["applinks:merge.com"] }
+  }
+}
+```
+
+## Timer Cleanup
+ALWAYS cleanup timers:
+```tsx
+useEffect(() => {
+  const timer = setTimeout(() => {}, 1000)
+  return () => clearTimeout(timer)
+}, [])
+```

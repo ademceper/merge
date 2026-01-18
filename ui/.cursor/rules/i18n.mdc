@@ -1,0 +1,120 @@
+---
+description: Internationalization rules for cross-platform
+globs: ["packages/i18n/**", "**/locales/**"]
+---
+
+# i18n Rules (i18next)
+
+## Structure
+```
+packages/i18n/
+├── locales/
+│   ├── en/
+│   │   ├── common.json
+│   │   ├── products.json
+│   │   ├── cart.json
+│   │   └── auth.json
+│   └── tr/
+│       ├── common.json
+│       ├── products.json
+│       ├── cart.json
+│       └── auth.json
+├── config.ts
+└── index.ts
+```
+
+## Translation Files
+```json
+// locales/en/common.json
+{
+  "buttons": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "errors": {
+    "required": "This field is required",
+    "invalid_email": "Invalid email address"
+  }
+}
+
+// locales/en/products.json
+{
+  "title": "Products",
+  "add_to_cart": "Add to Cart",
+  "price": "Price: {{price}}",
+  "out_of_stock": "Out of Stock"
+}
+```
+
+## Configuration
+```tsx
+// packages/i18n/config.ts
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
+
+import enCommon from './locales/en/common.json'
+import enProducts from './locales/en/products.json'
+import trCommon from './locales/tr/common.json'
+import trProducts from './locales/tr/products.json'
+
+export const resources = {
+  en: { common: enCommon, products: enProducts },
+  tr: { common: trCommon, products: trProducts },
+}
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: 'en',
+  fallbackLng: 'en',
+  ns: ['common', 'products', 'cart', 'auth'],
+  defaultNS: 'common',
+  interpolation: { escapeValue: false },
+})
+
+export default i18n
+```
+
+## Usage in Components
+
+### Web (Next.js)
+```tsx
+'use client'
+import { useTranslation } from 'react-i18next'
+
+export function ProductCard({ price }: { price: number }) {
+  const { t } = useTranslation('products')
+
+  return (
+    <div>
+      <p>{t('price', { price })}</p>
+      <button>{t('add_to_cart')}</button>
+    </div>
+  )
+}
+```
+
+### Mobile (Expo)
+```tsx
+import { useTranslation } from 'react-i18next'
+import { Text } from '@merge/uim/components/text'
+import { Button } from '@merge/uim/components/button'
+
+export function ProductCard({ price }: { price: number }) {
+  const { t } = useTranslation('products')
+
+  return (
+    <View>
+      <Text>{t('price', { price })}</Text>
+      <Button>{t('add_to_cart')}</Button>
+    </View>
+  )
+}
+```
+
+## Best Practices
+1. **Namespace by feature**: common, products, cart, auth, account
+2. **Use interpolation**: `{{value}}` for dynamic content
+3. **Pluralization**: `"items_count": "{{count}} item", "items_count_plural": "{{count}} items"`
+4. **Never hardcode strings**: All user-facing text must use t()
+5. **Key naming**: Use dot notation for nested keys

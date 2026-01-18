@@ -1,0 +1,58 @@
+---
+description: Core development rules for Merge monorepo
+alwaysApply: true
+---
+
+# Merge Monorepo - Core Rules
+
+## Project Context
+E-commerce monorepo: Next.js 16 (web) + Expo 54 (mobile) with shared packages.
+
+## SEARCH FIRST
+Before creating anything new:
+1. Search codebase for existing patterns
+2. Check packages/ui or packages/uim for components
+3. Look for similar implementations to extend
+
+## REUSE FIRST
+- Extend existing code before creating new
+- Use shared packages (api, store, validators, i18n)
+- Smallest possible code changes
+
+## TypeScript Standards
+- NEVER use `any` - use `unknown` if truly needed
+- Use interfaces for object shapes
+- Use Zod for runtime validation
+- Avoid enums, prefer literal types
+
+## Component Pattern
+```tsx
+export function ComponentName({ className, ...props }: ComponentProps) {
+  return <div className={cn('base-classes', className)} {...props} />
+}
+```
+- Always `export function`, never `export const` for components
+- React 19: No forwardRef needed, refs auto-forward
+- Use CVA for variants
+
+## Imports Order
+1. React imports
+2. External libraries
+3. @merge/* packages
+4. Relative imports
+5. Type imports
+
+## Naming Conventions
+- Components: PascalCase
+- Functions/variables: camelCase
+- Constants: SCREAMING_SNAKE_CASE
+- Directories: kebab-case
+- Descriptive booleans: `isLoading`, `hasError`, `canSubmit`
+
+## Git Commits
+Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+
+## Error Handling
+- Handle errors at function start with early returns
+- Use guard clauses for preconditions
+- Log to Sentry in production

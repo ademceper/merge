@@ -1,0 +1,69 @@
+---
+description: Security rules and OWASP guidelines
+alwaysApply: true
+---
+
+# Security Rules (OWASP Top 10)
+
+## A01: Broken Access Control
+- Verify auth state before rendering protected routes
+- Use middleware for route protection
+- Never trust client-side auth checks alone
+
+## A02: Cryptographic Failures
+- NEVER store tokens in localStorage (web)
+- Use httpOnly cookies for JWT (web)
+- Use expo-secure-store for tokens (mobile)
+- Never commit secrets to git
+
+## A03: Injection
+- NEVER use dangerouslySetInnerHTML with user input
+- Always sanitize with DOMPurify if HTML is necessary
+- Use Zod for input validation
+- Parameterize all queries
+
+## A05: Security Misconfiguration
+Configure in next.config.mjs:
+```javascript
+async headers() {
+  return [{
+    source: '/:path*',
+    headers: [
+      { key: 'X-DNS-Prefetch-Control', value: 'on' },
+      { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+    ],
+  }]
+}
+```
+
+## A07: Auth Failures
+- Implement rate limiting on auth endpoints
+- Use secure password requirements
+- Handle 401 responses globally
+- Auto-refresh tokens before expiry
+
+## A08: Data Integrity
+- Validate all API responses with Zod
+- Whitelist allowed image domains in next.config.mjs
+- Verify webhook signatures
+
+## A09: Logging & Monitoring
+- Log errors to Sentry
+- Never log sensitive data (passwords, tokens)
+- Monitor for unusual patterns
+
+## Blocked File Patterns
+NEVER modify without explicit permission:
+- `.env*` files
+- `credentials.json`
+- `secrets/` directory
+- `*.pem`, `*.key` files
+
+## API Key Safety
+- Use environment variables
+- Server-side API routes for sensitive calls
+- Never expose in client bundles
