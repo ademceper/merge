@@ -80,3 +80,77 @@ export function CardHeader({ className, ...props }: CardHeaderProps) {
 - Add aria-label to icon-only buttons
 - Ensure proper focus states
 - Use semantic elements
+
+## MANDATORY: Use UI Package Components
+
+### Web (apps/web)
+**NEVER use native HTML elements when UI package alternatives exist:**
+
+❌ **FORBIDDEN:**
+```tsx
+// DON'T use native button
+<button onClick={handleClick}>Click me</button>
+
+// DON'T use native input without Field wrapper
+<input type="email" placeholder="Email" />
+
+// DON'T use native form elements directly
+<form>
+  <input />
+  <button>Submit</button>
+</form>
+```
+
+✅ **REQUIRED:**
+```tsx
+// ALWAYS use Button from @merge/ui
+import { Button } from "@merge/ui/components/button"
+<Button onClick={handleClick}>Click me</Button>
+
+// ALWAYS wrap Input with Field components
+import { Field, FieldContent, FieldLabel, FieldError } from "@merge/ui/components/field"
+import { Input } from "@merge/ui/components/input"
+
+<Field>
+  <FieldContent>
+    <Input type="email" placeholder="Email" />
+  </FieldContent>
+</Field>
+
+// For links/ghost buttons, use Button with variant="link" or variant="ghost"
+<Button variant="link" onClick={handleClick}>Sign up</Button>
+```
+
+### Mobile (apps/mobile)
+**ALWAYS use @merge/uim components:**
+
+❌ **FORBIDDEN:**
+```tsx
+// DON'T use native Text
+<Text>Hello</Text> // React Native Text
+
+// DON'T use native Pressable for buttons
+<Pressable onPress={handlePress}>
+  <Text>Click</Text>
+</Pressable>
+```
+
+✅ **REQUIRED:**
+```tsx
+// ALWAYS use Text from @merge/uim
+import { Text } from "@merge/uim/components/text"
+<Text>Hello</Text>
+
+// ALWAYS use Button from @merge/uim
+import { Button } from "@merge/uim/components/button"
+<Button onPress={handlePress}>Click</Button>
+```
+
+### Component Checklist
+Before committing, verify:
+- [ ] No native `<button>` - use `Button` component
+- [ ] No native `<input>` without `Field` wrapper (web)
+- [ ] No native `Text` (mobile) - use `@merge/uim/components/text`
+- [ ] No native `Pressable` for buttons (mobile)
+- [ ] All form inputs wrapped in `Field` components (web)
+- [ ] Error messages use `FieldError` component (web)

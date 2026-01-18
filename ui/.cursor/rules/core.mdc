@@ -19,6 +19,28 @@ Before creating anything new:
 - Use shared packages (api, store, validators, i18n)
 - Smallest possible code changes
 
+## UI PACKAGE COMPONENTS (MANDATORY - CRITICAL RULE)
+
+⚠️ **THIS IS A MANDATORY REQUIREMENT - NO EXCEPTIONS**
+
+**NEVER use native HTML/RN elements when UI package alternatives exist. This rule is enforced and violations must be fixed immediately.**
+
+### Web (apps/web)
+- ❌ **FORBIDDEN**: `<button>`, `<input>`, native form elements, native `<a>` tags for buttons
+- ✅ **REQUIRED**: `Button`, `Input`, `Field` from `@merge/ui/components/*`
+- ✅ **Links**: Use `Button variant="link"` or `Button variant="ghost"` instead of native buttons
+
+### Mobile (apps/mobile)
+- ❌ **FORBIDDEN**: `Pressable` (for buttons), native `Text` from react-native, `TextInput` from react-native
+- ✅ **REQUIRED**: `Button`, `Text`, `Input` from `@merge/uim/components/*`
+- ✅ **Link buttons**: Use `Button variant="ghost"` with `className="h-auto p-0"`
+
+**Before creating ANY UI element, ALWAYS check if a component exists in:**
+- `packages/ui/src/components/` (web) - 54 components available
+- `packages/uim/src/components/` (mobile) - 32 components available
+
+**If a component doesn't exist, create it in the appropriate package first, then use it.**
+
 ## TypeScript Standards
 - NEVER use `any` - use `unknown` if truly needed
 - Use interfaces for object shapes

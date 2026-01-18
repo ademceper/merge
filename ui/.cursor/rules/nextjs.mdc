@@ -93,3 +93,57 @@ Configure in next.config.mjs:
 - Use dynamic imports for heavy components
 - Implement loading.tsx for Suspense
 - Use React.memo for expensive renders
+
+## UI Package Component Usage (CRITICAL)
+
+### MANDATORY Component Usage
+**ALWAYS use @merge/ui components instead of native HTML:**
+
+1. **Buttons**: NEVER use `<button>` - ALWAYS use `Button` from `@merge/ui/components/button`
+   ```tsx
+   // ❌ FORBIDDEN
+   <button onClick={handleClick}>Click</button>
+   
+   // ✅ REQUIRED
+   import { Button } from "@merge/ui/components/button"
+   <Button onClick={handleClick}>Click</Button>
+   ```
+
+2. **Form Fields**: ALWAYS wrap inputs with Field components
+   ```tsx
+   // ❌ FORBIDDEN
+   <input type="email" placeholder="Email" />
+   
+   // ✅ REQUIRED
+   import { Field, FieldContent, FieldLabel, FieldError } from "@merge/ui/components/field"
+   import { Input } from "@merge/ui/components/input"
+   
+   <Field>
+     <FieldContent>
+       <Input type="email" placeholder="Email" />
+     </FieldContent>
+   </Field>
+   ```
+
+3. **Links**: Use Button with variant="link" or variant="ghost"
+   ```tsx
+   // ❌ FORBIDDEN
+   <button type="button" onClick={handleClick} className="hover:underline">Link</button>
+   
+   // ✅ REQUIRED
+   <Button variant="link" onClick={handleClick}>Link</Button>
+   ```
+
+### Available Components
+Check `packages/ui/src/components/` for available components:
+- Button, Input, Field, FieldContent, FieldLabel, FieldError
+- Card, CardHeader, CardContent, CardFooter
+- Label, Separator, Badge, etc.
+
+### Pre-commit Checklist
+Before creating/editing web pages:
+- [ ] All buttons use `Button` component
+- [ ] All inputs wrapped in `Field` + `FieldContent`
+- [ ] All links use `Button` with variant="link" or "ghost"
+- [ ] Error messages use `FieldError` component
+- [ ] No native HTML form elements without UI package wrappers

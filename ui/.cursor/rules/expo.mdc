@@ -106,3 +106,99 @@ useEffect(() => {
   return () => clearTimeout(timer)
 }, [])
 ```
+
+## UI Package Component Usage (CRITICAL - MANDATORY)
+
+### ⚠️ CRITICAL RULE: NEVER use native React Native elements when @merge/uim alternatives exist
+
+**This is a MANDATORY requirement. Violations will be caught and must be fixed.**
+
+### MANDATORY Component Usage
+
+1. **Buttons**: NEVER use `Pressable` for buttons - ALWAYS use `Button` from `@merge/uim/components/button`
+   ```tsx
+   // ❌ FORBIDDEN - This will be flagged
+   import { Pressable } from "react-native"
+   <Pressable onPress={handlePress}>
+     <Text>Click</Text>
+   </Pressable>
+   
+   // ✅ REQUIRED - Always use Button component
+   import { Button } from "@merge/uim/components/button"
+   <Button onPress={handlePress}>Click</Button>
+   
+   // For link-style buttons, use variant="ghost"
+   <Button variant="ghost" onPress={handlePress} className="h-auto p-0">
+     <Text>Link text</Text>
+   </Button>
+   ```
+
+2. **Text**: ALWAYS use `Text` from `@merge/uim/components/text`
+   ```tsx
+   // ❌ FORBIDDEN
+   import { Text } from "react-native"
+   <Text>Hello</Text>
+   
+   // ✅ REQUIRED
+   import { Text } from "@merge/uim/components/text"
+   <Text>Hello</Text>
+   ```
+
+3. **Inputs**: ALWAYS use `Input` from `@merge/uim/components/input`
+   ```tsx
+   // ❌ FORBIDDEN
+   import { TextInput } from "react-native"
+   <TextInput placeholder="Email" />
+   
+   // ✅ REQUIRED
+   import { Input } from "@merge/uim/components/input"
+   <Input placeholder="Email" />
+   ```
+
+4. **Cards**: Use Card components from `@merge/uim/components/card`
+   ```tsx
+   import { Card, CardHeader, CardContent } from "@merge/uim/components/card"
+   <Card>
+     <CardHeader>Title</CardHeader>
+     <CardContent>Content</CardContent>
+   </Card>
+   ```
+
+### Available Components
+Check `packages/uim/src/components/` for available components:
+- Button, Input, Text, Card, Badge, Checkbox, Switch, etc.
+
+### Pre-commit Checklist (MANDATORY)
+**Before creating/editing ANY mobile screen, verify:**
+- [ ] ❌ NO `Pressable` imports from "react-native" - use `Button` instead
+- [ ] ❌ NO `TextInput` imports from "react-native" - use `Input` instead
+- [ ] ❌ NO `Text` imports from "react-native" - use `Text` from `@merge/uim` instead
+- [ ] ✅ ALL buttons use `Button` from `@merge/uim/components/button`
+- [ ] ✅ ALL text uses `Text` from `@merge/uim/components/text`
+- [ ] ✅ ALL inputs use `Input` from `@merge/uim/components/input`
+- [ ] ✅ Link-style buttons use `Button variant="ghost"` with `className="h-auto p-0"`
+
+### Common Mistakes to Avoid
+```tsx
+// ❌ WRONG - Using Pressable
+import { Pressable } from "react-native"
+<Pressable onPress={handleClick}>Click</Pressable>
+
+// ✅ CORRECT - Using Button
+import { Button } from "@merge/uim/components/button"
+<Button onPress={handleClick}>Click</Button>
+
+// ❌ WRONG - Native Text
+import { Text } from "react-native"
+
+// ✅ CORRECT - UI Package Text
+import { Text } from "@merge/uim/components/text"
+
+// ❌ WRONG - Native TextInput
+import { TextInput } from "react-native"
+<TextInput placeholder="Email" />
+
+// ✅ CORRECT - UI Package Input
+import { Input } from "@merge/uim/components/input"
+<Input placeholder="Email" />
+```

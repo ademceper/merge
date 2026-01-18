@@ -8,7 +8,7 @@ import type { Href } from 'expo-router';
 /**
  * Available routes in the mobile app
  */
-export type AppRoute = '/onboarding' | '/home' | '/';
+export type AppRoute = '/onboarding' | '/home' | '/login' | '/register' | '/forgot-password' | '/';
 
 /**
  * Type-safe route href helper
@@ -17,6 +17,9 @@ export type AppRoute = '/onboarding' | '/home' | '/';
 export const Routes = {
   onboarding: '/onboarding' as const,
   home: '/home' as const,
+  login: '/login' as const,
+  register: '/register' as const,
+  forgotPassword: '/forgot-password' as const,
   index: '/' as const,
 } as const;
 

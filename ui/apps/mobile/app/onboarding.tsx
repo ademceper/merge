@@ -127,12 +127,12 @@ export default function OnboardingScreen() {
     });
 
   const handleSkip = () => {
-    router.replace(Routes.home);
+    router.replace(Routes.login);
   };
 
   const handleButtonPress = () => {
     if (currentPageData.isLastPage) {
-      router.replace(Routes.home);
+      router.replace(Routes.login);
     } else {
       const nextPage = currentPage + 1;
       translateX.value = withSpring(-nextPage * SCREEN_WIDTH, {
