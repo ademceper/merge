@@ -22,7 +22,8 @@ public class AuthController(IMediator mediator) : BaseController
 {
 
     /// <summary>
-    /// Yeni kullanıcı kaydı oluşturur
+    /// Creates a new user registration.
+    /// Yeni kullanıcı kaydı oluşturur.
     /// </summary>
     [HttpPost("register")]
     [RateLimit(3, 60)]
@@ -47,7 +48,8 @@ public class AuthController(IMediator mediator) : BaseController
     }
 
     /// <summary>
-    /// Kullanıcı girişi yapar
+    /// Authenticates user and returns access token.
+    /// Kullanıcı girişi yapar ve access token döner.
     /// </summary>
     [HttpPost("login")]
     [RateLimit(5, 60)]
@@ -70,7 +72,8 @@ public class AuthController(IMediator mediator) : BaseController
     }
 
     /// <summary>
-    /// Access token'ı yeniler (refresh token kullanarak)
+    /// Refreshes access token using refresh token.
+    /// Access token'ı yeniler (refresh token kullanarak).
     /// </summary>
     [HttpPost("refresh")]
     [RateLimit(10, 60)]
@@ -92,7 +95,8 @@ public class AuthController(IMediator mediator) : BaseController
     }
 
     /// <summary>
-    /// Refresh token'ı iptal eder (logout)
+    /// Revokes refresh token (logout).
+    /// Refresh token'ı iptal eder (logout).
     /// </summary>
     [HttpPost("revoke")]
     [RateLimit(10, 60)]

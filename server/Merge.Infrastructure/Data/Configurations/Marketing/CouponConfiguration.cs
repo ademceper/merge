@@ -29,10 +29,10 @@ public class CouponConfiguration : IEntityTypeConfiguration<Coupon>
             v => v != null ? string.Join(',', v) : null,
             v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
 
-        builder.Property("_applicableCategoryIds")
+        builder.Property(e => e.ApplicableCategoryIds)
               .HasConversion(listGuidToStringConverter);
 
-        builder.Property("_applicableProductIds")
+        builder.Property(e => e.ApplicableProductIds)
               .HasConversion(listGuidToStringConverter);
     }
 }

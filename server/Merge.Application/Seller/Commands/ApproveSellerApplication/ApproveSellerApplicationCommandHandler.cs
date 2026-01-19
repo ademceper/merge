@@ -59,13 +59,12 @@ public class ApproveSellerApplicationCommandHandler(IRepository applicationRepos
                     cancellationToken
                 );
 
-                // Update user role to Seller
+                // Add Seller role (keep existing roles like Customer)
                 var currentRoles = await userManager.GetRolesAsync(user);
-                if (currentRoles.Any())
+                if (!currentRoles.Contains("Seller"))
                 {
-                    await userManager.RemoveFromRolesAsync(user, currentRoles);
+                    await userManager.AddToRoleAsync(user, "Seller");
                 }
-                await userManager.AddToRoleAsync(user, "Seller");
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

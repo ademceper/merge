@@ -23,6 +23,13 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Id
     public DbSet<AccountSecurityEvent> AccountSecurityEvents { get; set; }
     public DbSet<SecurityAlert> SecurityAlerts { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    
+    // RBAC entities
+    public DbSet<Permission> Permissions { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<StoreRole> StoreRoles { get; set; }
+    public DbSet<OrganizationRole> OrganizationRoles { get; set; }
+    public DbSet<StoreCustomerRole> StoreCustomerRoles { get; set; }
 
     // IDbContext implementations
     DbSet<User> IDbContext.Users => base.Users;

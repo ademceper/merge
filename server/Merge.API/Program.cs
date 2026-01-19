@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -136,6 +137,14 @@ builder.Services.AddVersionedApiExplorer(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 builder.Services.AddEndpointsApiExplorer();
+
+// Response Compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
 
 // Swagger configuration
 builder.Services.AddSwaggerGen(options =>
@@ -273,7 +282,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Admin role policy
+    options.AddPolicy("RequireAdminRole", policy =>
+        policy.RequireRole("Admin", "SuperAdmin"));
+    
+    // Seller or Admin policy
+    options.AddPolicy("SellerOrAdmin", policy =>
+        policy.RequireRole("Admin", "SuperAdmin", "Seller"));
+});
 
 // Note: For API-only applications, CSRF protection is typically handled via token validation
 // For web applications with forms, use AddAntiforgery() and ValidateAntiForgeryToken attribute
@@ -419,6 +437,12 @@ if (app.Environment.IsDevelopment())
             dbContext.Database.Migrate();
 
             logger.LogInformation("Database migration completed successfully.");
+
+            // Seed permissions and roles
+            var identityContext = scope.ServiceProvider.GetRequiredService<Merge.Infrastructure.Data.Contexts.IdentityDbContext>();
+            await Merge.Infrastructure.Data.Seeders.PermissionSeeder.SeedAsync(identityContext);
+            await Merge.Infrastructure.Data.Seeders.RoleSeeder.SeedAsync(identityContext);
+            logger.LogInformation("Database seeding completed successfully.");
         }
         catch (Exception ex)
         {

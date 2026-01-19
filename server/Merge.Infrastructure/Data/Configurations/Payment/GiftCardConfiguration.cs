@@ -42,5 +42,17 @@ public class GiftCardConfiguration : IEntityTypeConfiguration<GiftCard>
             t.HasCheckConstraint("CK_GiftCard_RemainingAmount_NonNegative", "\"RemainingAmount\" >= 0");
             t.HasCheckConstraint("CK_GiftCard_RemainingAmount_LessThanOrEqual_Amount", "\"RemainingAmount\" <= \"Amount\"");
         });
+        
+        // PurchasedBy relationship (PurchasedByUserId -> PurchasedBy)
+        builder.HasOne(e => e.PurchasedBy)
+            .WithMany(u => u.PurchasedGiftCards)
+            .HasForeignKey(e => e.PurchasedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        
+        // AssignedTo relationship (AssignedToUserId -> AssignedTo)
+        builder.HasOne(e => e.AssignedTo)
+            .WithMany(u => u.AssignedGiftCards)
+            .HasForeignKey(e => e.AssignedToUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

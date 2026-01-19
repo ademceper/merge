@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Modules.Identity;
 
@@ -14,13 +15,31 @@ namespace Merge.Domain.Modules.Identity;
 /// </summary>
 public class Role : IdentityRole<Guid>, IAggregateRoot
 {
-    private readonly List<IDomainEvent> _domainEvents = new();
+    private readonly List<IDomainEvent> _domainEvents = [];
 
     public string? Description { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; private set; }
+    
+    /// <summary>
+    /// Rol tipi - Rolün hangi bağlamda kullanıldığını belirtir
+    /// </summary>
+    public RoleType RoleType { get; private set; } = RoleType.Platform;
+    
+    /// <summary>
+    /// Sistem rolü mü? (Sistem rolleri silinemez)
+    /// </summary>
+    public bool IsSystemRole { get; private set; } = false;
+    
+    // Navigation properties
+    private readonly List<RolePermission> _rolePermissions = [];
+    public IReadOnlyCollection<RolePermission> RolePermissions => _rolePermissions.AsReadOnly();
 
-    public static Role Create(string name, string? description = null)
+    public static Role Create(
+        string name,
+        RoleType roleType = RoleType.Platform,
+        string? description = null,
+        bool isSystemRole = false)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstLength(name, 256, nameof(name)); // IdentityRole.Name max length
@@ -36,6 +55,8 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
             Name = name,
             NormalizedName = name.ToUpperInvariant(),
             Description = description,
+            RoleType = roleType,
+            IsSystemRole = isSystemRole,
             CreatedAt = DateTime.UtcNow,
             ConcurrencyStamp = Guid.NewGuid().ToString()
         };
@@ -83,6 +104,9 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 
     public void UpdateName(string name)
     {
+        if (IsSystemRole)
+            throw new DomainException("Sistem rolleri güncellenemez");
+            
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstLength(name, 256, nameof(name)); // IdentityRole.Name max length
         
@@ -91,5 +115,25 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
 
         AddDomainEvent(new RoleUpdatedEvent(Id, Name, Description));
+    }
+
+    public void UpdateRoleType(RoleType roleType)
+    {
+        if (IsSystemRole)
+            throw new DomainException("Sistem rolleri güncellenemez");
+            
+        if (RoleType == roleType)
+            return;
+
+        RoleType = roleType;
+        UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new RoleUpdatedEvent(Id, Name ?? string.Empty, Description));
+    }
+
+    public void Delete()
+    {
+        if (IsSystemRole)
+            throw new DomainException("Sistem rolleri silinemez");
     }
 }

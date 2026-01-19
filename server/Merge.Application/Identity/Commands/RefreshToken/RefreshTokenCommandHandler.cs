@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Merge.Application.DTOs.Auth;
 using Merge.Application.DTOs.User;
+using Merge.Application.DTOs.Identity;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
@@ -20,6 +21,7 @@ using UserEntity = Merge.Domain.Modules.Identity.User;
 using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
@@ -110,7 +112,11 @@ public class RefreshTokenCommandHandler(
         var key = Encoding.UTF8.GetBytes(jwtSettings.Value.Key ?? throw new ConfigurationException("JWT Key bulunamadı"));
 
         var roles = await userManager.GetRolesAsync(user);
-        var claims = new List<Claim>(6 + roles.Count)
+        
+        // Get all roles and permissions
+        var rolesAndPermissions = await GetUserRolesAndPermissionsAsync(user.Id);
+        
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
@@ -120,9 +126,34 @@ public class RefreshTokenCommandHandler(
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        foreach (var role in roles)
+        // Platform roles
+        foreach (var role in rolesAndPermissions.PlatformRoles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        // Store roles
+        foreach (var storeRole in rolesAndPermissions.StoreRoles)
+        {
+            claims.Add(new Claim("store_role", $"{storeRole.StoreId}:{storeRole.RoleName}"));
+        }
+
+        // Organization roles
+        foreach (var orgRole in rolesAndPermissions.OrganizationRoles)
+        {
+            claims.Add(new Claim("org_role", $"{orgRole.OrganizationId}:{orgRole.RoleName}"));
+        }
+
+        // Store customer roles
+        foreach (var storeCustomerRole in rolesAndPermissions.StoreCustomerRoles)
+        {
+            claims.Add(new Claim("store_customer_role", $"{storeCustomerRole.StoreId}:{storeCustomerRole.RoleName}"));
+        }
+
+        // Permissions
+        foreach (var permission in rolesAndPermissions.Permissions)
+        {
+            claims.Add(new Claim("permission", permission));
         }
 
         var tokenDescriptor = new SecurityTokenDescriptor
@@ -137,6 +168,81 @@ public class RefreshTokenCommandHandler(
         var tokenHandler = new JwtSecurityTokenHandler();
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
+    }
+
+    private async Task<UserRolesAndPermissionsDto> GetUserRolesAndPermissionsAsync(Guid userId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return new UserRolesAndPermissionsDto([], [], [], [], []);
+        }
+
+        var platformRoles = await userManager.GetRolesAsync(user);
+
+        var storeRoles = await context.Set<StoreRole>()
+            .AsNoTracking()
+            .Include(sr => sr.Store)
+            .Include(sr => sr.Role)
+            .Where(sr => sr.UserId == userId && !sr.IsDeleted)
+            .Select(sr => new StoreRoleInfo(
+                sr.StoreId,
+                sr.Store.StoreName,
+                sr.Role.Name ?? string.Empty,
+                sr.RoleId))
+            .ToListAsync();
+
+        var organizationRoles = await context.Set<OrganizationRole>()
+            .AsNoTracking()
+            .Include(or => or.Organization)
+            .Include(or => or.Role)
+            .Where(or => or.UserId == userId && !or.IsDeleted)
+            .Select(or => new OrganizationRoleInfo(
+                or.OrganizationId,
+                or.Organization.Name,
+                or.Role.Name ?? string.Empty,
+                or.RoleId))
+            .ToListAsync();
+
+        var storeCustomerRoles = await context.Set<StoreCustomerRole>()
+            .AsNoTracking()
+            .Include(scr => scr.Store)
+            .Include(scr => scr.Role)
+            .Where(scr => scr.UserId == userId && !scr.IsDeleted)
+            .Select(scr => new StoreCustomerRoleInfo(
+                scr.StoreId,
+                scr.Store.StoreName,
+                scr.Role.Name ?? string.Empty,
+                scr.RoleId))
+            .ToListAsync();
+
+        var roleIds = new List<Guid>();
+
+        var platformRoleEntities = await context.Roles
+            .AsNoTracking()
+            .Where(r => platformRoles.Contains(r.Name ?? string.Empty))
+            .Select(r => r.Id)
+            .ToListAsync();
+        roleIds.AddRange(platformRoleEntities);
+
+        roleIds.AddRange(storeRoles.Select(sr => sr.RoleId));
+        roleIds.AddRange(organizationRoles.Select(or => or.RoleId));
+        roleIds.AddRange(storeCustomerRoles.Select(scr => scr.RoleId));
+
+        var permissions = await context.Set<RolePermission>()
+            .AsNoTracking()
+            .Include(rp => rp.Permission)
+            .Where(rp => roleIds.Contains(rp.RoleId))
+            .Select(rp => rp.Permission.Name)
+            .Distinct()
+            .ToListAsync();
+
+        return new UserRolesAndPermissionsDto(
+            PlatformRoles: platformRoles.ToList(),
+            StoreRoles: storeRoles,
+            OrganizationRoles: organizationRoles,
+            StoreCustomerRoles: storeCustomerRoles,
+            Permissions: permissions);
     }
 }
 

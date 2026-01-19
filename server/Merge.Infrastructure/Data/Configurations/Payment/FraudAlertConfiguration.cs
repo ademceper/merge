@@ -34,5 +34,29 @@ public class FraudAlertConfiguration : IEntityTypeConfiguration<FraudAlert>
         {
             t.HasCheckConstraint("CK_FraudAlert_RiskScore_Range", "\"RiskScore\" >= 0 AND \"RiskScore\" <= 100");
         });
+        
+        // User relationship (UserId -> User)
+        builder.HasOne(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        
+        // ReviewedBy relationship (ReviewedByUserId -> ReviewedBy)
+        builder.HasOne(e => e.ReviewedBy)
+            .WithMany()
+            .HasForeignKey(e => e.ReviewedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        
+        // Order relationship
+        builder.HasOne(e => e.Order)
+            .WithMany()
+            .HasForeignKey(e => e.OrderId)
+            .OnDelete(DeleteBehavior.SetNull);
+        
+        // Payment relationship
+        builder.HasOne(e => e.Payment)
+            .WithMany()
+            .HasForeignKey(e => e.PaymentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

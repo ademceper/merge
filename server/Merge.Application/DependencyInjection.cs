@@ -32,6 +32,7 @@ using Merge.Application.Services.Product;
 using Merge.Application.Services.Review;
 using Merge.Application.Services.Search;
 using Merge.Application.Services.Seller;
+using Merge.Application.ML.Helpers;
 
 namespace Merge.Application;
 
@@ -77,6 +78,11 @@ public static class DependencyInjection
         services.AddScoped<IDemandForecastingService, DemandForecastingService>();
         services.AddScoped<IElasticsearchService, ElasticsearchService>();
         services.AddScoped<IPersonalizationService, PersonalizationService>();
+        
+        // ML Helpers
+        services.AddScoped<PriceOptimizationHelper>();
+        services.AddScoped<DemandForecastingHelper>();
+        services.AddScoped<FraudDetectionHelper>();
         // #pragma warning restore CS0618
 
         return services;

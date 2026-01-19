@@ -40,5 +40,31 @@ public class IdentityMappingProfile : Profile
             .ForMember(dest => dest.PhoneNumber, opt => opt.Ignore()) // Set manually (MaskPhoneNumber)
             .ForMember(dest => dest.Email, opt => opt.Ignore()) // Set manually (MaskEmail)
             .ForMember(dest => dest.BackupCodesRemaining, opt => opt.Ignore()); // Set manually (Array.Length)
+
+        // Permission mappings
+        CreateMap<Permission, PermissionDto>();
+
+        // Role mappings
+        CreateMap<Role, RoleDto>()
+            .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => 
+                src.RolePermissions.Select(rp => rp.Permission)));
+
+        // StoreRole mappings
+        CreateMap<StoreRole, StoreRoleDto>()
+            .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.StoreName))
+            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email ?? string.Empty))
+            .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name ?? string.Empty));
+
+        // OrganizationRole mappings
+        CreateMap<OrganizationRole, OrganizationRoleDto>()
+            .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization.Name))
+            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email ?? string.Empty))
+            .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name ?? string.Empty));
+
+        // StoreCustomerRole mappings
+        CreateMap<StoreCustomerRole, StoreCustomerRoleDto>()
+            .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.StoreName))
+            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email ?? string.Empty))
+            .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name ?? string.Empty));
     }
 }

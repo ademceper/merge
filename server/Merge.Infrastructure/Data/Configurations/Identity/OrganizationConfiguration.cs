@@ -14,39 +14,39 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         builder.HasIndex(e => e.IsVerified);
         builder.HasIndex(e => new { e.Status, e.IsVerified });
         
-        builder.Property("_email")
+        builder.Property(e => e.Email)
             .HasColumnName("Email")
             .HasMaxLength(200);
         
-        builder.Property("_phone")
+        builder.Property(e => e.Phone)
             .HasColumnName("Phone")
             .HasMaxLength(50);
         
-        builder.Property("_website")
+        builder.Property(e => e.Website)
             .HasColumnName("Website")
             .HasMaxLength(500);
         
-        builder.Property("_addressLine1")
+        builder.Property(e => e.Address)
             .HasColumnName("Address")
             .HasMaxLength(500);
         
-        builder.Property("_addressLine2")
+        builder.Property(e => e.AddressLine2)
             .HasColumnName("AddressLine2")
             .HasMaxLength(500);
         
-        builder.Property("_city")
+        builder.Property(e => e.City)
             .HasColumnName("City")
             .HasMaxLength(100);
         
-        builder.Property("_state")
+        builder.Property(e => e.State)
             .HasColumnName("State")
             .HasMaxLength(100);
         
-        builder.Property("_postalCode")
+        builder.Property(e => e.PostalCode)
             .HasColumnName("PostalCode")
             .HasMaxLength(20);
         
-        builder.Property("_country")
+        builder.Property(e => e.Country)
             .HasColumnName("Country")
             .HasMaxLength(100);
         
