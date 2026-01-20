@@ -3,26 +3,28 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
-using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Payment;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Commands.ProcessPayment;
 
-public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ProcessPaymentCommandHandler> logger) : IRequestHandler<ProcessPaymentCommand, bool>
+public class ProcessPaymentCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<ProcessPaymentCommandHandler> logger) : IRequestHandler<ProcessPaymentCommand, bool>
 {
-
-    public async Task<bool> Handle(ProcessPaymentCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(ProcessPaymentCommand request, CancellationToken ct)
     {
-        logger.LogInformation("Processing subscription payment. PaymentId: {PaymentId}, TransactionId: {TransactionId}",
+        logger.LogInformation(
+            "Processing subscription payment. PaymentId: {PaymentId}, TransactionId: {TransactionId}",
             request.PaymentId, request.TransactionId);
 
         var payment = await context.Set<SubscriptionPayment>()
+            .AsSplitQuery()
             .Include(p => p.UserSubscription)
-            .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == request.PaymentId, ct);
 
         if (payment is null)
         {
@@ -37,9 +39,11 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
             payment.UserSubscription.Activate();
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(ct);
 
-        logger.LogInformation("Subscription payment processed successfully. PaymentId: {PaymentId}", payment.Id);
+        logger.LogInformation(
+            "Subscription payment processed successfully. PaymentId: {PaymentId}",
+            payment.Id);
 
         return true;
     }
