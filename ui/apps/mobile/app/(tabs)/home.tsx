@@ -9,14 +9,19 @@ import { Checkbox } from "@merge/uim/components/checkbox";
 import { Input } from "@merge/uim/components/input";
 import { Separator } from "@merge/uim/components/separator";
 import * as React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Home() {
   const [checkboxValue, setCheckboxValue] = React.useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <StatusBar style="auto" />
-      <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="p-4 gap-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         <Text className="text-3xl font-bold text-center mb-4">Mobile UI Components</Text>
 
         <Card>

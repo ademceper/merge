@@ -202,3 +202,117 @@ import { TextInput } from "react-native"
 import { Input } from "@merge/uim/components/input"
 <Input placeholder="Email" />
 ```
+
+## NativeWind Usage (CRITICAL - MANDATORY)
+
+### ⚠️ CRITICAL RULE: ALWAYS use NativeWind className instead of inline styles or hardcoded colors
+
+**This is a MANDATORY requirement. NEVER hardcode colors or use inline styles when NativeWind alternatives exist.**
+
+### MANDATORY NativeWind Usage
+
+1. **ALWAYS use NativeWind className for styling**
+   ```tsx
+   // ❌ FORBIDDEN - Hardcoded colors
+   <View style={{ backgroundColor: isDark ? "#101022" : "#ffffff" }} />
+   <View className={isDark ? "bg-[#101022]" : "bg-white"} />
+   
+   // ✅ REQUIRED - Use Tailwind config colors
+   <View className="bg-background dark:bg-[#101022]" />
+   ```
+
+2. **ALWAYS use Tailwind config colors, NEVER hardcode hex values**
+   ```tsx
+   // ❌ FORBIDDEN - Hardcoded colors
+   className="bg-[#101022] text-[#111118] border-[#111118]/10"
+   
+   // ✅ REQUIRED - Use Tailwind config colors
+   className="bg-background text-foreground border-border"
+   className="bg-background dark:bg-[#101022] text-foreground dark:text-white"
+   ```
+
+3. **Use NativeWind for all layout and styling**
+   ```tsx
+   // ❌ FORBIDDEN - Inline styles
+   <View style={{ flex: 1, padding: 16, backgroundColor: "#fff" }} />
+   
+   // ✅ REQUIRED - NativeWind className
+   <View className="flex-1 p-4 bg-background" />
+   ```
+
+4. **Dynamic values (insets, calculations) can use style prop, but prefer NativeWind**
+   ```tsx
+   // ✅ ACCEPTABLE - Dynamic values need style
+   <View className="flex-1 bg-background" style={{ paddingTop: insets.top }} />
+   
+   // ❌ FORBIDDEN - Static values in style
+   <View style={{ padding: 16, backgroundColor: "#fff" }} />
+   
+   // ✅ REQUIRED - Use NativeWind for static values
+   <View className="p-4 bg-background" />
+   ```
+
+5. **React Navigation props that require style objects are exceptions**
+   ```tsx
+   // ✅ ACCEPTABLE - React Navigation requires style objects
+   tabBarStyle: {
+     height: 64 + insets.bottom, // Dynamic calculation
+     paddingBottom: insets.bottom + 4,
+   }
+   
+   // But use NativeWind for colors in custom components
+   tabBarBackground: () => (
+     <View className="flex-1 border-t bg-background dark:bg-[#101022] border-border" />
+   )
+   ```
+
+### Available Tailwind Colors (from config)
+- `bg-background` / `text-foreground` - Main background/text
+- `bg-card` / `text-card-foreground` - Card background/text
+- `bg-primary` / `text-primary-foreground` - Primary colors
+- `bg-secondary` / `text-secondary-foreground` - Secondary colors
+- `bg-muted` / `text-muted-foreground` - Muted colors
+- `bg-accent` / `text-accent-foreground` - Accent colors
+- `border-border` - Border color
+- `border-input` - Input border color
+
+### Dark Mode Pattern
+```tsx
+// ✅ CORRECT - Use dark: prefix for dark mode
+<View className="bg-background dark:bg-[#101022] text-foreground dark:text-white" />
+<View className="border-border dark:border-white/10" />
+
+// ❌ FORBIDDEN - Conditional className with ternary
+<View className={isDark ? "bg-[#101022]" : "bg-white"} />
+```
+
+### Pre-commit Checklist (MANDATORY)
+**Before creating/editing ANY mobile screen, verify:**
+- [ ] ❌ NO hardcoded hex colors (`#101022`, `#111118`, etc.) - use Tailwind config colors
+- [ ] ❌ NO inline styles for static values - use NativeWind className
+- [ ] ❌ NO conditional className with ternary for colors - use `dark:` prefix
+- [ ] ✅ ALL colors use Tailwind config colors (`bg-background`, `text-foreground`, etc.)
+- [ ] ✅ ALL layout/spacing use NativeWind (`flex-1`, `p-4`, `gap-4`, etc.)
+- [ ] ✅ Dark mode uses `dark:` prefix, not conditional logic
+
+### Common Mistakes to Avoid
+```tsx
+// ❌ WRONG - Hardcoded colors
+<View style={{ backgroundColor: "#101022" }} />
+<View className="bg-[#101022]" />
+
+// ✅ CORRECT - Tailwind config colors
+<View className="bg-background dark:bg-[#101022]" />
+
+// ❌ WRONG - Conditional className
+<View className={isDark ? "bg-[#101022]" : "bg-white"} />
+
+// ✅ CORRECT - Dark mode prefix
+<View className="bg-background dark:bg-[#101022]" />
+
+// ❌ WRONG - Inline styles for static values
+<View style={{ padding: 16, gap: 8 }} />
+
+// ✅ CORRECT - NativeWind className
+<View className="p-4 gap-2" />
+```
