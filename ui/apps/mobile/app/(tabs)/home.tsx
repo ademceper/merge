@@ -8,12 +8,20 @@ import { BannerSlider } from "../../components/banner-slider";
 import { ProductSection } from "../../components/product-section";
 import { ScrollToTop } from "../../components/scroll-to-top";
 import { ProductCardProps } from "../../components/product-card";
+import { FlashSaleTimer } from "../../components/flash-sale-timer";
+import { StoryHighlights } from "../../components/story-highlights";
+import { PromoGrid } from "../../components/promo-grid";
+import { BrandsCarousel } from "../../components/brands-carousel";
+import { DealOfDay } from "../../components/deal-of-day";
+import { RecentlyViewed } from "../../components/recently-viewed";
+import { LiveShopping } from "../../components/live-shopping";
+import { CouponSection } from "../../components/coupon-section";
 
 // Mock data
 const flashProducts: ProductCardProps[] = [
   {
     id: "1",
-    name: "Premium Kablosuz Kulaklık",
+    name: "Premium Kablosuz Kulaklik",
     price: 899,
     originalPrice: 1299,
     discount: 31,
@@ -21,7 +29,7 @@ const flashProducts: ProductCardProps[] = [
   },
   {
     id: "2",
-    name: "Akıllı Saat Pro",
+    name: "Akilli Saat Pro",
     price: 2499,
     originalPrice: 3499,
     discount: 29,
@@ -56,21 +64,21 @@ const flashProducts: ProductCardProps[] = [
 const campaignProducts: ProductCardProps[] = [
   {
     id: "6",
-    name: "Spor Ayakkabı",
+    name: "Spor Ayakkabi",
     price: 799,
     originalPrice: 1199,
     discount: 33,
   },
   {
     id: "7",
-    name: "Güneş Gözlüğü",
+    name: "Gunes Gozlugu",
     price: 399,
     originalPrice: 599,
     discount: 33,
   },
   {
     id: "8",
-    name: "Çanta",
+    name: "Canta",
     price: 599,
     originalPrice: 899,
     discount: 33,
@@ -84,7 +92,7 @@ const campaignProducts: ProductCardProps[] = [
   },
   {
     id: "10",
-    name: "Cüzdan",
+    name: "Cuzdan",
     price: 299,
     originalPrice: 449,
     discount: 33,
@@ -94,7 +102,7 @@ const campaignProducts: ProductCardProps[] = [
 const recommendedProducts: ProductCardProps[] = [
   {
     id: "11",
-    name: "Bluetooth Hoparlör",
+    name: "Bluetooth Hoparlor",
     price: 1299,
   },
   {
@@ -104,7 +112,7 @@ const recommendedProducts: ProductCardProps[] = [
   },
   {
     id: "13",
-    name: "Telefon Kılıfı",
+    name: "Telefon Kilifi",
     price: 199,
   },
   {
@@ -114,7 +122,7 @@ const recommendedProducts: ProductCardProps[] = [
   },
   {
     id: "15",
-    name: "Kablosuz Şarj",
+    name: "Kablosuz Sarj",
     price: 399,
   },
 ];
@@ -122,7 +130,7 @@ const recommendedProducts: ProductCardProps[] = [
 const bestSellerProducts: ProductCardProps[] = [
   {
     id: "16",
-    name: "Yazılım Kitabı",
+    name: "Yazilim Kitabi",
     price: 199,
   },
   {
@@ -137,7 +145,7 @@ const bestSellerProducts: ProductCardProps[] = [
   },
   {
     id: "19",
-    name: "Masa Lambası",
+    name: "Masa Lambasi",
     price: 599,
   },
   {
@@ -150,17 +158,17 @@ const bestSellerProducts: ProductCardProps[] = [
 const newProducts: ProductCardProps[] = [
   {
     id: "21",
-    name: "Yeni Koleksiyon Çanta",
+    name: "Yeni Koleksiyon Canta",
     price: 899,
   },
   {
     id: "22",
-    name: "Yeni Tasarım Saat",
+    name: "Yeni Tasarim Saat",
     price: 2499,
   },
   {
     id: "23",
-    name: "Yeni Model Kulaklık",
+    name: "Yeni Model Kulaklik",
     price: 1299,
   },
   {
@@ -170,10 +178,13 @@ const newProducts: ProductCardProps[] = [
   },
   {
     id: "25",
-    name: "Yeni Koleksiyon Ayakkabı",
+    name: "Yeni Koleksiyon Ayakkabi",
     price: 1499,
   },
 ];
+
+// Flash sale end time (24 hours from now)
+const flashSaleEndTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -183,7 +194,6 @@ export default function Home() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulate API call
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
@@ -203,10 +213,12 @@ export default function Home() {
         ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingBottom: insets.bottom + 200,
+          paddingTop: 8,
+          paddingBottom: insets.bottom,
         }}
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
+        nestedScrollEnabled={true}
         bounces={true}
         alwaysBounceVertical={true}
         onScroll={handleScroll}
@@ -214,55 +226,70 @@ export default function Home() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
-        {/* Category Icons */}
-        <CategoryIcons />
+        {/* Story Highlights */}
+        <StoryHighlights />
 
         {/* Banner Slider */}
         <BannerSlider />
 
+        {/* Flash Sale Timer */}
+        <FlashSaleTimer endTime={flashSaleEndTime} onPress={() => {}} />
+
+        {/* Category Icons */}
+        <CategoryIcons />
+
+        {/* Promo Grid */}
+        <PromoGrid />
+
+        {/* Coupon Section */}
+        <CouponSection />
+
+        {/* Deal of the Day */}
+        <DealOfDay />
+
         {/* Flash Products */}
         <ProductSection
-          title="FLASH ÜRÜNLER"
+          title="FLASH URUNLER"
           products={flashProducts}
-          onSeeAll={() => {
-            // Navigate to flash sale page
-          }}
+          onSeeAll={() => {}}
         />
+
+        {/* Live Shopping */}
+        <LiveShopping />
 
         {/* Campaign Products */}
         <ProductSection
-          title="KAMPANYALI ÜRÜNLER"
+          title="KAMPANYALI URUNLER"
           products={campaignProducts}
-          onSeeAll={() => {
-            // Navigate to campaign page
-          }}
+          onSeeAll={() => {}}
         />
+
+        {/* Brands Carousel */}
+        <BrandsCarousel />
 
         {/* Recommended Products */}
         <ProductSection
-          title="SIZE ÖZEL ÖNERILER"
+          title="SIZE OZEL ONERILER"
           products={recommendedProducts}
-          onSeeAll={() => {
-            // Navigate to recommendations
-          }}
+          onSeeAll={() => {}}
         />
+
+        {/* Recently Viewed */}
+        <RecentlyViewed />
 
         {/* Best Sellers */}
         <ProductSection
-          title="ÇOK SATANLAR"
+          title="COK SATANLAR"
           products={bestSellerProducts}
-          onSeeAll={() => {
-            // Navigate to best sellers
-          }}
+          onSeeAll={() => {}}
         />
 
         {/* New Products */}
         <ProductSection
           title="YENI GELENLER"
           products={newProducts}
-          onSeeAll={() => {
-            // Navigate to new products
-          }}
+          isLast
+          onSeeAll={() => {}}
         />
       </ScrollView>
 
