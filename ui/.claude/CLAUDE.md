@@ -290,3 +290,101 @@ className="h-12 w-full rounded-lg border border-primary/10 dark:border-white/10 
 - ✗ No rounded-full on rectangular buttons (use rounded-lg/xl)
 - ✗ No decorative elements
 - ✗ No depth/3D effects
+
+---
+
+# UIM Package Usage (CRITICAL - MANDATORY)
+
+## ⚠️ HIGHEST PRIORITY RULE: ALWAYS use @merge/uim components and color tokens
+
+**This rule has the HIGHEST PRIORITY. NEVER use native React Native elements or hardcoded colors when @merge/uim alternatives exist.**
+
+## Mobile (@merge/uim) - MANDATORY Usage
+
+### Components (ALWAYS use these)
+```tsx
+// ❌ FORBIDDEN - Native React Native
+import { Text, Pressable, TextInput } from "react-native"
+<Text>Hello</Text>
+<Pressable onPress={handlePress}><Text>Click</Text></Pressable>
+<TextInput placeholder="Email" />
+
+// ✅ REQUIRED - @merge/uim components
+import { Text } from "@merge/uim/components/text"
+import { Button } from "@merge/uim/components/button"
+import { Input } from "@merge/uim/components/input"
+import { Card } from "@merge/uim/components/card"
+import { Badge } from "@merge/uim/components/badge"
+import { Icon } from "@merge/uim/components/icon"
+```
+
+### UIM Color Tokens (ALWAYS use these via NativeWind className)
+```tsx
+// ❌ FORBIDDEN - Hardcoded colors
+style={{ backgroundColor: isDark ? "#ffffff" : "#111118" }}
+style={{ color: "#666666" }}
+className="bg-[#111118]"
+className="text-[#ffffff]"
+
+// ✅ REQUIRED - UIM color tokens
+className="bg-primary"              // Primary background
+className="bg-background"           // Main background
+className="bg-secondary"            // Secondary background
+className="bg-muted"                // Muted background
+className="bg-card"                 // Card background
+className="bg-destructive"          // Error/danger background
+
+className="text-foreground"         // Primary text
+className="text-primary-foreground" // Text on primary bg
+className="text-muted-foreground"   // Muted/secondary text
+className="text-destructive"        // Error text
+
+className="border-border"           // Standard border
+className="border-input"            // Input border
+className="border-primary"          // Primary border
+
+// With opacity
+className="bg-primary/10"           // 10% opacity
+className="text-foreground/80"      // 80% opacity
+```
+
+### ONLY Exception for Hex Values
+Only use hex values when a library component (like SVG) REQUIRES them:
+```tsx
+// SVG components that require hex values
+import Svg, { Circle } from "react-native-svg"
+
+// Define colors based on design system
+const colors = {
+  destructive: "#ef4444",
+  primary: isDark ? "#ffffff" : "#111118",
+  border: isDark ? "rgba(255, 255, 255, 0.2)" : "#e5e5e5",
+};
+
+<Circle stroke={colors.primary} /> // Only when SVG requires it
+```
+
+## Web (@merge/ui) - MANDATORY Usage
+```tsx
+// ❌ FORBIDDEN - Native HTML
+<button onClick={handleClick}>Click</button>
+<input type="email" />
+
+// ✅ REQUIRED - @merge/ui components
+import { Button } from "@merge/ui/components/button"
+import { Input } from "@merge/ui/components/input"
+import { Card } from "@merge/ui/components/card"
+```
+
+## Pre-commit Checklist (MANDATORY)
+Before EVERY commit, verify:
+- [ ] ✅ ALL Text → `@merge/uim/components/text`
+- [ ] ✅ ALL Buttons → `@merge/uim/components/button`
+- [ ] ✅ ALL Inputs → `@merge/uim/components/input`
+- [ ] ✅ ALL Cards → `@merge/uim/components/card`
+- [ ] ✅ ALL Badges → `@merge/uim/components/badge`
+- [ ] ✅ ALL Icons → `@merge/uim/components/icon`
+- [ ] ✅ ALL colors → UIM tokens (`bg-primary`, `text-foreground`, etc.)
+- [ ] ❌ NO native React Native Text, Pressable, TextInput
+- [ ] ❌ NO hardcoded hex colors
+- [ ] ❌ NO inline style colors when className works

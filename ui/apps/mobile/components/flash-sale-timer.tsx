@@ -1,5 +1,6 @@
 import { View, Pressable } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
 import { useState, useEffect } from "react";
 import { Zap } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
@@ -37,86 +38,46 @@ export function FlashSaleTimer({ endTime, onPress }: FlashSaleTimerProps) {
   const formatNumber = (num: number) => num.toString().padStart(2, "0");
 
   return (
-    <Pressable onPress={onPress} style={{ marginHorizontal: 16, marginBottom: 16 }}>
-      <View
-        style={{
-          backgroundColor: "#111118",
-          borderRadius: 16,
-          overflow: "hidden",
-        }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: 16,
-          }}>
+    <Pressable onPress={onPress} className="mx-4 mb-4">
+      <Card className="bg-primary rounded-2xl overflow-hidden">
+        <View className="flex-row items-center justify-between p-4">
           {/* Left - Icon and Text */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                backgroundColor: "#fff",
-                padding: 10,
-                borderRadius: 10,
-              }}>
-              <Icon as={Zap} size={20} fill="#111118" className="text-foreground" />
+          <View className="flex-row items-center gap-3">
+            <View className="bg-primary-foreground p-2.5 rounded-xl">
+              <Icon as={Zap} size={20} fill="currentColor" className="text-primary" />
             </View>
             <View>
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <Text className="text-primary-foreground font-bold text-base uppercase tracking-wide">
                 Flash Sale
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 2 }}>
+              <Text className="text-primary-foreground/60 text-xs mt-0.5">
                 Kacirma, firsatlar bitiyor!
               </Text>
             </View>
           </View>
 
           {/* Right - Timer */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <View
-              style={{
-                backgroundColor: "#fff",
-                paddingHorizontal: 10,
-                paddingVertical: 8,
-                borderRadius: 8,
-                minWidth: 40,
-                alignItems: "center",
-              }}>
-              <Text style={{ color: "#111118", fontWeight: "700", fontSize: 14 }}>
+          <View className="flex-row items-center gap-1">
+            <View className="bg-primary-foreground px-2.5 py-2 rounded-lg min-w-[40px] items-center">
+              <Text className="text-primary font-bold text-sm">
                 {formatNumber(timeLeft.hours)}
               </Text>
             </View>
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>:</Text>
-            <View
-              style={{
-                backgroundColor: "#fff",
-                paddingHorizontal: 10,
-                paddingVertical: 8,
-                borderRadius: 8,
-                minWidth: 40,
-                alignItems: "center",
-              }}>
-              <Text style={{ color: "#111118", fontWeight: "700", fontSize: 14 }}>
+            <Text className="text-primary-foreground font-bold text-sm">:</Text>
+            <View className="bg-primary-foreground px-2.5 py-2 rounded-lg min-w-[40px] items-center">
+              <Text className="text-primary font-bold text-sm">
                 {formatNumber(timeLeft.minutes)}
               </Text>
             </View>
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>:</Text>
-            <View
-              style={{
-                backgroundColor: "#fff",
-                paddingHorizontal: 10,
-                paddingVertical: 8,
-                borderRadius: 8,
-                minWidth: 40,
-                alignItems: "center",
-              }}>
-              <Text style={{ color: "#111118", fontWeight: "700", fontSize: 14 }}>
+            <Text className="text-primary-foreground font-bold text-sm">:</Text>
+            <View className="bg-primary-foreground px-2.5 py-2 rounded-lg min-w-[40px] items-center">
+              <Text className="text-primary font-bold text-sm">
                 {formatNumber(timeLeft.seconds)}
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </Card>
     </Pressable>
   );
 }

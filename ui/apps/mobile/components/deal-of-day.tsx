@@ -1,5 +1,7 @@
 import { View, Pressable, Image } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Badge } from "@merge/uim/components/badge";
+import { Card } from "@merge/uim/components/card";
 import { useState, useEffect } from "react";
 import { Star } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
@@ -64,119 +66,105 @@ export function DealOfDay() {
   const progressPercent = (dealProduct.soldCount / dealProduct.totalStock) * 100;
 
   return (
-    <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
+    <View className="px-4 mb-6">
       {/* Header */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <View className="flex-row items-center justify-between mb-4">
         <Text className="text-lg font-bold uppercase tracking-tight text-foreground dark:text-white">
-          Gunun Firsati
+          GUNUN FIRSATI
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <View style={{ backgroundColor: "#111118", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>{formatNumber(timeLeft.hours)}</Text>
-            </View>
-            <Text style={{ color: "#111", fontWeight: "600" }}>:</Text>
-            <View style={{ backgroundColor: "#111118", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>{formatNumber(timeLeft.minutes)}</Text>
-            </View>
-            <Text style={{ color: "#111", fontWeight: "600" }}>:</Text>
-            <View style={{ backgroundColor: "#111118", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>{formatNumber(timeLeft.seconds)}</Text>
-            </View>
+        <View className="flex-row items-center gap-1">
+          <View className="bg-primary dark:bg-white px-2 py-1 rounded-md">
+            <Text className="text-primary-foreground dark:text-[#111118] text-xs font-bold">
+              {formatNumber(timeLeft.hours)}
+            </Text>
+          </View>
+          <Text className="text-foreground dark:text-white font-semibold">:</Text>
+          <View className="bg-primary dark:bg-white px-2 py-1 rounded-md">
+            <Text className="text-primary-foreground dark:text-[#111118] text-xs font-bold">
+              {formatNumber(timeLeft.minutes)}
+            </Text>
+          </View>
+          <Text className="text-foreground dark:text-white font-semibold">:</Text>
+          <View className="bg-primary dark:bg-white px-2 py-1 rounded-md">
+            <Text className="text-primary-foreground dark:text-[#111118] text-xs font-bold">
+              {formatNumber(timeLeft.seconds)}
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Card */}
-      <Pressable
-        style={{
-          borderRadius: 16,
-          overflow: "hidden",
-          backgroundColor: "#fff",
-          borderWidth: 1,
-          borderColor: "rgba(0,0,0,0.08)",
-        }}>
-        <View style={{ flexDirection: "row" }}>
+      <Pressable>
+        <Card className="flex-row overflow-hidden p-0 border-primary/10 dark:border-white/10 bg-white dark:bg-white/5">
           {/* Product Image */}
-          <View
-            style={{
-              width: 140,
-              height: 180,
-              backgroundColor: "#f8f8f8",
-            }}>
+          <View className="w-[140px] h-[180px] bg-black overflow-hidden">
             <Image
               source={{ uri: dealProduct.imageUrl }}
-              style={{ width: "100%", height: "100%" }}
+              className="w-full h-full"
               resizeMode="cover"
             />
-            <View
-              style={{
-                position: "absolute",
-                top: 10,
-                left: 10,
-                backgroundColor: "#111118",
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 6,
-              }}>
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>%{dealProduct.discount}</Text>
+            <View className="absolute top-2.5 left-2.5">
+              <Badge variant="destructive" className="text-xs font-bold">
+                %{dealProduct.discount}
+              </Badge>
             </View>
           </View>
 
           {/* Product Info */}
-          <View style={{ flex: 1, padding: 14, justifyContent: "space-between" }}>
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#111" }} numberOfLines={2}>
+          <View className="flex-1 p-4 justify-between">
+            <View className="gap-2">
+              <Text
+                className="text-sm font-semibold text-foreground dark:text-white"
+                numberOfLines={2}>
                 {dealProduct.name}
               </Text>
 
               {/* Rating */}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon as={Star} size={12} fill="#111" className="text-foreground" />
-                <Text style={{ fontSize: 12, color: "#111", fontWeight: "500" }}>{dealProduct.rating}</Text>
-                <Text style={{ fontSize: 11, color: "#888" }}>({dealProduct.reviewCount})</Text>
+              <View className="flex-row items-center gap-1">
+                <Icon
+                  as={Star}
+                  size={12}
+                  fill="currentColor"
+                  className="text-foreground dark:text-white"
+                />
+                <Text className="text-xs text-foreground dark:text-white font-medium">
+                  {dealProduct.rating}
+                </Text>
+                <Text className="text-xs text-muted-foreground dark:text-white/70">
+                  ({dealProduct.reviewCount})
+                </Text>
               </View>
 
               {/* Price */}
-              <View style={{ gap: 2 }}>
-                <Text style={{ fontSize: 22, fontWeight: "700", color: "#111" }}>
-                  {dealProduct.price.toLocaleString("tr-TR")} TL
+              <View className="gap-0.5">
+                <Text className="text-xl font-bold text-foreground dark:text-white">
+                  {dealProduct.price.toLocaleString("tr-TR")} ₺
                 </Text>
-                <Text style={{ fontSize: 13, color: "#888", textDecorationLine: "line-through" }}>
-                  {dealProduct.originalPrice.toLocaleString("tr-TR")} TL
+                <Text className="text-sm text-muted-foreground dark:text-white/70 line-through">
+                  {dealProduct.originalPrice.toLocaleString("tr-TR")} ₺
                 </Text>
               </View>
             </View>
 
             {/* Stock Progress */}
-            <View style={{ gap: 6 }}>
-              <View
-                style={{
-                  height: 6,
-                  backgroundColor: "#E8E8E8",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}>
+            <View className="gap-1.5">
+              <View className="h-1.5 bg-primary/10 dark:bg-white/10 rounded-full overflow-hidden">
                 <View
-                  style={{
-                    height: "100%",
-                    width: `${progressPercent}%`,
-                    backgroundColor: "#111118",
-                    borderRadius: 3,
-                  }}
+                  className="h-full bg-primary dark:bg-white rounded-full"
+                  style={{ width: `${progressPercent}%` }}
                 />
               </View>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 10, color: "#888" }}>
+              <View className="flex-row justify-between">
+                <Text className="text-[10px] text-muted-foreground dark:text-white/70">
                   {dealProduct.soldCount} satildi
                 </Text>
-                <Text style={{ fontSize: 10, color: "#888" }}>
+                <Text className="text-[10px] text-muted-foreground dark:text-white/70">
                   {dealProduct.totalStock - dealProduct.soldCount} kaldi
                 </Text>
               </View>
             </View>
           </View>
-        </View>
+        </Card>
       </Pressable>
     </View>
   );

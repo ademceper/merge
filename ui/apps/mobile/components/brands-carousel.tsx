@@ -1,5 +1,7 @@
 import { View, ScrollView, Pressable, Image } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
+import { Badge } from "@merge/uim/components/badge";
 
 interface Brand {
   id: string;
@@ -50,11 +52,11 @@ export function BrandsCarousel() {
   return (
     <View className="mb-4">
       <View className="flex-row items-center justify-between px-4 mb-3">
-        <Text className="text-lg font-bold uppercase tracking-tight text-foreground dark:text-white">
+        <Text className="text-lg font-bold uppercase tracking-tight text-foreground">
           Populer Markalar
         </Text>
         <Pressable>
-          <Text className="text-xs font-medium uppercase tracking-wide text-foreground/60 dark:text-white/60">
+          <Text className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Tumunu Gor {">"}
           </Text>
         </Pressable>
@@ -72,16 +74,7 @@ export function BrandsCarousel() {
               width: 90,
               alignItems: "center",
             }}>
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 12,
-                overflow: "hidden",
-                backgroundColor: "#f5f5f5",
-                borderWidth: 1,
-                borderColor: "rgba(0,0,0,0.05)",
-              }}>
+            <Card className="w-20 h-20 rounded-xl overflow-hidden">
               <Image
                 source={{ uri: brand.logoUrl }}
                 style={{
@@ -91,24 +84,15 @@ export function BrandsCarousel() {
                 resizeMode="cover"
               />
               {brand.discount && (
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    backgroundColor: "#111118",
-                    paddingVertical: 4,
-                    alignItems: "center",
-                  }}>
-                  <Text className="text-white text-[10px] font-bold">
+                <View className="absolute bottom-0 left-0 right-0 bg-primary py-1 items-center">
+                  <Text className="text-primary-foreground text-[10px] font-bold">
                     {brand.discount} INDIRIM
                   </Text>
                 </View>
               )}
-            </View>
+            </Card>
             <Text
-              className="text-xs font-medium text-foreground/80 dark:text-white/80 mt-2 text-center"
+              className="text-xs font-medium text-foreground/80 mt-2 text-center"
               numberOfLines={1}>
               {brand.name}
             </Text>

@@ -16,6 +16,11 @@ module.exports = {
         medium: ["SpaceGrotesk-Medium", "system-ui", "sans-serif"],
         bold: ["SpaceGrotesk-Bold", "system-ui", "sans-serif"],
       },
+      stroke: {
+        primary: uimTheme.theme.extend.colors.primary.DEFAULT,
+        destructive: uimTheme.theme.extend.colors.destructive.DEFAULT,
+        border: uimTheme.theme.extend.colors.border,
+      },
     },
   },
   plugins: [],

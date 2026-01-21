@@ -316,3 +316,104 @@ import { Input } from "@merge/uim/components/input"
 // ✅ CORRECT - NativeWind className
 <View className="p-4 gap-2" />
 ```
+
+## UIM Package Maximum Usage (CRITICAL - MANDATORY)
+
+### ⚠️ CRITICAL RULE: ALWAYS use @merge/uim components and UIM color tokens to the maximum extent possible
+
+**This is the HIGHEST PRIORITY requirement. Use @merge/uim for EVERYTHING that has an equivalent.**
+
+### MANDATORY: Maximum UIM Component Usage
+
+1. **ALWAYS check packages/uim/src/components/ FIRST before using any React Native element**
+   ```tsx
+   // Before writing any UI code, check if UIM has a component for it:
+   // - Button, Text, Input, Card, Badge, Checkbox, Switch
+   // - Icon, Avatar, Separator, Progress, Skeleton
+   // - Dialog, Sheet, Popover, Tooltip, Alert
+   // - ScrollView, FlatList wrappers if available
+   ```
+
+2. **ALWAYS use UIM color tokens via NativeWind className**
+   ```tsx
+   // ❌ FORBIDDEN - Using useColorScheme for colors
+   const colorScheme = useColorScheme()
+   const isDark = colorScheme === "dark"
+   <View style={{ backgroundColor: isDark ? "#fff" : "#000" }} />
+
+   // ✅ REQUIRED - Use UIM color tokens
+   <View className="bg-primary" />
+   <View className="bg-background" />
+   <View className="bg-secondary" />
+   <View className="text-foreground" />
+   <View className="text-muted-foreground" />
+   <View className="border-border" />
+   ```
+
+3. **Available UIM Color Tokens (USE THESE ALWAYS)**
+   ```tsx
+   // Backgrounds
+   className="bg-background"       // Main background
+   className="bg-primary"          // Primary/inverted background
+   className="bg-secondary"        // Secondary background
+   className="bg-muted"            // Muted background
+   className="bg-card"             // Card background
+   className="bg-destructive"      // Error/danger background
+
+   // Text Colors
+   className="text-foreground"         // Primary text
+   className="text-primary-foreground" // Text on primary bg
+   className="text-muted-foreground"   // Muted/secondary text
+   className="text-destructive"        // Error text
+
+   // Borders
+   className="border-border"           // Standard border
+   className="border-input"            // Input border
+   className="border-primary"          // Primary border
+
+   // With opacity
+   className="bg-primary/10"           // 10% opacity
+   className="text-foreground/80"      // 80% opacity
+   className="border-border/50"        // 50% opacity
+   ```
+
+4. **When SVG or native components REQUIRE hex values**
+   ```tsx
+   // Only exception: SVG components that require hex values
+   // In this case, define colors based on design system:
+   const colors = {
+     destructive: "#ef4444",
+     primary: isDark ? "#ffffff" : "#111118",
+     border: isDark ? "rgba(255, 255, 255, 0.2)" : "#e5e5e5",
+   };
+
+   // But ALWAYS prefer UIM when possible:
+   <View className="bg-destructive" />  // ✅ Preferred
+   <Circle stroke={colors.destructive} /> // Only when SVG requires it
+   ```
+
+### Pre-commit Checklist for UIM Usage (MANDATORY)
+**EVERY code review MUST verify:**
+- [ ] ✅ ALL Text uses `Text` from `@merge/uim/components/text`
+- [ ] ✅ ALL Buttons use `Button` from `@merge/uim/components/button`
+- [ ] ✅ ALL Inputs use `Input` from `@merge/uim/components/input`
+- [ ] ✅ ALL Cards use `Card` from `@merge/uim/components/card`
+- [ ] ✅ ALL Badges use `Badge` from `@merge/uim/components/badge`
+- [ ] ✅ ALL Icons use `Icon` from `@merge/uim/components/icon`
+- [ ] ✅ ALL colors use UIM tokens (`bg-primary`, `text-foreground`, etc.)
+- [ ] ❌ NO hardcoded hex colors (`#111118`, `#ffffff`, etc.)
+- [ ] ❌ NO useColorScheme for manual color switching when NativeWind handles it
+- [ ] ❌ NO inline style colors when className can be used
+
+### UIM Component Priority List
+**Check these components FIRST before using native equivalents:**
+1. `@merge/uim/components/text` → for ALL text
+2. `@merge/uim/components/button` → for ALL buttons/pressables
+3. `@merge/uim/components/input` → for ALL text inputs
+4. `@merge/uim/components/card` → for ALL card containers
+5. `@merge/uim/components/badge` → for ALL badges/tags
+6. `@merge/uim/components/icon` → for ALL icons
+7. `@merge/uim/components/checkbox` → for checkboxes
+8. `@merge/uim/components/switch` → for switches
+9. `@merge/uim/components/avatar` → for avatars
+10. `@merge/uim/components/separator` → for dividers

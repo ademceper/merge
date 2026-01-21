@@ -43,17 +43,16 @@ const promoItems: PromoItem[] = [
 
 export function PromoGrid() {
   return (
-    <View style={{ paddingHorizontal: GRID_PADDING, marginBottom: 20 }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: GRID_GAP }}>
+    <View className="px-4 mb-5">
+      <View className="flex-row flex-wrap gap-2.5">
         {promoItems.map((item) => (
           <Pressable
             key={item.id}
             style={{
               width: ITEM_WIDTH,
               height: 110,
-              borderRadius: 16,
-              overflow: "hidden",
-            }}>
+            }}
+            className="rounded-2xl overflow-hidden">
             <Image
               source={{ uri: item.imageUrl }}
               style={{
@@ -64,16 +63,12 @@ export function PromoGrid() {
               resizeMode="cover"
             />
             <LinearGradient
-              colors={["rgba(0,0,0,0.2)", "rgba(0,0,0,0.7)"]}
-              style={{
-                flex: 1,
-                justifyContent: "flex-end",
-                padding: 12,
-              }}>
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              colors={["transparent", "rgba(0,0,0,0.7)"]}
+              className="flex-1 justify-end p-3">
+              <Text className="text-primary-foreground text-[13px] font-bold uppercase tracking-wide">
                 {item.title}
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, marginTop: 2 }}>
+              <Text className="text-primary-foreground/80 text-[11px] mt-0.5">
                 {item.subtitle}
               </Text>
             </LinearGradient>

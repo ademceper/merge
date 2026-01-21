@@ -1,5 +1,6 @@
 import { View, ScrollView, Pressable } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
 import { Copy, Check } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
 import { useState } from "react";
@@ -56,14 +57,14 @@ export function CouponSection() {
   };
 
   return (
-    <View style={{ marginBottom: 20 }}>
+    <View className="mb-5">
       {/* Header */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, marginBottom: 12 }}>
-        <Text className="text-lg font-bold uppercase tracking-tight text-foreground dark:text-white">
+      <View className="flex-row items-center justify-between px-4 mb-3">
+        <Text className="text-lg font-bold uppercase tracking-tight text-foreground">
           Kuponlar
         </Text>
         <Pressable>
-          <Text className="text-xs font-medium uppercase tracking-wide text-foreground/50 dark:text-white/50">
+          <Text className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Tumu {">"}
           </Text>
         </Pressable>
@@ -83,74 +84,49 @@ export function CouponSection() {
               width: 200,
               marginRight: index < coupons.length - 1 ? 12 : 0,
             }}>
-            <View
-              style={{
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: "rgba(0,0,0,0.1)",
-                backgroundColor: "#fff",
-                overflow: "hidden",
-              }}>
+            <Card className="overflow-hidden">
               {/* Top Section - Discount */}
-              <View
-                style={{
-                  backgroundColor: "#111118",
-                  padding: 16,
-                  alignItems: "center",
-                }}>
-                <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", textTransform: "uppercase" }}>
+              <View className="bg-primary p-4 items-center">
+                <Text className="text-primary-foreground text-2xl font-bold uppercase">
                   {coupon.discount}
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, marginTop: 4 }}>
+                <Text className="text-primary-foreground/60 text-[11px] mt-1">
                   {coupon.description}
                 </Text>
               </View>
 
               {/* Bottom Section - Code */}
-              <View style={{ padding: 12 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <View
-                    style={{
-                      backgroundColor: "#f5f5f5",
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
-                      borderRadius: 6,
-                      borderWidth: 1,
-                      borderColor: "#e0e0e0",
-                      borderStyle: "dashed",
-                    }}>
-                    <Text style={{ color: "#111", fontSize: 11, fontWeight: "700", letterSpacing: 1 }}>
+              <View className="p-3">
+                <View className="flex-row items-center justify-between mb-2">
+                  <View className="bg-secondary px-2.5 py-1.5 rounded-md border border-dashed border-border">
+                    <Text className="text-foreground text-[11px] font-bold tracking-wider">
                       {coupon.code}
                     </Text>
                   </View>
                   <Pressable
                     onPress={() => handleCopy(coupon.id)}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}>
+                    className="flex-row items-center gap-1">
                     <Icon
                       as={copiedId === coupon.id ? Check : Copy}
                       size={14}
-                      className="text-foreground/60"
+                      className="text-muted-foreground"
                     />
-                    <Text style={{ color: "#666", fontSize: 10, fontWeight: "500" }}>
+                    <Text className="text-muted-foreground text-[10px] font-medium">
                       {copiedId === coupon.id ? "Kopyalandi" : "Kopyala"}
                     </Text>
                   </Pressable>
                 </View>
 
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text style={{ color: "#999", fontSize: 10 }}>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-muted-foreground text-[10px]">
                     {coupon.minOrder ? `Min. ${coupon.minOrder} TL` : "Min. yok"}
                   </Text>
-                  <Text style={{ color: "#999", fontSize: 10 }}>
+                  <Text className="text-muted-foreground text-[10px]">
                     {coupon.expiresIn} kaldi
                   </Text>
                 </View>
               </View>
-            </View>
+            </Card>
           </Pressable>
         ))}
       </ScrollView>

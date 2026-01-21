@@ -1,5 +1,7 @@
 import { View, ScrollView, Pressable, Image } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
+import { Badge } from "@merge/uim/components/badge";
 import { Play, Users } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
 import { LinearGradient } from "expo-linear-gradient";
@@ -48,21 +50,14 @@ export function LiveShopping() {
   return (
     <View className="mb-4">
       <View className="flex-row items-center justify-between px-4 mb-3">
-        <View className="flex-row items-center" style={{ gap: 8 }}>
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "#FF0000",
-            }}
-          />
-          <Text className="text-lg font-bold uppercase tracking-tight text-foreground dark:text-white">
+        <View className="flex-row items-center gap-2">
+          <View className="w-2 h-2 rounded-full bg-destructive" />
+          <Text className="text-lg font-bold uppercase tracking-tight text-foreground">
             Canli Yayinlar
           </Text>
         </View>
         <Pressable>
-          <Text className="text-xs font-medium uppercase tracking-wide text-foreground/60 dark:text-white/60">
+          <Text className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Tumunu Gor {">"}
           </Text>
         </Pressable>
@@ -79,14 +74,7 @@ export function LiveShopping() {
             style={{
               width: 160,
             }}>
-            <View
-              style={{
-                width: 160,
-                height: 200,
-                borderRadius: 12,
-                overflow: "hidden",
-                backgroundColor: "#000",
-              }}>
+            <Card className="w-[160px] h-[200px] rounded-xl overflow-hidden bg-primary">
               <Image
                 source={{ uri: stream.thumbnailUrl }}
                 style={{ width: "100%", height: "100%" }}
@@ -96,107 +84,46 @@ export function LiveShopping() {
               {/* Gradient overlay */}
               <LinearGradient
                 colors={["transparent", "rgba(0,0,0,0.8)"]}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: "50%",
-                }}
+                className="absolute left-0 right-0 bottom-0 h-1/2"
               />
 
               {/* Live badge */}
-              <View
-                style={{
-                  position: "absolute",
-                  top: 8,
-                  left: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  backgroundColor: "#FF0000",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 4,
-                }}>
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: "#fff",
-                  }}
-                />
-                <Text className="text-white text-[10px] font-bold uppercase">
+              <Badge className="absolute top-2 left-2 bg-destructive flex-row items-center gap-1 px-2 py-1">
+                <View className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                <Text className="text-primary-foreground text-[10px] font-bold uppercase">
                   Canli
                 </Text>
-              </View>
+              </Badge>
 
               {/* Viewer count */}
-              <View
-                style={{
-                  position: "absolute",
-                  top: 8,
-                  right: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  backgroundColor: "rgba(0,0,0,0.6)",
-                  paddingHorizontal: 6,
-                  paddingVertical: 3,
-                  borderRadius: 4,
-                }}>
-                <Icon as={Users} size={10} className="text-white" />
-                <Text className="text-white text-[10px] font-medium">
+              <View className="absolute top-2 right-2 flex-row items-center gap-1 bg-primary/60 px-1.5 py-1 rounded">
+                <Icon as={Users} size={10} className="text-primary-foreground" />
+                <Text className="text-primary-foreground text-[10px] font-medium">
                   {stream.viewerCount.toLocaleString()}
                 </Text>
               </View>
 
               {/* Play button */}
-              <View
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: [{ translateX: -20 }, { translateY: -20 }],
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: "rgba(255,255,255,0.9)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                <Icon as={Play} size={20} className="text-black" fill="#000" />
+              <View className="absolute top-1/2 left-1/2 -translate-x-5 -translate-y-5 w-10 h-10 rounded-full bg-primary-foreground/90 items-center justify-center">
+                <Icon as={Play} size={20} className="text-primary" fill="currentColor" />
               </View>
 
               {/* Host info */}
-              <View
-                style={{
-                  position: "absolute",
-                  bottom: 8,
-                  left: 8,
-                  right: 8,
-                }}>
-                <View className="flex-row items-center" style={{ gap: 6, marginBottom: 4 }}>
+              <View className="absolute bottom-2 left-2 right-2">
+                <View className="flex-row items-center gap-1.5 mb-1">
                   <Image
                     source={{ uri: stream.hostAvatar }}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: "#fff",
-                    }}
+                    className="w-5 h-5 rounded-full border border-primary-foreground"
                   />
-                  <Text className="text-white text-xs font-medium">
+                  <Text className="text-primary-foreground text-xs font-medium">
                     {stream.hostName}
                   </Text>
                 </View>
-                <Text className="text-white text-xs" numberOfLines={1}>
+                <Text className="text-primary-foreground text-xs" numberOfLines={1}>
                   {stream.title}
                 </Text>
               </View>
-            </View>
+            </Card>
           </Pressable>
         ))}
       </ScrollView>

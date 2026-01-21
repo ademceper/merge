@@ -1,6 +1,7 @@
 import { View, ScrollView, Dimensions, Image, TouchableOpacity, Pressable } from "react-native";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -121,12 +122,12 @@ export function BannerSlider() {
               height: BANNER_HEIGHT,
               marginRight: index < mockBanners.length - 1 ? 12 : 0,
             }}>
-            <View
+            <Card
+              className="bg-primary"
               style={{
                 width: "100%",
                 height: "100%",
                 borderRadius: 16,
-                backgroundColor: "#111118",
                 overflow: "hidden",
               }}>
               <Image
@@ -162,16 +163,16 @@ export function BannerSlider() {
                   padding: 16,
                   gap: 4,
                 }}>
-                <Text style={{ fontSize: 20, fontWeight: "700", color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <Text className="text-xl font-bold text-primary-foreground uppercase tracking-wide">
                   {banner.title}
                 </Text>
                 {banner.subtitle && (
-                  <Text style={{ fontSize: 14, fontWeight: "300", color: "rgba(255,255,255,0.8)" }}>
+                  <Text className="text-sm font-light text-primary-foreground/80">
                     {banner.subtitle}
                   </Text>
                 )}
               </View>
-            </View>
+            </Card>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -184,11 +185,11 @@ export function BannerSlider() {
             onPress={() => handleIndicatorPress(index)}
             hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
             <View
+              className={index === currentIndex ? "bg-primary" : "bg-border"}
               style={{
                 width: index === currentIndex ? 24 : 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: index === currentIndex ? "#111118" : "#E0E0E0",
               }}
             />
           </Pressable>

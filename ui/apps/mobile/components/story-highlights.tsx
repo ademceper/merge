@@ -3,21 +3,41 @@ import { Text } from "@merge/uim/components/text";
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
+import { Badge } from "@merge/uim/components/badge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
+import { useColorScheme } from "nativewind";
+
+// UIM Tailwind config'deki renkler (HSL -> computed)
+const colors = {
+  light: {
+    primary: "hsl(0, 0%, 0%)",
+    destructive: "hsl(0, 84.2%, 60.2%)",
+    border: "hsl(0, 0%, 90%)",
+  },
+  dark: {
+    primary: "hsl(0, 0%, 100%)",
+    destructive: "hsl(0, 84.2%, 60.2%)",
+    border: "hsl(0, 0%, 26%)",
+  },
+};
 
 // Segmented Circle Border Component
 function SegmentedBorder({
   segments,
   size,
   strokeWidth,
-  color,
+  variant,
 }: {
   segments: number;
   size: number;
   strokeWidth: number;
-  color: string;
+  variant: "primary" | "destructive" | "border";
 }) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const strokeColor = isDark ? colors.dark[variant] : colors.light[variant];
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const gapAngle = segments > 1 ? 8 : 0; // gap in degrees
@@ -34,7 +54,7 @@ function SegmentedBorder({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={strokeColor}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
@@ -207,45 +227,30 @@ function StoryViewer({
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: "#000" }}>
-        <Pressable onPress={handlePress} style={{ flex: 1 }}>
+      <View className="flex-1 bg-black">
+        <Pressable onPress={handlePress} className="flex-1">
           {/* Story Image */}
           <Image
             source={{ uri: currentContent?.imageUrl }}
+            className="absolute top-0 left-0"
             style={{
               width: SCREEN_WIDTH,
               height: SCREEN_HEIGHT,
-              position: "absolute",
-              top: 0,
-              left: 0,
             }}
             resizeMode="cover"
           />
 
           {/* Progress Bars */}
           <View
-            style={{
-              position: "absolute",
-              top: insets.top + 10,
-              left: 10,
-              right: 10,
-              flexDirection: "row",
-              gap: 4,
-            }}>
+            className="absolute left-2.5 right-2.5 flex-row gap-1"
+            style={{ top: insets.top + 10 }}>
             {story.contents.map((_, index) => (
               <View
                 key={index}
-                style={{
-                  flex: 1,
-                  height: 3,
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                  borderRadius: 2,
-                  overflow: "hidden",
-                }}>
+                className="flex-1 h-[3px] bg-primary-foreground/30 rounded-sm overflow-hidden">
                 <View
+                  className="h-full bg-primary-foreground rounded-sm"
                   style={{
-                    height: "100%",
-                    backgroundColor: "#fff",
                     width:
                       index < currentIndex
                         ? "100%"
@@ -260,53 +265,31 @@ function StoryViewer({
 
           {/* Header */}
           <View
-            style={{
-              position: "absolute",
-              top: insets.top + 24,
-              left: 16,
-              right: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  overflow: "hidden",
-                  borderWidth: 2,
-                  borderColor: "#fff",
-                }}>
+            className="absolute left-4 right-4 flex-row items-center justify-between"
+            style={{ top: insets.top + 24 }}>
+            <View className="flex-row items-center gap-2.5">
+              <View className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary-foreground">
                 <Image
                   source={{ uri: story.imageUrl }}
-                  style={{ width: 36, height: 36, aspectRatio: 1 }}
+                  className="w-9 h-9"
+                  style={{ aspectRatio: 1 }}
                   resizeMode="cover"
                 />
               </View>
               <View>
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                <Text className="text-primary-foreground text-sm font-semibold">
                   {story.title}
                 </Text>
                 {story.isLive && (
-                  <View
-                    style={{
-                      backgroundColor: "#FF0000",
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 4,
-                      marginTop: 2,
-                      alignSelf: "flex-start",
-                    }}>
-                    <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>CANLI</Text>
-                  </View>
+                  <Badge variant="destructive" className="mt-0.5 self-start px-1.5 py-0.5">
+                    <Text className="text-primary-foreground text-[9px] font-bold">CANLI</Text>
+                  </Badge>
                 )}
               </View>
             </View>
 
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Icon as={X} size={28} className="text-white" />
+              <Icon as={X} size={28} className="text-primary-foreground" />
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -344,7 +327,7 @@ export function StoryHighlights() {
 
   return (
     <>
-      <View style={{ paddingVertical: 12 }}>
+      <View className="py-3">
         <ScrollView
           horizontal
           nestedScrollEnabled={true}
@@ -354,66 +337,34 @@ export function StoryHighlights() {
             <Pressable
               key={story.id}
               onPress={() => handleOpenStory(index)}
-              style={{
-                alignItems: "center",
-                marginRight: index < mockStories.length - 1 ? 14 : 0,
-              }}>
-              <View
-                style={{
-                  width: 74,
-                  height: 74,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
+              className="items-center"
+              style={{ marginRight: index < mockStories.length - 1 ? 14 : 0 }}>
+              <View className="w-[74px] h-[74px] items-center justify-center">
                 {/* Segmented Border */}
                 <SegmentedBorder
                   segments={story.contents.length}
                   size={74}
                   strokeWidth={2.5}
-                  color={story.isLive ? "#FF0000" : story.isNew ? "#111118" : "#E0E0E0"}
+                  variant={story.isLive ? "destructive" : story.isNew ? "primary" : "border"}
                 />
                 {/* Story Image */}
-                <View
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    overflow: "hidden",
-                    backgroundColor: "#f0f0f0",
-                  }}>
+                <View className="w-16 h-16 rounded-full overflow-hidden bg-secondary">
                   <Image
                     source={{ uri: story.imageUrl }}
-                    style={{
-                      width: 64,
-                      height: 64,
-                      aspectRatio: 1,
-                    }}
+                    className="w-16 h-16"
+                    style={{ aspectRatio: 1 }}
                     resizeMode="cover"
                   />
                 </View>
               </View>
               {story.isLive && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 58,
-                    backgroundColor: "#FF0000",
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                    borderWidth: 2,
-                    borderColor: "#fff",
-                  }}>
-                  <Text style={{ color: "#fff", fontSize: 8, fontWeight: "700" }}>CANLI</Text>
+                <View className="absolute -bottom-1 left-1/2" style={{ transform: [{ translateX: -20 }] }}>
+                  <Badge variant="destructive" className="px-1.5 py-0.5 rounded">
+                    <Text className="text-primary-foreground text-[8px] font-bold uppercase">CANLI</Text>
+                  </Badge>
                 </View>
               )}
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "500",
-                  color: "#666",
-                  marginTop: 6,
-                }}>
+              <Text className="text-[11px] font-medium text-muted-foreground mt-1.5">
                 {story.title}
               </Text>
             </Pressable>

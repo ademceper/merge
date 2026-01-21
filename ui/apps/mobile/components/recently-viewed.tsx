@@ -1,5 +1,6 @@
 import { View, ScrollView, Pressable, Image } from "react-native";
 import { Text } from "@merge/uim/components/text";
+import { Card } from "@merge/uim/components/card";
 import { Clock } from "lucide-react-native";
 import { Icon } from "@merge/uim/components/icon";
 
@@ -47,14 +48,14 @@ export function RecentlyViewed() {
   return (
     <View className="mb-4">
       <View className="flex-row items-center justify-between px-4 mb-3">
-        <View className="flex-row items-center" style={{ gap: 8 }}>
-          <Icon as={Clock} size={18} className="text-foreground/60 dark:text-white/60" />
-          <Text className="text-lg font-bold uppercase tracking-tight text-foreground dark:text-white">
+        <View className="flex-row items-center gap-2">
+          <Icon as={Clock} size={18} className="text-muted-foreground" />
+          <Text className="text-lg font-bold uppercase tracking-tight text-foreground">
             Son Gorilenler
           </Text>
         </View>
         <Pressable>
-          <Text className="text-xs font-medium uppercase tracking-wide text-foreground/60 dark:text-white/60">
+          <Text className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Temizle
           </Text>
         </Pressable>
@@ -71,27 +72,19 @@ export function RecentlyViewed() {
             style={{
               width: 100,
             }}>
-            <View
-              style={{
-                width: 100,
-                height: 100,
-                borderRadius: 12,
-                overflow: "hidden",
-                backgroundColor: "#f5f5f5",
-                marginBottom: 8,
-              }}>
+            <Card className="w-[100px] h-[100px] rounded-xl overflow-hidden mb-2">
               <Image
                 source={{ uri: product.imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 resizeMode="cover"
               />
-            </View>
+            </Card>
             <Text
-              className="text-xs font-medium text-foreground/80 dark:text-white/80"
+              className="text-xs font-medium text-foreground/80"
               numberOfLines={1}>
               {product.name}
             </Text>
-            <Text className="text-sm font-bold text-foreground dark:text-white">
+            <Text className="text-sm font-bold text-foreground">
               {product.price.toLocaleString("tr-TR")} TL
             </Text>
           </Pressable>
