@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { useColorScheme } from "nativewind";
 
-// UIM Tailwind config'deki renkler (HSL -> computed)
 const colors = {
   light: {
     primary: "hsl(0, 0%, 0%)",
@@ -22,7 +21,6 @@ const colors = {
   },
 };
 
-// Segmented Circle Border Component
 function SegmentedBorder({
   segments,
   size,
@@ -163,7 +161,6 @@ function StoryViewer({
 
   const currentContent = story.contents[currentIndex];
 
-  // Story değiştiğinde index'i sıfırla
   useEffect(() => {
     setCurrentIndex(0);
     setProgress(0);
@@ -191,7 +188,6 @@ function StoryViewer({
           setCurrentIndex((i) => i + 1);
           setProgress(0);
         } else {
-          // Son story'nin son içeriği bitti, modalı kapat
           onNextStory();
         }
       } else {
@@ -207,7 +203,6 @@ function StoryViewer({
   const handlePress = (e: any) => {
     const x = e.nativeEvent.locationX;
     if (x < SCREEN_WIDTH / 3) {
-      // Left tap - previous
       if (currentIndex > 0) {
         setCurrentIndex((i) => i - 1);
         setProgress(0);
@@ -215,7 +210,6 @@ function StoryViewer({
         onPrevStory();
       }
     } else if (x > (SCREEN_WIDTH * 2) / 3) {
-      // Right tap - next
       if (currentIndex < story.contents.length - 1) {
         setCurrentIndex((i) => i + 1);
         setProgress(0);
@@ -229,7 +223,6 @@ function StoryViewer({
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
       <View className="flex-1 bg-black">
         <Pressable onPress={handlePress} className="flex-1">
-          {/* Story Image */}
           <Image
             source={{ uri: currentContent?.imageUrl }}
             className="absolute top-0 left-0"
@@ -240,7 +233,6 @@ function StoryViewer({
             resizeMode="cover"
           />
 
-          {/* Progress Bars */}
           <View
             className="absolute left-2.5 right-2.5 flex-row gap-1"
             style={{ top: insets.top + 10 }}>
@@ -263,7 +255,6 @@ function StoryViewer({
             ))}
           </View>
 
-          {/* Header */}
           <View
             className="absolute left-4 right-4 flex-row items-center justify-between"
             style={{ top: insets.top + 24 }}>
@@ -340,14 +331,12 @@ export function StoryHighlights() {
               className="items-center"
               style={{ marginRight: index < mockStories.length - 1 ? 14 : 0 }}>
               <View className="w-[74px] h-[74px] items-center justify-center">
-                {/* Segmented Border */}
                 <SegmentedBorder
                   segments={story.contents.length}
                   size={74}
                   strokeWidth={2.5}
                   variant={story.isLive ? "destructive" : story.isNew ? "primary" : "border"}
                 />
-                {/* Story Image */}
                 <View className="w-16 h-16 rounded-full overflow-hidden bg-secondary">
                   <Image
                     source={{ uri: story.imageUrl }}
@@ -372,7 +361,6 @@ export function StoryHighlights() {
         </ScrollView>
       </View>
 
-      {/* Story Viewer Modal */}
       {selectedStory && (
         <StoryViewer
           story={selectedStory}
